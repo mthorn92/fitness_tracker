@@ -1,10 +1,12 @@
 # Training log
 
-A mobile-first personal fitness dashboard. The website reads from a **database**. On your computer that is a local Postgres file (PGlite in `.data/`). When the app is published, Cursor provides a hosted Postgres database.
+A mobile-first personal fitness dashboard. **You log through a Grok Bot.** The website is for checking the day, not typing meals in.
 
-Your existing sample log is imported once into that database so daily calories, macros and water match the current tracker.
+The bot writes to a **database**. On your computer that is a local Postgres file (PGlite in `.data/`). When the app is published, Cursor provides a hosted Postgres database.
 
-There is still no live WHOOP connection. WHOOP rows from the sample file are imported so Recover has something to show. WHOOP credentials should live on the server later, and workouts should be deduplicated by WHOOP id.
+Your existing sample log is imported once so daily calories, macros and water match the current tracker.
+
+There is still no live WHOOP connection. WHOOP rows from the sample file are imported so Recover has something to show. A Fitness (workouts / strength) section comes later.
 
 ## Run it on your computer
 
@@ -27,48 +29,67 @@ npm run verify-import
 
 ## What you will see
 
-- **Dashboard** — remaining calories, meals, Add Food (saves to the database)
-- **Log** — food, drinks, saved meals
-- **Goals** — weight chart and Record Weight (saves to the database)
+- **Dashboard** — remaining calories and meals the bot logged
+- **Log** — food, drinks, saved meals (quiet manual add for rare corrections)
+- **Goals** — weight chart
 - **Recover** — imported recovery, sleep and workouts
 
-**DB** in the header means the screens are reading the database, not rendering the JSON file directly.
+**DB** in the header means the screens are reading the database.
 
-## How logging is supposed to work
+## How the Grok Bot logs
 
-1. You log from a Grok Bot (or from the website).
-2. The bot calls a small authenticated API.
-3. Entries are stored with unique IDs, so sending the same id again **updates** instead of duplicating.
-4. The website reads that same database.
-
-### API for the bot
+1. You tell the bot what you ate (or drank, or weighed).
+2. It `POST`s `/api/log` with a stable `id` per item.
+3. Sending the same `id` again **updates** that row instead of duplicating.
+4. The website shows the same database.
 
 All of these need either a Cursor sign-in (the published private app) or `Authorization: Bearer <LOG_API_TOKEN>`.
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/log?date=2026-11-09` | Read one day |
-| GET | `/api/log` | Read the full snapshot |
-| POST | `/api/foods` | Create or update a food (`id` optional; send the same id to correct) |
-| PATCH | `/api/foods/:id` | Correct a food |
-| DELETE | `/api/foods/:id` | Remove a food |
-| POST | `/api/water` | Create or update a drink |
-| PATCH | `/api/water/:id` | Correct a drink |
-| POST | `/api/weights` | Upsert a weigh-in for a date |
-| POST | `/api/exercises` | Log exercise (`whoop_id` unique later) |
-| GET/PUT | `/api/targets` | Read or update targets |
+| GET | `/api/log?date=2026-11-09` | Read one day (includes saved meals) |
+| POST | `/api/log` | **Main bot call** — log or correct food, water, weight, exercise for one date |
+| GET | `/api/openapi` | Machine-readable API description |
+| PATCH/DELETE | `/api/foods/:id` | Correct or remove one food |
+| POST | `/api/water` `/api/weights` `/api/exercises` | Single-item writes if you prefer |
 
-Example: log a meal, then correct it.
+Log a meal, then correct it:
 
 ```bash
-curl -X POST http://localhost:3000/api/foods \
+curl -X POST http://localhost:3000/api/log \
   -H 'content-type: application/json' \
-  -d '{"id":"food_demo_1","date":"2026-11-09","time":"19:00","item":"Greek yogurt","kcal":150,"protein_g":20,"carbs_g":8,"fat_g":4}'
+  -H 'authorization: Bearer $LOG_API_TOKEN' \
+  -d '{
+    "date": "2026-11-09",
+    "foods": [{
+      "id": "food_2026-11-09_yogurt",
+      "time": "12:30",
+      "item": "Greek yogurt",
+      "kcal": 150,
+      "protein_g": 20,
+      "carbs_g": 8,
+      "fat_g": 4
+    }]
+  }'
 
-curl -X PATCH http://localhost:3000/api/foods/food_demo_1 \
+curl -X POST http://localhost:3000/api/log \
   -H 'content-type: application/json' \
-  -d '{"kcal":160}'
+  -H 'authorization: Bearer $LOG_API_TOKEN' \
+  -d '{
+    "date": "2026-11-09",
+    "foods": [{
+      "id": "food_2026-11-09_yogurt",
+      "time": "12:30",
+      "item": "Greek yogurt",
+      "kcal": 160,
+      "protein_g": 20,
+      "carbs_g": 8,
+      "fat_g": 4
+    }]
+  }'
 ```
+
+If `saved_meal` matches a saved meal (for example `chicken rice veg meal prep`), macros fill in when you omit them.
 
 Locally, the API treats you as a simulated signed-in viewer, so curl works without a token. The published app requires a real login or `LOG_API_TOKEN`.
 
@@ -78,6 +99,7 @@ Locally, the API treats you as a simulated signed-in viewer, so curl works witho
 | --- | --- |
 | `lib/data.ts` | What the website reads |
 | `lib/store.ts` | Database reads and writes |
+| `lib/apply-log.ts` | One-call bot ingest |
 | `lib/db.ts` | Postgres or local PGlite |
 | `migrations/` | Schema |
 | `data/fitness.json` | One-time seed, only if the database is empty |
@@ -85,6 +107,7 @@ Locally, the API treats you as a simulated signed-in viewer, so curl works witho
 
 ## Not included yet
 
+- Wiring the Grok Bot’s connection to the published URL + token (test one meal first)
+- A Fitness section for sessions / strength
 - Live WHOOP sync (keep credentials on the server; dedupe by WHOOP id)
-- Switching the Grok Bot workflow over (test a meal here first)
 - Hosted backups beyond what the Cursor database provides

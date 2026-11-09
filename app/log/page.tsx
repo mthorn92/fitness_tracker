@@ -61,6 +61,7 @@ async function Log({
           <div className="mt-3 flex justify-end">
             <AddFoodButton date={day.date} />
           </div>
+          <p className="mt-1 text-right text-xs font-semibold text-muted">Rare corrections only — meals come from the Grok Bot</p>
         </section>
 
         <section className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">

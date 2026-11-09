@@ -3,7 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function AddFoodButton({ date, defaultTime = "12:00" }: { date: string; defaultTime?: string }) {
+export function AddFoodButton({
+  date,
+  defaultTime = "12:00",
+  label = "Add manually",
+}: {
+  date: string;
+  defaultTime?: string;
+  label?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,9 +47,9 @@ export function AddFoodButton({ date, defaultTime = "12:00" }: { date: string; d
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-full bg-accent px-4 py-2 text-sm font-extrabold text-white touch-manipulation"
+        className="px-3 py-2 text-sm font-bold text-muted touch-manipulation"
       >
-        Add Food
+        {label}
       </button>
     );
   }

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Fitness (sessions / strength) is a later tab. Recover already lists WHOOP workouts.
+
 const LINKS = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/log", label: "Log", icon: LogIcon },

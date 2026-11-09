@@ -22,6 +22,7 @@ async function Dashboard({
   const params = await searchParams;
   const date = typeof params.date === "string" ? params.date : undefined;
   const today = await getTodayView(date);
+  const loggedMeals = today.meals.filter((meal) => meal.foods.length > 0);
 
   return (
     <main className="flex flex-1 flex-col pb-28">
@@ -52,11 +53,19 @@ async function Dashboard({
           </Link>
         ) : null}
 
-        {today.meals.map((meal) => (
-          <MealCard key={meal.name} meal={meal} date={today.date} />
-        ))}
+        {loggedMeals.length === 0 ? (
+          <section className="rounded-[1.6rem] bg-surface px-5 py-8 text-center shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+            <p className="text-base font-extrabold">Nothing logged yet</p>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Tell your Grok Bot what you ate. This screen is for checking the day, not typing meals in.
+            </p>
+          </section>
+        ) : (
+          loggedMeals.map((meal) => <MealCard key={meal.name} meal={meal} />)
+        )}
 
-        <p className="px-1 pb-2 text-center text-sm font-semibold text-muted">{today.fasting}</p>
+        <p className="px-1 text-center text-sm font-semibold text-muted">{today.fasting}</p>
+        <p className="px-1 pb-2 text-center text-xs font-semibold text-muted">Logged by Grok Bot</p>
       </div>
     </main>
   );

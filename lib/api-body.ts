@@ -44,3 +44,22 @@ export function asId(value: unknown): string | null {
   const text = asString(value, 80);
   return text && /^[a-zA-Z0-9._-]+$/.test(text) ? text : null;
 }
+
+export function asArray(value: unknown, max = 40): unknown[] | null {
+  if (!Array.isArray(value)) return null;
+  if (value.length > max) return null;
+  return value;
+}
+
+export function parseIdList(value: unknown, max = 40): string[] | null {
+  if (value == null) return [];
+  const items = asArray(value, max);
+  if (!items) return null;
+  const ids: string[] = [];
+  for (const item of items) {
+    const id = asId(item);
+    if (!id) return null;
+    ids.push(id);
+  }
+  return ids;
+}
