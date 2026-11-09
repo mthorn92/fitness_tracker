@@ -12,6 +12,7 @@ type FoodRow = {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  meal: string | null;
   saved_meal: string | null;
 };
 
@@ -36,6 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     protein_g: asNumber(body.protein_g) ?? Number(row.protein_g),
     carbs_g: asNumber(body.carbs_g) ?? Number(row.carbs_g),
     fat_g: asNumber(body.fat_g) ?? Number(row.fat_g),
+    meal: asString(body.meal, 40) ?? row.meal,
     saved_meal: asString(body.saved_meal, 120) ?? row.saved_meal,
   });
   return json(saved);

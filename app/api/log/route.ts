@@ -1,5 +1,6 @@
 import {
   asArray,
+  asBoolean,
   asDate,
   asId,
   asNumber,
@@ -9,7 +10,7 @@ import {
   parseIdList,
 } from "@/lib/api-body";
 import { applyDayLog, type DayWrite } from "@/lib/apply-log";
-import type { ExerciseInput, FoodInput, WaterInput } from "@/lib/store";
+import type { DayWhoopInput, ExerciseInput, FoodInput, SavedMealInput, WaterInput } from "@/lib/store";
 import { json, requireLogAccess } from "@/lib/auth";
 import { loadSnapshot } from "@/lib/store";
 
@@ -46,6 +47,10 @@ export async function POST(request: Request) {
   if (water === "invalid") return json({ error: "invalid_water" }, 400);
   const exercises = parseExercises(body.exercises, date);
   if (exercises === "invalid") return json({ error: "invalid_exercises" }, 400);
+  const savedMeals = parseSavedMeals(body.saved_meals);
+  if (savedMeals === "invalid") return json({ error: "invalid_saved_meals" }, 400);
+  const whoop = parseWhoop(body.whoop);
+  if (whoop === "invalid") return json({ error: "invalid_whoop" }, 400);
 
   const deletes = asObject(body.delete) ?? {};
   const deleteFoods = parseIdList(deletes.foods);
@@ -55,7 +60,13 @@ export async function POST(request: Request) {
     return json({ error: "invalid_delete" }, 400);
   }
 
-  const write: DayWrite = { date, foods, water, exercises };
+  const write: DayWrite = { date, foods, water, exercises, saved_meals: savedMeals };
+  if (whoop) write.whoop = whoop;
+  if ("complete" in body) {
+    const complete = asBoolean(body.complete);
+    if (complete == null) return json({ error: "invalid_complete" }, 400);
+    write.complete = complete;
+  }
   if ("weight_kg" in body) {
     const kg = asNumber(body.weight_kg);
     if (kg == null) return json({ error: "invalid_weight" }, 400);
@@ -74,7 +85,9 @@ export async function POST(request: Request) {
   }
 
   const saved = await applyDayLog(write);
-  return json(saved, foods.length || water.length || exercises.length ? 201 : 200);
+  const created =
+    foods.length || water.length || exercises.length || savedMeals.length || whoop != null;
+  return json(saved, created ? 201 : 200);
 }
 
 function parseFoods(value: unknown, date: string): FoodInput[] | "invalid" {
@@ -100,6 +113,7 @@ function parseFoods(value: unknown, date: string): FoodInput[] | "invalid" {
       protein_g: asNumber(row.protein_g) ?? 0,
       carbs_g: asNumber(row.carbs_g) ?? 0,
       fat_g: asNumber(row.fat_g) ?? 0,
+      meal: asString(row.meal, 40),
       saved_meal: savedMeal,
     });
   }
@@ -148,7 +162,66 @@ function parseExercises(value: unknown, date: string): ExerciseInput[] | "invali
       duration_min: asNumber(row.duration_min),
       kcal: asNumber(row.kcal) ?? 0,
       whoop_id: asString(row.whoop_id, 80),
+      strain: asNumber(row.strain),
+      avg_hr: asNumber(row.avg_hr),
+      source: asString(row.source, 80),
     });
   }
   return exercises;
+}
+
+function parseSavedMeals(value: unknown): SavedMealInput[] | "invalid" {
+  if (value == null) return [];
+  const items = asArray(value);
+  if (!items) return "invalid";
+  const meals: SavedMealInput[] = [];
+  for (const item of items) {
+    const row = asObject(item);
+    if (!row) return "invalid";
+    const name = asString(row.name, 120);
+    const kcal = asNumber(row.kcal);
+    if (!name || kcal == null) return "invalid";
+    meals.push({
+      name,
+      kcal,
+      protein_g: asNumber(row.protein_g) ?? 0,
+      carbs_g: asNumber(row.carbs_g) ?? 0,
+      fat_g: asNumber(row.fat_g) ?? 0,
+      serve: asString(row.serve, 120),
+      recipe: asString(row.recipe, 2000),
+    });
+  }
+  return meals;
+}
+
+function parseWhoop(value: unknown): DayWhoopInput | null | "invalid" {
+  if (value == null) return null;
+  const row = asObject(value);
+  if (!row) return "invalid";
+  const recovery_score = asNumber(row.recovery_score);
+  const hrv_rmssd_milli = asNumber(row.hrv_rmssd_milli);
+  const resting_heart_rate = asNumber(row.resting_heart_rate);
+  const sleep_hours = asNumber(row.sleep_hours);
+  const strain = asNumber(row.strain);
+  const kcal = asNumber(row.kcal);
+  if (
+    recovery_score == null ||
+    hrv_rmssd_milli == null ||
+    resting_heart_rate == null ||
+    sleep_hours == null ||
+    strain == null ||
+    kcal == null
+  ) {
+    return "invalid";
+  }
+  return {
+    cycle_id: asNumber(row.cycle_id),
+    recovery_score,
+    hrv_rmssd_milli,
+    resting_heart_rate,
+    sleep_hours,
+    strain,
+    kcal,
+    step_count: asNumber(row.step_count),
+  };
 }

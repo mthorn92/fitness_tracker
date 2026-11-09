@@ -43,13 +43,41 @@ async function Dashboard({
           <Link href="/recovery" className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-muted">Recovery</p>
-                <p className="mt-0.5 text-lg font-extrabold">{formatNumber(today.recovery.score, 0)}</p>
+                <p className="text-sm font-semibold text-muted">WHOOP</p>
+                <p className="mt-0.5 text-lg font-extrabold">
+                  {formatNumber(today.recovery.score, 0)}% recovery
+                </p>
               </div>
-              <p className="text-sm font-semibold text-muted">
-                Sleep {formatHours(today.recovery.sleepHours)} · {formatNumber(today.recovery.steps)} steps
-              </p>
+              {today.complete ? (
+                <p className="text-xs font-bold uppercase tracking-wide text-accent">Complete</p>
+              ) : null}
             </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <dt className="font-semibold text-muted">HRV</dt>
+                <dd className="font-bold">{formatNumber(today.recovery.hrv, 0)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="font-semibold text-muted">Resting HR</dt>
+                <dd className="font-bold">{formatNumber(today.recovery.rhr, 0)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="font-semibold text-muted">Sleep</dt>
+                <dd className="font-bold">{formatHours(today.recovery.sleepHours)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="font-semibold text-muted">Strain</dt>
+                <dd className="font-bold">{formatNumber(today.recovery.strain, 1)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="font-semibold text-muted">Burn</dt>
+                <dd className="font-bold">{formatNumber(today.recovery.kcal, 0)} kcal</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="font-semibold text-muted">Steps</dt>
+                <dd className="font-bold">{formatNumber(today.recovery.steps)}</dd>
+              </div>
+            </dl>
           </Link>
         ) : null}
 
