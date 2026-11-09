@@ -1,16 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0c0f0d;
-  --foreground: #e7ebe6;
-  --surface: #151a17;
-  --surface-2: #1c2320;
-  --muted: #8b948c;
-  --line: rgba(231, 235, 230, 0.1);
-  --accent: #c6e05c;
-  --accent-ink: #1b240c;
-  --warn: #e4a35a;
-  --low: #d37a66;
+  --background: #f3f3f5;
+  --foreground: #1c1c1e;
+  --surface: #ffffff;
+  --surface-2: #f6f6f8;
+  --muted: #8e8e93;
+  --line: #ececee;
+  --accent: #f0983a;
+  --accent-ink: #ffffff;
+  --header: #ee9a3a;
+  --header-2: #f4b45c;
+  --pill: #f6d7a4;
+  --pill-ink: #5c3b12;
+  --go: #2fae4a;
+  --warn: #e8892e;
+  --low: #e25b4a;
 }
 
 @theme inline {
@@ -22,10 +27,14 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-header: var(--header);
+  --color-header-2: var(--header-2);
+  --color-pill: var(--pill);
+  --color-pill-ink: var(--pill-ink);
+  --color-go: var(--go);
   --color-warn: var(--warn);
   --color-low: var(--low);
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-display);
+  --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -36,16 +45,15 @@ html {
 
 body {
   min-height: 100dvh;
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  background:
-    radial-gradient(1200px 500px at 50% -10%, rgba(198, 224, 92, 0.08), transparent 55%),
-    var(--background);
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  background: var(--background);
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-.font-display {
-  font-family: var(--font-display), ui-serif, Georgia, serif;
+.header-wave {
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--header-2), var(--header) 58%);
 }

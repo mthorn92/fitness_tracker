@@ -31,6 +31,20 @@ export function formatWeekday(isoDate: string): string {
   return WEEKDAY_FORMATTER.format(parseIsoDate(isoDate));
 }
 
+export function formatDatePill(isoDate: string): string {
+  const date = parseIsoDate(isoDate);
+  const weekday = new Intl.DateTimeFormat("en-AU", { weekday: "short", timeZone: "UTC" }).format(date);
+  const day = new Intl.DateTimeFormat("en-AU", { day: "numeric", timeZone: "UTC" }).format(date);
+  const month = new Intl.DateTimeFormat("en-AU", { month: "short", timeZone: "UTC" }).format(date);
+  return `${weekday}, ${day} ${month}`;
+}
+
+export function shiftIsoDate(isoDate: string, days: number): string {
+  const date = parseIsoDate(isoDate);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export function formatTime(hhmm: string): string {
   const [hours, minutes] = hhmm.split(":").map(Number);
   const period = hours >= 12 ? "pm" : "am";

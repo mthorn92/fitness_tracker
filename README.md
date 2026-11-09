@@ -27,12 +27,14 @@ npm start
 
 ## What you will see
 
-- **Today** — weight, recovery snapshot, calories, macros, water, and food so far
-- **Log** — the day's food, drinks, and saved meals
-- **Recover** — recovery, sleep, recent days, and workouts from the sample file
-- **Body** — start / current / goal weight and daily targets
+The screens take cues from Lose It! (light cards, orange header, calorie ring, meal sections, goals chart) without copying ads or inventing extra numbers.
 
-The green **Sample data** chip is a reminder that this is not a live backend.
+- **Dashboard** — remaining calories, food vs exercise, protein/carbs/fat, meals with Add Food
+- **Log** — the day's food, drinks, and saved meals
+- **Goals** — weight chart toward 95 kg, journey bar, daily targets
+- **Recover** — recovery, sleep, recent days, and workouts from the sample file
+
+**Sample** in the top-right is a reminder this is not a live backend. **Add Food** and **Record Weight** explain that saving is not wired yet.
 
 ## Where the data comes from
 
@@ -59,10 +61,10 @@ To try your own numbers, edit `data/fitness.json` and refresh the browser.
 | Path | What it is |
 | --- | --- |
 | `app/` | Pages. Each folder is a screen. |
-| `app/page.tsx` | Today |
+| `app/page.tsx` | Dashboard |
 | `app/log/page.tsx` | Food and water log |
 | `app/recovery/page.tsx` | Recovery, sleep, workouts |
-| `app/body/page.tsx` | Weight and targets |
+| `app/body/page.tsx` | Goals (weight and targets) |
 | `components/` | Reusable UI pieces |
 | `lib/data.ts` | **Only place that reads data** |
 | `lib/types.ts` | TypeScript shapes for that data |

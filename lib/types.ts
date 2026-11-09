@@ -144,6 +144,33 @@ export type ProgressMetric = {
   percent: number;
 };
 
+export type MealName =
+  | "Breakfast"
+  | "Morning Snacks"
+  | "Lunch"
+  | "Afternoon Snacks"
+  | "Dinner"
+  | "Evening Snacks";
+
+export type MealGroup = {
+  name: MealName;
+  foods: FoodItem[];
+  kcal: number;
+};
+
+export type DateNav = {
+  date: string;
+  label: string;
+  prevDate: string | null;
+  nextDate: string | null;
+};
+
+export type WeightPoint = {
+  date: string;
+  label: string;
+  kg: number;
+};
+
 export type TodayView = {
   date: string;
   dateLabel: string;
@@ -163,6 +190,12 @@ export type TodayView = {
   fasting: string;
   foods: FoodItem[];
   waterEntries: WaterEntry[];
+  meals: MealGroup[];
+  dateNav: DateNav;
+  foodKcal: number;
+  exerciseKcal: number;
+  remainingKcal: number;
+  underBudget: boolean;
   recovery: {
     score: number;
     hrv: number;
@@ -219,6 +252,7 @@ export type SavedMealView = {
 export type BodyView = {
   startDate: string;
   startDateLabel: string;
+  currentDateLabel: string;
   startWeightKg: number;
   currentWeightKg: number | null;
   goalWeightKg: number;
@@ -226,4 +260,5 @@ export type BodyView = {
   kgToGoal: number | null;
   weightProgressPct: number;
   targets: NutritionTargets;
+  points: WeightPoint[];
 };

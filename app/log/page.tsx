@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { FoodList } from "@/components/FoodList";
-import { MetricRow } from "@/components/MetricRow";
-import { SampleNote } from "@/components/SampleNote";
-import { Section } from "@/components/Section";
+import { Suspense } from "react";
+import { ComingSoonButton } from "@/components/ComingSoonButton";
+import { OrangeHeader } from "@/components/OrangeHeader";
 import { getLogView, getSavedMeals } from "@/lib/data";
 import { formatNumber, formatTime } from "@/lib/format";
 
@@ -10,94 +9,110 @@ export const metadata: Metadata = {
   title: "Log",
 };
 
-export default async function LogPage() {
-  const [day, meals] = await Promise.all([getLogView(), getSavedMeals()]);
+export default function LogPage({ searchParams }: PageProps<"/log">) {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-header" />}>
+      <Log searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function Log({
+  searchParams,
+}: {
+  searchParams: PageProps<"/log">["searchParams"];
+}) {
+  const params = await searchParams;
+  const date = typeof params.date === "string" ? params.date : undefined;
+  const [day, meals] = await Promise.all([getLogView(date), getSavedMeals()]);
 
   return (
-    <main className="flex flex-1 flex-col gap-8">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted">{day.dateLabel}</p>
-          <h1 className="font-display mt-1 text-4xl tracking-tight">Log</h1>
-        </div>
-        <SampleNote />
-      </header>
+    <main className="flex flex-1 flex-col pb-28">
+      <OrangeHeader dateNav={day.dateNav} dateBasePath="/log" />
+      <div className="-mt-10 flex flex-col gap-3 px-4">
+        <section className="grid grid-cols-2 gap-3">
+          <SummaryCard label="Calories" value={formatNumber(day.foodKcal)} hint={`/ ${formatNumber(day.calories.target)}`} />
+          <SummaryCard
+            label="Water"
+            value={`${formatNumber(day.water.current, 1)} L`}
+            hint={`/ ${formatNumber(day.water.target, 1)} L`}
+          />
+        </section>
 
-      <section className="grid grid-cols-2 gap-3">
-        <SummaryCard label="Calories" value={formatNumber(day.calories.current)} hint={`/ ${formatNumber(day.calories.target)}`} />
-        <SummaryCard label="Water" value={`${formatNumber(day.water.current, 1)} L`} hint={`/ ${formatNumber(day.water.target, 1)} L`} />
-      </section>
+        <section className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+          <h2 className="text-lg font-extrabold">Food</h2>
+          {day.foods.length === 0 ? (
+            <p className="py-6 text-center text-sm font-semibold text-muted">No food logged this day.</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-line">
+              {day.foods.map((food, index) => (
+                <li key={`${food.time}-${food.item}-${index}`} className="flex items-start justify-between gap-3 py-3">
+                  <div>
+                    <p className="text-sm font-semibold leading-5">{food.item}</p>
+                    <p className="mt-1 text-xs font-semibold text-muted">
+                      {formatTime(food.time)} · P {formatNumber(food.protein_g, 0)} · C {formatNumber(food.carbs_g, 0)} · F {formatNumber(food.fat_g, 0)}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold">{formatNumber(food.kcal)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-3 flex justify-end">
+            <ComingSoonButton label="Add Food" />
+          </div>
+        </section>
 
-      <Section title="Macros">
-        <div className="space-y-5 rounded-3xl border border-line bg-surface p-5">
-          <MetricRow label="Protein" metric={day.protein} unit="g" digits={1} />
-          <MetricRow label="Carbs" metric={day.carbs} unit="g" digits={1} />
-          <MetricRow label="Fat" metric={day.fat} unit="g" digits={1} />
-        </div>
-      </Section>
+        <section className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+          <h2 className="text-lg font-extrabold">Water</h2>
+          {day.waterEntries.length === 0 ? (
+            <p className="py-6 text-center text-sm font-semibold text-muted">No drinks logged this day.</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-line">
+              {day.waterEntries.map((entry, index) => (
+                <li key={`${entry.time}-${entry.item}-${index}`} className="flex items-start justify-between gap-3 py-3">
+                  <div>
+                    <p className="text-sm font-semibold leading-5">{entry.item}</p>
+                    <p className="mt-1 text-xs font-semibold text-muted">
+                      {formatTime(entry.time)}
+                      {entry.estimated ? " · Estimated" : ""}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold">{formatNumber(entry.litres, 2)} L</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <Section title="Food">
-        <FoodList foods={day.foods} />
-      </Section>
-
-      <Section title="Water">
-        {day.waterEntries.length === 0 ? (
-          <p className="rounded-3xl border border-line bg-surface px-4 py-8 text-center text-sm text-muted">
-            No drinks logged yet.
-          </p>
-        ) : (
-          <ul className="overflow-hidden rounded-3xl border border-line bg-surface">
-            {day.waterEntries.map((entry, index) => (
-              <li
-                key={`${entry.time}-${entry.item}-${index}`}
-                className="grid grid-cols-[4.25rem_1fr_auto] items-start gap-3 border-b border-line px-4 py-3.5 last:border-b-0"
-              >
-                <p className="pt-0.5 text-xs tabular-nums text-muted">{formatTime(entry.time)}</p>
-                <div>
-                  <p className="text-sm leading-5">{entry.item}</p>
-                  {entry.estimated ? (
-                    <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-muted">Estimated</p>
-                  ) : null}
+        <section className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+          <h2 className="text-lg font-extrabold">Saved meals</h2>
+          <ul className="mt-3 space-y-4">
+            {meals.map((meal) => (
+              <li key={meal.name}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-extrabold capitalize">{meal.name}</p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">{meal.serve}</p>
+                  </div>
+                  <p className="text-sm font-bold">{formatNumber(meal.kcal)} kcal</p>
                 </div>
-                <p className="pt-0.5 text-sm tabular-nums">
-                  {formatNumber(entry.litres, 2)}
-                  <span className="ml-1 text-[11px] text-muted">L</span>
-                </p>
+                <p className="mt-2 text-sm leading-6 text-muted">{meal.recipe}</p>
               </li>
             ))}
           </ul>
-        )}
-      </Section>
-
-      <Section title="Saved meals">
-        <ul className="space-y-3">
-          {meals.map((meal) => (
-            <li key={meal.name} className="rounded-3xl border border-line bg-surface p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium capitalize">{meal.name}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.12em] text-muted">{meal.serve}</p>
-                </div>
-                <p className="text-sm tabular-nums">{formatNumber(meal.kcal)} kcal</p>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-muted">{meal.recipe}</p>
-              <p className="mt-3 text-[11px] uppercase tracking-[0.12em] text-muted">
-                P {formatNumber(meal.protein_g)} · C {formatNumber(meal.carbs_g)} · F {formatNumber(meal.fat_g)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+        </section>
+      </div>
     </main>
   );
 }
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-3xl border border-line bg-surface px-4 py-4">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
-      <p className="font-display mt-2 text-3xl tracking-tight">{value}</p>
-      <p className="mt-1 text-xs text-muted">{hint}</p>
+    <div className="rounded-[1.6rem] bg-surface px-4 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+      <p className="text-sm font-semibold text-muted">{label}</p>
+      <p className="mt-1 text-3xl font-black">{value}</p>
+      <p className="mt-1 text-xs font-semibold text-muted">{hint}</p>
     </div>
   );
 }

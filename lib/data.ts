@@ -7,21 +7,35 @@
 import sampleData from "@/data/fitness.json";
 import {
   formatDateLabel,
+  formatDatePill,
   formatShortDate,
   formatSport,
   formatWeekday,
+  shiftIsoDate,
 } from "@/lib/format";
 import type {
   BodyView,
+  DateNav,
   DayLog,
   FitnessSnapshot,
   FoodItem,
+  MealGroup,
+  MealName,
   ProgressMetric,
   RecoveryDay,
   SavedMealView,
   TodayView,
   WorkoutView,
 } from "@/lib/types";
+
+const MEAL_ORDER: MealName[] = [
+  "Breakfast",
+  "Morning Snacks",
+  "Lunch",
+  "Afternoon Snacks",
+  "Dinner",
+  "Evening Snacks",
+];
 
 function readSampleData(): FitnessSnapshot {
   return sampleData as FitnessSnapshot;
@@ -56,13 +70,71 @@ function sumFoods(foods: FoodItem[]) {
   );
 }
 
-function sortedDates(days: Record<string, DayLog>): string[] {
-  return Object.keys(days).sort();
+function dataDateRange(data: FitnessSnapshot): { min: string; max: string } {
+  const dates = [
+    data.start_date,
+    ...Object.keys(data.days),
+    ...data.whoop.cycles.map((item) => item.waking_date),
+    ...data.whoop.recovery.map((item) => item.waking_date),
+    ...data.whoop.sleep.map((item) => item.waking_date),
+    ...data.whoop.workouts.map((item) => item.date),
+  ].sort();
+  return { min: dates[0], max: dates[dates.length - 1] };
 }
 
 function latestLoggedDate(data: FitnessSnapshot): string {
-  const dates = sortedDates(data.days);
+  const dates = Object.keys(data.days).sort();
   return dates[dates.length - 1] ?? data.start_date;
+}
+
+function resolveDate(data: FitnessSnapshot, requested?: string): string {
+  const { min, max } = dataDateRange(data);
+  if (requested && requested >= min && requested <= max) return requested;
+  return latestLoggedDate(data);
+}
+
+function dateNavFor(data: FitnessSnapshot, date: string): DateNav {
+  const { min, max } = dataDateRange(data);
+  const prev = shiftIsoDate(date, -1);
+  const next = shiftIsoDate(date, 1);
+  return {
+    date,
+    label: formatDatePill(date),
+    prevDate: prev >= min ? prev : null,
+    nextDate: next <= max ? next : null,
+  };
+}
+
+function mealNameForTime(hhmm: string): MealName {
+  const hour = Number(hhmm.slice(0, 2));
+  if (hour < 10) return "Breakfast";
+  if (hour < 12) return "Morning Snacks";
+  if (hour < 15) return "Lunch";
+  if (hour < 17) return "Afternoon Snacks";
+  if (hour < 21) return "Dinner";
+  return "Evening Snacks";
+}
+
+function groupMeals(foods: FoodItem[]): MealGroup[] {
+  const buckets = new Map<MealName, FoodItem[]>();
+  for (const name of MEAL_ORDER) buckets.set(name, []);
+  for (const food of foods) {
+    buckets.get(mealNameForTime(food.time))?.push(food);
+  }
+  return MEAL_ORDER.map((name) => {
+    const items = buckets.get(name) ?? [];
+    return {
+      name,
+      foods: items,
+      kcal: items.reduce((sum, food) => sum + food.kcal, 0),
+    };
+  });
+}
+
+function exerciseKcalForDate(data: FitnessSnapshot, date: string): number {
+  return data.whoop.workouts
+    .filter((workout) => workout.date === date)
+    .reduce((sum, workout) => sum + workout.kcal, 0);
 }
 
 function weightProgress(start: number, current: number | null, goal: number) {
@@ -77,12 +149,33 @@ function weightProgress(start: number, current: number | null, goal: number) {
   return { kgLost, kgToGoal, weightProgressPct };
 }
 
-export async function getTodayView(): Promise<TodayView> {
+function recoveryForDate(data: FitnessSnapshot, date: string, day?: DayLog) {
+  const logged = day?.whoop;
+  const recovery = data.whoop.recovery.find((item) => item.waking_date === date);
+  const sleep = data.whoop.sleep.find((item) => item.waking_date === date);
+  const cycle = data.whoop.cycles.find((item) => item.waking_date === date);
+  const score = recovery?.recovery_score ?? logged?.recovery_score;
+  if (score == null && !logged) return null;
+  return {
+    score: score ?? 0,
+    hrv: recovery?.hrv_rmssd_milli ?? logged?.hrv_rmssd_milli ?? 0,
+    rhr: recovery?.resting_heart_rate ?? logged?.resting_heart_rate ?? 0,
+    sleepHours: sleep?.asleep_hours ?? logged?.sleep_hours ?? 0,
+    strain: cycle?.strain ?? logged?.strain ?? 0,
+    steps: cycle?.step_count ?? logged?.step_count ?? 0,
+    kcal: cycle?.kcal ?? logged?.kcal ?? 0,
+  };
+}
+
+export async function getTodayView(date?: string): Promise<TodayView> {
   const data = await getFitnessData();
-  const date = latestLoggedDate(data);
-  const day = data.days[date];
+  const selected = resolveDate(data, date);
+  const day = data.days[selected];
   const foods = day?.foods ?? [];
   const eaten = sumFoods(foods);
+  const foodKcal = eaten.kcal || day?.calories_kcal || 0;
+  const exerciseKcal = exerciseKcalForDate(data, selected);
+  const remainingKcal = data.targets.calories_kcal - foodKcal + exerciseKcal;
   const waterLitres =
     day?.water_l ??
     (day?.water_entries ?? []).reduce((sum, entry) => sum + entry.litres, 0);
@@ -93,9 +186,9 @@ export async function getTodayView(): Promise<TodayView> {
   );
 
   return {
-    date,
-    dateLabel: formatDateLabel(date),
-    weekday: formatWeekday(date),
+    date: selected,
+    dateLabel: formatDateLabel(selected),
+    weekday: formatWeekday(selected),
     notes: day?.notes ?? null,
     weightKg: day?.weight_kg ?? null,
     goalWeightKg: data.goal_weight_kg,
@@ -103,7 +196,7 @@ export async function getTodayView(): Promise<TodayView> {
     kgLost,
     kgToGoal,
     weightProgressPct,
-    calories: metric(eaten.kcal || day?.calories_kcal || 0, data.targets.calories_kcal),
+    calories: metric(foodKcal, data.targets.calories_kcal),
     protein: metric(eaten.protein_g, data.targets.protein_g),
     carbs: metric(eaten.carbs_g, data.targets.carbs_g),
     fat: metric(eaten.fat_g, data.targets.fat_g),
@@ -111,22 +204,18 @@ export async function getTodayView(): Promise<TodayView> {
     fasting: data.targets.fasting,
     foods,
     waterEntries: day?.water_entries ?? [],
-    recovery: day?.whoop
-      ? {
-          score: day.whoop.recovery_score,
-          hrv: day.whoop.hrv_rmssd_milli,
-          rhr: day.whoop.resting_heart_rate,
-          sleepHours: day.whoop.sleep_hours,
-          strain: day.whoop.strain,
-          steps: day.whoop.step_count,
-          kcal: day.whoop.kcal,
-        }
-      : null,
+    meals: groupMeals(foods),
+    dateNav: dateNavFor(data, selected),
+    foodKcal,
+    exerciseKcal,
+    remainingKcal,
+    underBudget: remainingKcal >= 0,
+    recovery: recoveryForDate(data, selected, day),
   };
 }
 
-export async function getLogView(): Promise<TodayView> {
-  return getTodayView();
+export async function getLogView(date?: string): Promise<TodayView> {
+  return getTodayView(date);
 }
 
 export async function getSavedMeals(): Promise<SavedMealView[]> {
@@ -152,9 +241,27 @@ export async function getBodyView(): Promise<BodyView> {
     data.goal_weight_kg,
   );
 
+  const points = [
+    {
+      date: data.start_date,
+      label: formatShortDate(data.start_date),
+      kg: data.start_weight_kg,
+    },
+  ];
+  for (const [day, log] of Object.entries(data.days).sort(([a], [b]) => a.localeCompare(b))) {
+    if (log.weight_kg == null) continue;
+    if (day === data.start_date && log.weight_kg === data.start_weight_kg) continue;
+    points.push({
+      date: day,
+      label: formatShortDate(day),
+      kg: log.weight_kg,
+    });
+  }
+
   return {
     startDate: data.start_date,
     startDateLabel: formatDateLabel(data.start_date),
+    currentDateLabel: formatDatePill(date),
     startWeightKg: data.start_weight_kg,
     currentWeightKg,
     goalWeightKg: data.goal_weight_kg,
@@ -162,6 +269,7 @@ export async function getBodyView(): Promise<BodyView> {
     kgToGoal,
     weightProgressPct,
     targets: data.targets,
+    points,
   };
 }
 

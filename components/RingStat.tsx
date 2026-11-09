@@ -3,13 +3,14 @@ type RingStatProps = {
   max: number;
   label: string;
   display: string;
-  tone?: "accent" | "warn" | "low";
+  tone?: "accent" | "warn" | "low" | "go";
 };
 
 const STROKE = {
   accent: "stroke-accent",
   warn: "stroke-warn",
   low: "stroke-low",
+  go: "stroke-go",
 };
 
 export function RingStat({
@@ -51,7 +52,7 @@ export function RingStat({
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
         <div>
-          <p className="font-display text-2xl leading-none tracking-tight">{display}</p>
+          <p className="text-2xl font-black leading-none tracking-tight">{display}</p>
           <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
         </div>
       </div>
