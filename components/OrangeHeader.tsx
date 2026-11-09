@@ -14,7 +14,7 @@ export function OrangeHeader({ title, dateNav, dateBasePath = "/" }: OrangeHeade
       <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-2">
         <Link
           href="/body"
-          aria-label="Goals"
+          aria-label="Charts"
           className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white"
         >
           <ScaleIcon />

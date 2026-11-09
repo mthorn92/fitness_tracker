@@ -2,94 +2,123 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { OrangeHeader } from "@/components/OrangeHeader";
 import { RecordWeightButton } from "@/components/RecordWeightButton";
-import { WeightChart } from "@/components/WeightChart";
-import { getBodyView } from "@/lib/data";
-import { formatKg, formatNumber } from "@/lib/format";
+import { TrendChart } from "@/components/TrendChart";
+import { getChartsView } from "@/lib/data";
+import { formatNumber } from "@/lib/format";
 
 export const metadata: Metadata = {
-  title: "Goals",
+  title: "Charts",
 };
 
-export default function BodyPage() {
+export default function ChartsPage() {
   return (
     <Suspense fallback={<div className="min-h-dvh bg-header" />}>
-      <Body />
+      <Charts />
     </Suspense>
   );
 }
 
-async function Body() {
-  const body = await getBodyView();
+async function Charts() {
+  const charts = await getChartsView();
+  const latestWeight = charts.weight[charts.weight.length - 1];
+  const latestCalories = charts.calories[charts.calories.length - 1];
 
   return (
     <main className="flex flex-1 flex-col pb-28">
-      <OrangeHeader title="Goals" />
+      <OrangeHeader title="Charts" />
       <div className="-mt-10 flex flex-col gap-3 px-4">
         <section className="rounded-[1.6rem] bg-surface px-5 py-5 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
-          <h2 className="text-xl font-black">Goal {formatKg(body.goalWeightKg)}</h2>
-          <p className="mt-1 text-sm font-semibold text-muted">
-            {body.kgToGoal === null
-              ? "Log a weigh-in to see progress"
-              : `${formatNumber(Math.max(0, body.kgToGoal), 1)} kg to go`}
-          </p>
-          <div className="mt-4">
-            <WeightChart points={body.points} goalKg={body.goalWeightKg} />
-          </div>
-          <div className="mt-2 flex items-end justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-muted">Today</p>
-              <p className="text-3xl font-black">
-                {body.currentWeightKg === null ? "—" : formatNumber(body.currentWeightKg, 1)}
-                <span className="ml-1 text-base font-bold text-muted">kgs</span>
+              <h2 className="text-xl font-black">Weight</h2>
+              <p className="mt-1 text-sm font-semibold text-muted">
+                Daily weigh-ins and 7-day average
               </p>
             </div>
-            <RecordWeightButton date={body.currentDate} currentKg={body.currentWeightKg} />
+            <RecordWeightButton date={charts.currentDate} currentKg={charts.currentWeightKg} />
           </div>
+
+          <div className="mt-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Latest</p>
+              <p className="text-3xl font-black">
+                {charts.currentWeightKg == null ? "—" : formatNumber(charts.currentWeightKg, 1)}
+                <span className="ml-1 text-base font-bold text-muted">kg</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">7dma</p>
+              <p className="text-lg font-extrabold">
+                {latestWeight ? formatNumber(latestWeight.avg7d, 1) : "—"}
+                <span className="ml-1 text-sm font-bold text-muted">kg</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-2">
+            <TrendChart
+              points={charts.weight}
+              ariaLabel="Weight trend with seven day moving average"
+              valueDigits={1}
+              reference={charts.goalWeightKg}
+            />
+          </div>
+          <ChartLegend unit="kg" />
         </section>
 
         <section className="rounded-[1.6rem] bg-surface px-5 py-5 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-extrabold">Journey</h2>
-            <p className="text-sm font-bold text-muted">
-              {formatNumber(body.weightProgressPct, 0)}% of the way
+          <div>
+            <h2 className="text-xl font-black">Calories</h2>
+            <p className="mt-1 text-sm font-semibold text-muted">
+              Daily food calories and 7-day average
             </p>
           </div>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Started {body.startDateLabel} at {formatKg(body.startWeightKg)}. The chart grows as new weigh-ins are saved.
-          </p>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-line">
-            <div
-              className="h-full rounded-full bg-accent"
-              style={{ width: `${body.weightProgressPct}%` }}
+
+          <div className="mt-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Latest</p>
+              <p className="text-3xl font-black">
+                {charts.latestCaloriesKcal == null ? "—" : formatNumber(charts.latestCaloriesKcal)}
+                <span className="ml-1 text-base font-bold text-muted">kcal</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">7dma</p>
+              <p className="text-lg font-extrabold">
+                {latestCalories ? formatNumber(Math.round(latestCalories.avg7d)) : "—"}
+                <span className="ml-1 text-sm font-bold text-muted">kcal</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-2">
+            <TrendChart
+              points={charts.calories}
+              ariaLabel="Calorie trend with seven day moving average"
+              valueDigits={0}
+              reference={charts.calorieTargetKcal}
+              accent="#2fae4a"
             />
           </div>
-          <div className="mt-3 flex justify-between text-xs font-bold text-muted">
-            <span>{formatKg(body.startWeightKg)}</span>
-            <span>{formatKg(body.goalWeightKg)}</span>
-          </div>
-        </section>
-
-        <section className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
-          <h2 className="text-lg font-extrabold">Daily targets</h2>
-          <ul className="mt-2 divide-y divide-line">
-            <TargetRow label="Calories" value={`${formatNumber(body.targets.calories_kcal)} kcal`} />
-            <TargetRow label="Protein" value={`${formatNumber(body.targets.protein_g)} g`} />
-            <TargetRow label="Carbs" value={`${formatNumber(body.targets.carbs_g)} g`} />
-            <TargetRow label="Fat" value={`${formatNumber(body.targets.fat_g)} g`} />
-            <TargetRow label="Water" value={`${formatNumber(body.targets.water_l, 1)} L`} />
-          </ul>
-          <p className="mt-4 text-sm leading-6 text-muted">{body.targets.fasting}</p>
+          <ChartLegend unit="kcal" tone="go" />
         </section>
       </div>
     </main>
   );
 }
 
-function TargetRow({ label, value }: { label: string; value: string }) {
+function ChartLegend({ unit, tone = "accent" }: { unit: string; tone?: "accent" | "go" }) {
+  const swatch = tone === "go" ? "bg-go" : "bg-accent";
   return (
-    <li className="flex items-center justify-between py-3">
-      <p className="text-sm font-semibold">{label}</p>
-      <p className="text-sm font-bold text-muted">{value}</p>
-    </li>
+    <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-semibold text-muted">
+      <span className="inline-flex items-center gap-2">
+        <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${swatch} opacity-35`} />
+        <span>Daily {unit}</span>
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <span className={`inline-block h-0.5 w-5 shrink-0 rounded-full ${swatch}`} />
+        <span>7-day average</span>
+      </span>
+    </div>
   );
 }

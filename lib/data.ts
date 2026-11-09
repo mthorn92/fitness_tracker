@@ -6,6 +6,7 @@
  */
 import { connection } from "next/server";
 import { dayBudget } from "@/lib/budget";
+import { withSevenDayAverage } from "@/lib/charts";
 import {
   formatDateLabel,
   formatDatePill,
@@ -17,6 +18,7 @@ import {
 import { loadSnapshot } from "@/lib/store";
 import type {
   BodyView,
+  ChartsView,
   DateNav,
   DayLog,
   FitnessSnapshot,
@@ -27,6 +29,7 @@ import type {
   RecoveryDay,
   SavedMealView,
   TodayView,
+  TrendPoint,
   WorkoutView,
 } from "@/lib/types";
 
@@ -249,6 +252,24 @@ export async function getSavedMeals(): Promise<SavedMealView[]> {
   }));
 }
 
+/** Food calories for a day — same source as the dashboard budget ring. */
+function dayFoodKcal(day: DayLog | undefined): number | null {
+  if (!day) return null;
+  const fromFoods = sumFoods(day.foods).kcal;
+  const kcal = fromFoods || day.calories_kcal || 0;
+  if (fromFoods <= 0 && day.calories_kcal <= 0 && day.foods.length === 0) return null;
+  return kcal;
+}
+
+function toTrendPoints(series: Array<{ date: string; value: number }>): TrendPoint[] {
+  return withSevenDayAverage(series).map((point) => ({
+    date: point.date,
+    label: formatShortDate(point.date),
+    value: point.value,
+    avg7d: point.avg7d,
+  }));
+}
+
 export async function getBodyView(): Promise<BodyView> {
   const data = await getFitnessData();
   const date = latestLoggedDate(data);
@@ -289,6 +310,43 @@ export async function getBodyView(): Promise<BodyView> {
     weightProgressPct,
     targets: data.targets,
     points,
+  };
+}
+
+export async function getChartsView(): Promise<ChartsView> {
+  const data = await getFitnessData();
+  const currentDate = latestLoggedDate(data);
+  const currentDay = data.days[currentDate];
+
+  const weightSeries: Array<{ date: string; value: number }> = [];
+  const calorieSeries: Array<{ date: string; value: number }> = [];
+
+  if (data.start_weight_kg != null) {
+    weightSeries.push({ date: data.start_date, value: data.start_weight_kg });
+  }
+
+  for (const [day, log] of Object.entries(data.days).sort(([a], [b]) => a.localeCompare(b))) {
+    if (log.weight_kg != null) {
+      if (!(day === data.start_date && log.weight_kg === data.start_weight_kg)) {
+        weightSeries.push({ date: day, value: log.weight_kg });
+      }
+    }
+    const kcal = dayFoodKcal(log);
+    if (kcal != null) {
+      calorieSeries.push({ date: day, value: kcal });
+    }
+  }
+
+  const latestCaloriesKcal = dayFoodKcal(currentDay);
+
+  return {
+    currentDate,
+    currentWeightKg: currentDay?.weight_kg ?? null,
+    goalWeightKg: data.goal_weight_kg,
+    latestCaloriesKcal,
+    calorieTargetKcal: data.targets.calories_kcal,
+    weight: toTrendPoints(weightSeries),
+    calories: toTrendPoints(calorieSeries),
   };
 }
 

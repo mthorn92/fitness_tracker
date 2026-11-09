@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/log", label: "Log", icon: LogIcon },
-  { href: "/body", label: "Goals", icon: GoalsIcon },
+  { href: "/body", label: "Charts", icon: ChartsIcon },
   { href: "/recovery", label: "Recover", icon: RecoverIcon },
 ] as const;
 
@@ -60,11 +60,21 @@ function LogIcon() {
   );
 }
 
-function GoalsIcon() {
+function ChartsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 16.5 9 12l3.5 3.5L20 7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M14 7h6v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 19h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M6 15.5 10 11l3 3 5-7"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="6" cy="15.5" r="1.2" fill="currentColor" opacity="0.35" />
+      <circle cx="10" cy="11" r="1.2" fill="currentColor" opacity="0.35" />
+      <circle cx="13" cy="14" r="1.2" fill="currentColor" opacity="0.35" />
+      <circle cx="18" cy="7" r="1.2" fill="currentColor" opacity="0.35" />
     </svg>
   );
 }

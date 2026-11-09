@@ -188,6 +188,13 @@ export type WeightPoint = {
   kg: number;
 };
 
+export type TrendPoint = {
+  date: string;
+  label: string;
+  value: number;
+  avg7d: number;
+};
+
 export type TodayView = {
   date: string;
   dateLabel: string;
@@ -280,4 +287,15 @@ export type BodyView = {
   weightProgressPct: number;
   targets: NutritionTargets;
   points: WeightPoint[];
+};
+
+/** Charts tab: weight + calorie daily series with 7-day moving averages. */
+export type ChartsView = {
+  currentDate: string;
+  currentWeightKg: number | null;
+  goalWeightKg: number;
+  latestCaloriesKcal: number | null;
+  calorieTargetKcal: number;
+  weight: TrendPoint[];
+  calories: TrendPoint[];
 };
