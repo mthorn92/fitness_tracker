@@ -32,6 +32,11 @@ export function BudgetCard({
         <BudgetRing remaining={remainingKcal} consumed={consumed} under={underBudget} />
         <SideStat label="Exercise" value={formatNumber(exerciseKcal)} />
       </div>
+      {exerciseKcal > 0 ? (
+        <p className="mt-3 text-center text-xs font-semibold leading-5 text-muted">
+          Exercise is shown for the day. It does not change remaining calories or macros.
+        </p>
+      ) : null}
       <div className="mt-6 grid grid-cols-3 gap-4">
         <MacroStat label="Protein" metric={protein} />
         <MacroStat label="Carbs" metric={carbs} />
