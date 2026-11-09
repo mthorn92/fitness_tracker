@@ -4,12 +4,17 @@ import {
   deleteFood,
   deleteWater,
   ensureStore,
+  upsertDayComplete,
+  upsertDayWhoop,
   upsertExercise,
   upsertFood,
+  upsertSavedMeal,
   upsertWater,
   upsertWeight,
+  type DayWhoopInput,
   type ExerciseInput,
   type FoodInput,
+  type SavedMealInput,
   type WaterInput,
 } from "@/lib/store";
 import { withBatchedRefresh } from "@/lib/refresh";
@@ -17,10 +22,13 @@ import { withBatchedRefresh } from "@/lib/refresh";
 export type DayWrite = {
   date: string;
   notes?: string | null;
+  complete?: boolean;
+  whoop?: DayWhoopInput;
   weight_kg?: number;
   foods?: FoodInput[];
   water?: WaterInput[];
   exercises?: ExerciseInput[];
+  saved_meals?: SavedMealInput[];
   delete?: {
     foods?: string[];
     water?: string[];
@@ -34,6 +42,9 @@ export type DayWriteResult = {
   water: { id: string }[];
   exercises: { id: string }[];
   weight: { id: string } | null;
+  saved_meals: { name: string }[];
+  complete: boolean | null;
+  whoop: boolean;
   deleted: { foods: string[]; water: string[]; exercises: string[] };
 };
 
@@ -62,15 +73,23 @@ export async function upsertDayNote(date: string, notes: string | null): Promise
 export async function applyDayLog(write: DayWrite): Promise<DayWriteResult> {
   await ensureStore();
   return withBatchedRefresh(async () => {
-    const meals = await loadSavedMeals();
     const result: DayWriteResult = {
       date: write.date,
       foods: [],
       water: [],
       exercises: [],
       weight: null,
+      saved_meals: [],
+      complete: null,
+      whoop: false,
       deleted: { foods: [], water: [], exercises: [] },
     };
+
+    for (const meal of write.saved_meals ?? []) {
+      result.saved_meals.push(await upsertSavedMeal(meal));
+    }
+
+    const meals = await loadSavedMeals();
 
     for (const id of write.delete?.foods ?? []) {
       if (await deleteFood(id)) result.deleted.foods.push(id);
@@ -96,6 +115,14 @@ export async function applyDayLog(write: DayWrite): Promise<DayWriteResult> {
     }
     if (write.notes !== undefined) {
       await upsertDayNote(write.date, write.notes);
+    }
+    if (write.complete !== undefined) {
+      await upsertDayComplete(write.date, write.complete);
+      result.complete = write.complete;
+    }
+    if (write.whoop) {
+      await upsertDayWhoop(write.date, write.whoop);
+      result.whoop = true;
     }
     return result;
   });

@@ -15,6 +15,7 @@ export function MealCard({ meal }: { meal: MealGroup }) {
               <p className="text-sm font-semibold leading-5">{food.item}</p>
               <p className="mt-1 text-xs font-semibold text-muted">
                 {formatTime(food.time)}
+                {food.meal ? ` · ${food.meal}` : ""}
                 {food.saved_meal ? " · Saved meal" : ""}
               </p>
             </div>

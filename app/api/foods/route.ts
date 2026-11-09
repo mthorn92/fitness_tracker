@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     protein_g,
     carbs_g,
     fat_g,
+    meal: asString(body.meal, 40),
     saved_meal: asString(body.saved_meal, 120),
   });
   return json(saved, body.id ? 200 : 201);

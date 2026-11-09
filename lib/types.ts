@@ -9,6 +9,7 @@ export type FoodItem = MacroTotals & {
   id?: string;
   time: string;
   item: string;
+  meal?: string;
   saved_meal?: string;
 };
 
@@ -25,17 +26,21 @@ export type ExerciseEntry = {
   item: string;
   kcal: number;
   duration_min?: number | null;
+  time?: string | null;
+  strain?: number | null;
+  avg_hr?: number | null;
+  source?: string | null;
 };
 
 export type DayWhoop = {
-  cycle_id: number;
+  cycle_id?: number | null;
   recovery_score: number;
   hrv_rmssd_milli: number;
   resting_heart_rate: number;
   sleep_hours: number;
   strain: number;
   kcal: number;
-  step_count: number;
+  step_count?: number | null;
 };
 
 export type DayLog = {
@@ -46,6 +51,7 @@ export type DayLog = {
   drinks: unknown;
   exercise: ExerciseEntry[];
   notes: string | null;
+  complete?: boolean;
   water_entries: WaterEntry[];
   whoop: DayWhoop | null;
 };
@@ -159,10 +165,12 @@ export type MealName =
   | "Lunch"
   | "Afternoon Snacks"
   | "Dinner"
-  | "Evening Snacks";
+  | "Evening Snacks"
+  | "Snacks"
+  | "Dessert";
 
 export type MealGroup = {
-  name: MealName;
+  name: string;
   foods: FoodItem[];
   kcal: number;
 };
@@ -185,6 +193,7 @@ export type TodayView = {
   dateLabel: string;
   weekday: string;
   notes: string | null;
+  complete: boolean;
   weightKg: number | null;
   goalWeightKg: number;
   startWeightKg: number;

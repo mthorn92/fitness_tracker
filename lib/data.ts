@@ -30,13 +30,15 @@ import type {
   WorkoutView,
 } from "@/lib/types";
 
-const MEAL_ORDER: MealName[] = [
+const MEAL_ORDER: string[] = [
   "Breakfast",
   "Morning Snacks",
   "Lunch",
   "Afternoon Snacks",
   "Dinner",
   "Evening Snacks",
+  "Snacks",
+  "Dessert",
 ];
 
 /**
@@ -113,13 +115,25 @@ function mealNameForTime(hhmm: string): MealName {
   return "Evening Snacks";
 }
 
+function mealBucketFor(food: FoodItem): string {
+  const explicit = food.meal?.trim();
+  if (explicit) return explicit;
+  return mealNameForTime(food.time);
+}
+
 function groupMeals(foods: FoodItem[]): MealGroup[] {
-  const buckets = new Map<MealName, FoodItem[]>();
-  for (const name of MEAL_ORDER) buckets.set(name, []);
+  const buckets = new Map<string, FoodItem[]>();
   for (const food of foods) {
-    buckets.get(mealNameForTime(food.time))?.push(food);
+    const name = mealBucketFor(food);
+    const list = buckets.get(name) ?? [];
+    list.push(food);
+    buckets.set(name, list);
   }
-  return MEAL_ORDER.map((name) => {
+  const ordered = [
+    ...MEAL_ORDER.filter((name) => buckets.has(name)),
+    ...[...buckets.keys()].filter((name) => !MEAL_ORDER.includes(name)).sort(),
+  ];
+  return ordered.map((name) => {
     const items = buckets.get(name) ?? [];
     return {
       name,
@@ -193,6 +207,7 @@ export async function getTodayView(date?: string): Promise<TodayView> {
     dateLabel: formatDateLabel(selected),
     weekday: formatWeekday(selected),
     notes: day?.notes ?? null,
+    complete: day?.complete ?? false,
     weightKg: day?.weight_kg ?? null,
     goalWeightKg: data.goal_weight_kg,
     startWeightKg: data.start_weight_kg,

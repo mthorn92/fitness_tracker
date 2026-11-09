@@ -2,8 +2,10 @@ import { sql } from "@/lib/db";
 import { newId } from "@/lib/ids";
 import { refreshPages } from "@/lib/refresh";
 import { seedIfEmpty } from "@/lib/seed";
+import { slugId } from "@/lib/ids";
 import type {
   DayLog,
+  DayWhoop,
   FitnessSnapshot,
   FoodItem,
   NutritionTargets,
@@ -59,6 +61,7 @@ export type FoodInput = {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  meal?: string | null;
   saved_meal?: string | null;
 };
 
@@ -85,6 +88,30 @@ export type ExerciseInput = {
   duration_min?: number | null;
   kcal?: number;
   whoop_id?: string | null;
+  strain?: number | null;
+  avg_hr?: number | null;
+  source?: string | null;
+};
+
+export type SavedMealInput = {
+  name: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  serve?: string | null;
+  recipe?: string | null;
+};
+
+export type DayWhoopInput = {
+  cycle_id?: number | null;
+  recovery_score: number;
+  hrv_rmssd_milli: number;
+  resting_heart_rate: number;
+  sleep_hours: number;
+  strain: number;
+  kcal: number;
+  step_count?: number | null;
 };
 
 export async function loadSnapshot(): Promise<FitnessSnapshot> {
@@ -99,6 +126,8 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
   const water = await sql<Record<string, unknown>>("select * from water_entries order by date, time, id");
   const weights = await sql<Record<string, unknown>>("select * from weights order by date");
   const notes = await sql<Record<string, unknown>>("select * from day_notes");
+  const flags = await sql<Record<string, unknown>>("select * from day_flags");
+  const dayWhoop = await sql<Record<string, unknown>>("select * from day_whoop");
   const meals = await sql<Record<string, unknown>>("select * from saved_meals order by name");
   const cycles = await sql<Record<string, unknown>>("select * from whoop_cycles order by waking_date");
   const recovery = await sql<Record<string, unknown>>("select * from whoop_recovery order by waking_date");
@@ -116,6 +145,7 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
       drinks: null,
       exercise: [],
       notes: null,
+      complete: false,
       water_entries: [],
       whoop: null,
     };
@@ -132,6 +162,7 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
       protein_g: num(row.protein_g),
       carbs_g: num(row.carbs_g),
       fat_g: num(row.fat_g),
+      meal: optionalText(row.meal),
       saved_meal: optionalText(row.saved_meal),
     };
     const day = ensureDay(date);
@@ -163,6 +194,16 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
     day.notes = optionalText(row.notes) ?? null;
   }
 
+  for (const row of flags) {
+    const day = ensureDay(text(row.date));
+    day.complete = bool(row.complete);
+  }
+
+  for (const row of dayWhoop) {
+    const day = ensureDay(text(row.date));
+    day.whoop = mapDayWhoop(row);
+  }
+
   for (const row of exercises) {
     const day = ensureDay(text(row.date));
     day.exercise.push({
@@ -170,6 +211,10 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
       item: text(row.item),
       kcal: num(row.kcal),
       duration_min: row.duration_min == null ? null : num(row.duration_min),
+      time: optionalText(row.time) ?? null,
+      strain: row.strain == null ? null : num(row.strain),
+      avg_hr: row.avg_hr == null ? null : num(row.avg_hr),
+      source: optionalText(row.source) ?? null,
     });
   }
 
@@ -206,6 +251,19 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
       workouts: workouts.map(mapWorkout),
       updated_at: new Date().toISOString(),
     },
+  };
+}
+
+function mapDayWhoop(row: Record<string, unknown>): DayWhoop {
+  return {
+    cycle_id: row.cycle_id == null ? null : num(row.cycle_id),
+    recovery_score: num(row.recovery_score),
+    hrv_rmssd_milli: num(row.hrv_rmssd_milli),
+    resting_heart_rate: num(row.resting_heart_rate),
+    sleep_hours: num(row.sleep_hours),
+    strain: num(row.strain),
+    kcal: num(row.kcal),
+    step_count: row.step_count == null ? null : num(row.step_count),
   };
 }
 
@@ -287,8 +345,8 @@ export async function upsertFood(input: FoodInput): Promise<{ id: string }> {
   await ready();
   const id = input.id?.trim() || newId("food");
   await sql(
-    `insert into foods (id, date, time, item, kcal, protein_g, carbs_g, fat_g, saved_meal, updated_at)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9, now())
+    `insert into foods (id, date, time, item, kcal, protein_g, carbs_g, fat_g, meal, saved_meal, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())
      on conflict (id) do update set
        date = excluded.date,
        time = excluded.time,
@@ -297,6 +355,7 @@ export async function upsertFood(input: FoodInput): Promise<{ id: string }> {
        protein_g = excluded.protein_g,
        carbs_g = excluded.carbs_g,
        fat_g = excluded.fat_g,
+       meal = excluded.meal,
        saved_meal = excluded.saved_meal,
        updated_at = now()`,
     [
@@ -308,6 +367,7 @@ export async function upsertFood(input: FoodInput): Promise<{ id: string }> {
       input.protein_g,
       input.carbs_g,
       input.fat_g,
+      input.meal ?? null,
       input.saved_meal ?? null,
     ],
   );
@@ -377,8 +437,8 @@ export async function upsertExercise(input: ExerciseInput): Promise<{ id: string
   await ready();
   const id = input.id?.trim() || newId("ex");
   await sql(
-    `insert into exercises (id, date, time, item, duration_min, kcal, whoop_id, updated_at)
-     values ($1,$2,$3,$4,$5,$6,$7, now())
+    `insert into exercises (id, date, time, item, duration_min, kcal, whoop_id, strain, avg_hr, source, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())
      on conflict (id) do update set
        date = excluded.date,
        time = excluded.time,
@@ -386,6 +446,9 @@ export async function upsertExercise(input: ExerciseInput): Promise<{ id: string
        duration_min = excluded.duration_min,
        kcal = excluded.kcal,
        whoop_id = excluded.whoop_id,
+       strain = excluded.strain,
+       avg_hr = excluded.avg_hr,
+       source = excluded.source,
        updated_at = now()`,
     [
       id,
@@ -395,10 +458,86 @@ export async function upsertExercise(input: ExerciseInput): Promise<{ id: string
       input.duration_min ?? null,
       input.kcal ?? 0,
       input.whoop_id ?? null,
+      input.strain ?? null,
+      input.avg_hr ?? null,
+      input.source ?? null,
     ],
   );
   await refreshPages();
   return { id };
+}
+
+export async function upsertSavedMeal(input: SavedMealInput): Promise<{ name: string }> {
+  await ready();
+  const name = input.name.trim();
+  const id = slugId("meal", name);
+  await sql(
+    `insert into saved_meals (id, name, serve, recipe, kcal, protein_g, carbs_g, fat_g, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8, now())
+     on conflict (name) do update set
+       serve = excluded.serve,
+       recipe = excluded.recipe,
+       kcal = excluded.kcal,
+       protein_g = excluded.protein_g,
+       carbs_g = excluded.carbs_g,
+       fat_g = excluded.fat_g,
+       updated_at = now()`,
+    [
+      id,
+      name,
+      input.serve ?? null,
+      input.recipe ?? null,
+      input.kcal,
+      input.protein_g,
+      input.carbs_g,
+      input.fat_g,
+    ],
+  );
+  await refreshPages();
+  return { name };
+}
+
+export async function upsertDayComplete(date: string, complete: boolean): Promise<void> {
+  await ready();
+  await sql(
+    `insert into day_flags (date, complete, updated_at)
+     values ($1,$2, now())
+     on conflict (date) do update set complete = excluded.complete, updated_at = now()`,
+    [date, complete],
+  );
+  await refreshPages();
+}
+
+export async function upsertDayWhoop(date: string, whoop: DayWhoopInput): Promise<void> {
+  await ready();
+  await sql(
+    `insert into day_whoop (
+       date, cycle_id, recovery_score, hrv_rmssd_milli, resting_heart_rate,
+       sleep_hours, strain, kcal, step_count, updated_at
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9, now())
+     on conflict (date) do update set
+       cycle_id = excluded.cycle_id,
+       recovery_score = excluded.recovery_score,
+       hrv_rmssd_milli = excluded.hrv_rmssd_milli,
+       resting_heart_rate = excluded.resting_heart_rate,
+       sleep_hours = excluded.sleep_hours,
+       strain = excluded.strain,
+       kcal = excluded.kcal,
+       step_count = excluded.step_count,
+       updated_at = now()`,
+    [
+      date,
+      whoop.cycle_id ?? null,
+      whoop.recovery_score,
+      whoop.hrv_rmssd_milli,
+      whoop.resting_heart_rate,
+      whoop.sleep_hours,
+      whoop.strain,
+      whoop.kcal,
+      whoop.step_count ?? null,
+    ],
+  );
+  await refreshPages();
 }
 
 export async function deleteExercise(id: string): Promise<boolean> {
