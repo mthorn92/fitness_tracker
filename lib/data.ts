@@ -7,6 +7,7 @@
 import { connection } from "next/server";
 import { dayBudget } from "@/lib/budget";
 import { withSevenDayAverage } from "@/lib/charts";
+import { buildDeficitSeries } from "@/lib/deficit";
 import {
   formatDateLabel,
   formatDatePill,
@@ -313,6 +314,13 @@ export async function getBodyView(): Promise<BodyView> {
   };
 }
 
+function whoopBurnForDate(data: FitnessSnapshot, date: string): number | null {
+  const logged = data.days[date]?.whoop?.kcal;
+  if (logged != null) return logged;
+  const cycle = data.whoop.cycles.find((item) => item.waking_date === date);
+  return cycle?.kcal ?? null;
+}
+
 export async function getChartsView(): Promise<ChartsView> {
   const data = await getFitnessData();
   const currentDate = latestLoggedDate(data);
@@ -337,6 +345,19 @@ export async function getChartsView(): Promise<ChartsView> {
     }
   }
 
+  const deficitDates = new Set<string>([
+    data.start_date,
+    ...Object.keys(data.days),
+    ...data.whoop.cycles.map((cycle) => cycle.waking_date),
+  ]);
+  const deficitDays = [...deficitDates].sort().map((date) => ({
+    date,
+    whoopKcal: whoopBurnForDate(data, date),
+    foodKcal: dayFoodKcal(data.days[date]),
+    weightKg: data.days[date]?.weight_kg ?? (date === data.start_date ? data.start_weight_kg : null),
+  }));
+  const deficit = buildDeficitSeries(data.start_date, data.start_weight_kg, deficitDays);
+
   const latestCaloriesKcal = dayFoodKcal(currentDay);
 
   return {
@@ -347,6 +368,23 @@ export async function getChartsView(): Promise<ChartsView> {
     calorieTargetKcal: data.targets.calories_kcal,
     weight: toTrendPoints(weightSeries),
     calories: toTrendPoints(calorieSeries),
+    deficit: {
+      baselineKg: deficit.baselineKg,
+      baselineDate: deficit.baselineDate,
+      baselineDateLabel: formatShortDate(deficit.baselineDate),
+      points: deficit.points.map((point) => ({
+        date: point.date,
+        label: formatShortDate(point.date),
+        expectedKgLost: point.expectedKgLost,
+        actualKgLost: point.actualKgLost,
+        weighInKgLost: point.weighInKgLost,
+        cumulativeDeficitKcal: point.cumulativeDeficitKcal,
+      })),
+      expectedKgLost: deficit.expectedKgLost,
+      actualKgLost: deficit.actualKgLost,
+      kcalPerKgLost: deficit.kcalPerKgLost,
+      cumulativeDeficitKcal: deficit.cumulativeDeficitKcal,
+    },
   };
 }
 

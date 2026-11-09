@@ -31,7 +31,7 @@ npm run verify-import
 
 - **Dashboard** — remaining calories (food vs budget), meals the bot logged, and the day's exercise amount. Exercise is shown but never added back into remaining calories or macros.
 - **Log** — food, drinks, saved meals (quiet manual add for rare corrections)
-- **Charts** — weight and calorie trends (daily dots + 7-day average)
+- **Charts** — deficit vs scale (Whoop burn − food → expected kg), plus weight/calorie 7dma
 - **Recover** — imported recovery, sleep and workouts
 
 **DB** in the header means the screens are reading the database.

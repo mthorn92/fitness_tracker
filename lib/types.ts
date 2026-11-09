@@ -289,7 +289,16 @@ export type BodyView = {
   points: WeightPoint[];
 };
 
-/** Charts tab: weight + calorie daily series with 7-day moving averages. */
+export type DeficitOverlayPoint = {
+  date: string;
+  label: string;
+  expectedKgLost: number;
+  actualKgLost: number | null;
+  weighInKgLost: number | null;
+  cumulativeDeficitKcal: number;
+};
+
+/** Charts tab: deficit-vs-scale hero + weight/calorie 7dma series. */
 export type ChartsView = {
   currentDate: string;
   currentWeightKg: number | null;
@@ -298,4 +307,14 @@ export type ChartsView = {
   calorieTargetKcal: number;
   weight: TrendPoint[];
   calories: TrendPoint[];
+  deficit: {
+    baselineKg: number;
+    baselineDate: string;
+    baselineDateLabel: string;
+    points: DeficitOverlayPoint[];
+    expectedKgLost: number;
+    actualKgLost: number | null;
+    kcalPerKgLost: number | null;
+    cumulativeDeficitKcal: number;
+  };
 };
