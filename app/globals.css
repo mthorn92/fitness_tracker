@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f3f5;
+  --foreground: #1c1c1e;
+  --surface: #ffffff;
+  --surface-2: #f6f6f8;
+  --muted: #8e8e93;
+  --line: #ececee;
+  --accent: #f0983a;
+  --accent-ink: #ffffff;
+  --header: #ee9a3a;
+  --header-2: #f4b45c;
+  --pill: #f6d7a4;
+  --pill-ink: #5c3b12;
+  --go: #2fae4a;
+  --warn: #e8892e;
+  --low: #e25b4a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-header: var(--header);
+  --color-header-2: var(--header-2);
+  --color-pill: var(--pill);
+  --color-pill-ink: var(--pill-ink);
+  --color-go: var(--go);
+  --color-warn: var(--warn);
+  --color-low: var(--low);
+  --font-sans: var(--font-nunito);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  min-height: 100dvh;
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  background: var(--background);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header-wave {
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--header-2), var(--header) 58%);
+}
