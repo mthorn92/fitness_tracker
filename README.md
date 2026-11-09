@@ -43,7 +43,12 @@ npm run verify-import
 3. Sending the same `id` again **updates** that row instead of duplicating.
 4. The website shows the same database.
 
-All of these need either a Cursor sign-in (the published private app) or `Authorization: Bearer <LOG_API_TOKEN>`.
+The **website** stays Private (Cursor sign-in in the browser).
+
+`/api` sits behind that same host gate. `Authorization: Bearer` never reaches the app until the host lets the request through. Automated callers (Grok Bot, curl) must send **both** headers:
+
+1. `x-cursor-app-token: $CURSOR_API_KEY` — a Cursor API key from the Cursor dashboard. This is what skips the “Open this app” page.
+2. `Authorization: Bearer $LOG_API_TOKEN` — the app secret. This is what `/api` actually checks.
 
 | Method | Path | What it does |
 | --- | --- | --- |
@@ -53,12 +58,21 @@ All of these need either a Cursor sign-in (the published private app) or `Author
 | PATCH/DELETE | `/api/foods/:id` | Correct or remove one food |
 | POST | `/api/water` `/api/weights` `/api/exercises` | Single-item writes if you prefer |
 
+Test that the live OpenAPI spec is JSON, not the sign-in page:
+
+```bash
+curl -sS https://training-log.apps.grok.bot/api/openapi \
+  -H "Authorization: Bearer $LOG_API_TOKEN" \
+  -H "x-cursor-app-token: $CURSOR_API_KEY"
+```
+
 Log a meal, then correct it:
 
 ```bash
-curl -X POST http://localhost:3000/api/log \
+curl -X POST https://training-log.apps.grok.bot/api/log \
   -H 'content-type: application/json' \
-  -H 'authorization: Bearer $LOG_API_TOKEN' \
+  -H "Authorization: Bearer $LOG_API_TOKEN" \
+  -H "x-cursor-app-token: $CURSOR_API_KEY" \
   -d '{
     "date": "2026-11-09",
     "foods": [{
@@ -72,9 +86,10 @@ curl -X POST http://localhost:3000/api/log \
     }]
   }'
 
-curl -X POST http://localhost:3000/api/log \
+curl -X POST https://training-log.apps.grok.bot/api/log \
   -H 'content-type: application/json' \
-  -H 'authorization: Bearer $LOG_API_TOKEN' \
+  -H "Authorization: Bearer $LOG_API_TOKEN" \
+  -H "x-cursor-app-token: $CURSOR_API_KEY" \
   -d '{
     "date": "2026-11-09",
     "foods": [{
@@ -91,7 +106,7 @@ curl -X POST http://localhost:3000/api/log \
 
 If `saved_meal` matches a saved meal (for example `chicken rice veg meal prep`), macros fill in when you omit them.
 
-Locally, the API treats you as a simulated signed-in viewer, so curl works without a token. The published app requires a real login or `LOG_API_TOKEN`.
+Locally, the API treats you as a simulated signed-in viewer, so curl works without either header. On the published private app, Bearer-only still hits the sign-in page; add the Cursor API key header.
 
 ## Where the data lives
 

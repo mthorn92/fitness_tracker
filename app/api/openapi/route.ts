@@ -1,6 +1,9 @@
-import { json } from "@/lib/auth";
+import { json, requireLogAccess } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const access = await requireLogAccess(request);
+  if (access instanceof Response) return access;
+
   return json({
     openapi: "3.1.0",
     info: {
@@ -9,10 +12,21 @@ export async function GET() {
       description:
         "Personal food, water, weight and exercise log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row.",
     },
-    security: [{ bearerAuth: [] }],
+    security: [{ cursorAppToken: [], bearerAuth: [] }],
     components: {
       securitySchemes: {
-        bearerAuth: { type: "http", scheme: "bearer" },
+        cursorAppToken: {
+          type: "apiKey",
+          in: "header",
+          name: "x-cursor-app-token",
+          description:
+            "Cursor API key. Required on the live private app so the host does not return the sign-in page.",
+        },
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          description: "LOG_API_TOKEN. What /api routes check after the host lets the request through.",
+        },
       },
     },
     paths: {
