@@ -5,6 +5,7 @@
  * from the database (Postgres when DATABASE_URL is set, local PGlite otherwise).
  */
 import { connection } from "next/server";
+import { dayBudget } from "@/lib/budget";
 import {
   formatDateLabel,
   formatDatePill,
@@ -173,8 +174,11 @@ export async function getTodayView(date?: string): Promise<TodayView> {
   const foods = day?.foods ?? [];
   const eaten = sumFoods(foods);
   const foodKcal = eaten.kcal || day?.calories_kcal || 0;
-  const exerciseKcal = exerciseKcalForDate(data, selected);
-  const remainingKcal = data.targets.calories_kcal - foodKcal + exerciseKcal;
+  const { exerciseKcal, remainingKcal, underBudget } = dayBudget(
+    data.targets.calories_kcal,
+    foodKcal,
+    exerciseKcalForDate(data, selected),
+  );
   const waterLitres =
     day?.water_l ??
     (day?.water_entries ?? []).reduce((sum, entry) => sum + entry.litres, 0);
@@ -208,7 +212,7 @@ export async function getTodayView(date?: string): Promise<TodayView> {
     foodKcal,
     exerciseKcal,
     remainingKcal,
-    underBudget: remainingKcal >= 0,
+    underBudget,
     recovery: recoveryForDate(data, selected, day),
   };
 }

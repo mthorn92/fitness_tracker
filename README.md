@@ -29,7 +29,7 @@ npm run verify-import
 
 ## What you will see
 
-- **Dashboard** — remaining calories and meals the bot logged
+- **Dashboard** — remaining calories (food vs budget), meals the bot logged, and the day's exercise amount. Exercise is shown but never added back into remaining calories or macros.
 - **Log** — food, drinks, saved meals (quiet manual add for rare corrections)
 - **Goals** — weight chart
 - **Recover** — imported recovery, sleep and workouts
