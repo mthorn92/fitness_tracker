@@ -12,8 +12,8 @@ export function DeficitOverlayChart({ points }: DeficitOverlayChartProps) {
 
   if (points.length === 0) {
     return (
-      <div className="grid h-[220px] place-items-center text-sm font-semibold text-muted">
-        Log Whoop burn and food to compare
+      <div className="grid h-[220px] place-items-center px-4 text-center text-sm font-semibold text-muted">
+        Needs a complete day with Whoop burn, food, and a weigh-in
       </div>
     );
   }

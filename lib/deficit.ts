@@ -9,6 +9,8 @@ export type DeficitDayInput = {
   foodKcal: number | null;
   /** Scale weight that day, if logged. */
   weightKg: number | null;
+  /** Day marked complete in the store. */
+  complete?: boolean;
 };
 
 export type DeficitPoint = {
@@ -39,74 +41,84 @@ export type DeficitSummary = {
   cumulativeDeficitKcal: number;
 };
 
-/**
- * Stable baseline: explicit start weight on startDate, else first logged weigh-in.
- */
-export function resolveBaseline(
-  startDate: string,
-  startWeightKg: number,
-  days: DeficitDayInput[],
-): { date: string; kg: number } {
-  if (startWeightKg != null && Number.isFinite(startWeightKg)) {
-    return { date: startDate, kg: startWeightKg };
-  }
-  const firstWeighIn = [...days]
-    .filter((day) => day.weightKg != null)
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-  if (!firstWeighIn || firstWeighIn.weightKg == null) {
-    return { date: startDate, kg: startWeightKg };
-  }
-  return { date: firstWeighIn.date, kg: firstWeighIn.weightKg };
+export type BuildDeficitOptions = {
+  /**
+   * ISO calendar day for "today". When set, that date is omitted unless the day
+   * is marked complete.
+   */
+  today?: string | null;
+};
+
+function emptySummary(): DeficitSummary {
+  return {
+    baselineKg: 0,
+    baselineDate: "",
+    points: [],
+    expectedKgLost: 0,
+    actualKgLost: null,
+    kcalPerKgLost: null,
+    cumulativeDeficitKcal: 0,
+  };
+}
+
+/** Overlay can start when Whoop burn, food, and weight are all present. */
+export function hasDeficitAnchor(day: DeficitDayInput): boolean {
+  return day.whoopKcal != null && day.foodKcal != null && day.weightKg != null;
+}
+
+export function isChartDayIncluded(
+  day: Pick<DeficitDayInput, "date" | "complete">,
+  today?: string | null,
+): boolean {
+  if (!today) return true;
+  if (day.date !== today) return true;
+  return day.complete === true;
 }
 
 /**
- * Build cumulative Whoop−food deficit vs scale loss from a baseline weigh-in.
- * Days without Whoop burn are skipped for deficit accumulation but still receive
- * forward-filled actual kg when a later weigh-in lands on them via the date union.
+ * Build cumulative Whoop−food deficit vs scale loss.
+ *
+ * Starts at the first day with Whoop burn + food + weigh-in (that weight is baseline).
+ * Incomplete "today" is excluded when `today` is set. Later days accumulate only when
+ * both Whoop and food exist; weigh-ins update actual kg without inventing burn.
  */
 export function buildDeficitSeries(
-  startDate: string,
-  startWeightKg: number,
   days: DeficitDayInput[],
+  options: BuildDeficitOptions = {},
 ): DeficitSummary {
-  const baseline = resolveBaseline(startDate, startWeightKg, days);
-  const byDate = new Map(days.map((day) => [day.date, day]));
-  const dates = [
-    ...new Set([
-      baseline.date,
-      ...days.filter((day) => day.whoopKcal != null || day.weightKg != null).map((day) => day.date),
-    ]),
-  ].sort();
+  const { today = null } = options;
+  const eligible = [...days]
+    .filter((day) => isChartDayIncluded(day, today))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
+  const anchor = eligible.find(hasDeficitAnchor);
+  if (!anchor || anchor.weightKg == null || anchor.whoopKcal == null || anchor.foodKcal == null) {
+    return emptySummary();
+  }
+
+  const baselineKg = anchor.weightKg;
+  const baselineDate = anchor.date;
   let cumulativeDeficitKcal = 0;
-  let lastActualKgLost: number | null = dates[0] === baseline.date ? 0 : null;
+  let lastActualKgLost = 0;
   const points: DeficitPoint[] = [];
 
-  for (const date of dates) {
-    if (date < baseline.date) continue;
-    const day = byDate.get(date);
-    const whoopKcal = day?.whoopKcal ?? null;
-    const foodKcal = day?.foodKcal ?? null;
+  for (const day of eligible) {
+    if (day.date < baselineDate) continue;
 
-    if (whoopKcal != null) {
-      const food = foodKcal ?? 0;
-      const dailyDeficitKcal = whoopKcal - food;
-      cumulativeDeficitKcal += dailyDeficitKcal;
+    const hasDeficitInputs = day.whoopKcal != null && day.foodKcal != null;
+    const hasWeighIn = day.weightKg != null;
 
-      let weighInKgLost: number | null = null;
-      if (day?.weightKg != null) {
-        weighInKgLost = baseline.kg - day.weightKg;
-        lastActualKgLost = weighInKgLost;
-      } else if (date === baseline.date) {
-        weighInKgLost = 0;
-        lastActualKgLost = 0;
-      }
-
+    if (!hasDeficitInputs && !hasWeighIn) continue;
+    // Before we have both deficit inputs on a post-anchor day, skip weigh-in-only
+    // rows that would invent expected progress from nothing — except the anchor.
+    if (!hasDeficitInputs && day.date !== baselineDate) {
+      const weighInKgLost = baselineKg - (day.weightKg as number);
+      lastActualKgLost = weighInKgLost;
       points.push({
-        date,
-        whoopKcal,
-        foodKcal: food,
-        dailyDeficitKcal,
+        date: day.date,
+        whoopKcal: 0,
+        foodKcal: 0,
+        dailyDeficitKcal: 0,
         cumulativeDeficitKcal,
         expectedKgLost: cumulativeDeficitKcal / KCAL_PER_KG,
         actualKgLost: lastActualKgLost,
@@ -115,33 +127,29 @@ export function buildDeficitSeries(
       continue;
     }
 
-    // Weigh-in-only day: keep the scale series moving without inventing burn.
-    if (day?.weightKg != null) {
-      const weighInKgLost = baseline.kg - day.weightKg;
+    if (!hasDeficitInputs) continue;
+
+    const whoopKcal = day.whoopKcal as number;
+    const foodKcal = day.foodKcal as number;
+    const dailyDeficitKcal = whoopKcal - foodKcal;
+    cumulativeDeficitKcal += dailyDeficitKcal;
+
+    let weighInKgLost: number | null = null;
+    if (hasWeighIn) {
+      weighInKgLost = baselineKg - (day.weightKg as number);
       lastActualKgLost = weighInKgLost;
-      points.push({
-        date,
-        whoopKcal: 0,
-        foodKcal: foodKcal ?? 0,
-        dailyDeficitKcal: 0,
-        cumulativeDeficitKcal,
-        expectedKgLost: cumulativeDeficitKcal / KCAL_PER_KG,
-        actualKgLost: lastActualKgLost,
-        weighInKgLost,
-      });
-    } else if (date === baseline.date) {
-      lastActualKgLost = 0;
-      points.push({
-        date,
-        whoopKcal: 0,
-        foodKcal: 0,
-        dailyDeficitKcal: 0,
-        cumulativeDeficitKcal: 0,
-        expectedKgLost: 0,
-        actualKgLost: 0,
-        weighInKgLost: 0,
-      });
     }
+
+    points.push({
+      date: day.date,
+      whoopKcal,
+      foodKcal,
+      dailyDeficitKcal,
+      cumulativeDeficitKcal,
+      expectedKgLost: cumulativeDeficitKcal / KCAL_PER_KG,
+      actualKgLost: lastActualKgLost,
+      weighInKgLost,
+    });
   }
 
   const latest = points[points.length - 1];
@@ -151,8 +159,8 @@ export function buildDeficitSeries(
     actualKgLost != null && actualKgLost > 0 ? cumulative / actualKgLost : null;
 
   return {
-    baselineKg: baseline.kg,
-    baselineDate: baseline.date,
+    baselineKg,
+    baselineDate,
     points,
     expectedKgLost: latest?.expectedKgLost ?? 0,
     actualKgLost,

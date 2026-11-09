@@ -45,6 +45,16 @@ export function shiftIsoDate(isoDate: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Calendar YYYY-MM-DD in the user's logging timezone (Whoop offset +11). */
+export function todayIsoDate(timeZone = "Australia/Sydney"): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export function formatTime(hhmm: string): string {
   const [hours, minutes] = hhmm.split(":").map(Number);
   const period = hours >= 12 ? "pm" : "am";

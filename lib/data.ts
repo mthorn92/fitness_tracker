@@ -7,7 +7,7 @@
 import { connection } from "next/server";
 import { dayBudget } from "@/lib/budget";
 import { withSevenDayAverage } from "@/lib/charts";
-import { buildDeficitSeries } from "@/lib/deficit";
+import { buildDeficitSeries, isChartDayIncluded } from "@/lib/deficit";
 import {
   formatDateLabel,
   formatDatePill,
@@ -15,6 +15,7 @@ import {
   formatSport,
   formatWeekday,
   shiftIsoDate,
+  todayIsoDate,
 } from "@/lib/format";
 import { loadSnapshot } from "@/lib/store";
 import type {
@@ -323,26 +324,35 @@ function whoopBurnForDate(data: FitnessSnapshot, date: string): number | null {
 
 export async function getChartsView(): Promise<ChartsView> {
   const data = await getFitnessData();
+  const today = todayIsoDate();
   const currentDate = latestLoggedDate(data);
   const currentDay = data.days[currentDate];
 
   const weightSeries: Array<{ date: string; value: number }> = [];
   const calorieSeries: Array<{ date: string; value: number }> = [];
 
-  if (data.start_weight_kg != null) {
-    weightSeries.push({ date: data.start_date, value: data.start_weight_kg });
-  }
-
   for (const [day, log] of Object.entries(data.days).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!isChartDayIncluded({ date: day, complete: log.complete }, today)) continue;
+
     if (log.weight_kg != null) {
-      if (!(day === data.start_date && log.weight_kg === data.start_weight_kg)) {
-        weightSeries.push({ date: day, value: log.weight_kg });
-      }
+      weightSeries.push({ date: day, value: log.weight_kg });
     }
     const kcal = dayFoodKcal(log);
     if (kcal != null) {
       calorieSeries.push({ date: day, value: kcal });
     }
+  }
+
+  // Seed start weight only when that calendar day is chart-eligible.
+  if (
+    data.start_weight_kg != null &&
+    isChartDayIncluded(
+      { date: data.start_date, complete: data.days[data.start_date]?.complete },
+      today,
+    ) &&
+    !weightSeries.some((point) => point.date === data.start_date)
+  ) {
+    weightSeries.unshift({ date: data.start_date, value: data.start_weight_kg });
   }
 
   const deficitDates = new Set<string>([
@@ -355,8 +365,9 @@ export async function getChartsView(): Promise<ChartsView> {
     whoopKcal: whoopBurnForDate(data, date),
     foodKcal: dayFoodKcal(data.days[date]),
     weightKg: data.days[date]?.weight_kg ?? (date === data.start_date ? data.start_weight_kg : null),
+    complete: data.days[date]?.complete ?? false,
   }));
-  const deficit = buildDeficitSeries(data.start_date, data.start_weight_kg, deficitDays);
+  const deficit = buildDeficitSeries(deficitDays, { today });
 
   const latestCaloriesKcal = dayFoodKcal(currentDay);
 
@@ -371,7 +382,7 @@ export async function getChartsView(): Promise<ChartsView> {
     deficit: {
       baselineKg: deficit.baselineKg,
       baselineDate: deficit.baselineDate,
-      baselineDateLabel: formatShortDate(deficit.baselineDate),
+      baselineDateLabel: deficit.baselineDate ? formatShortDate(deficit.baselineDate) : "",
       points: deficit.points.map((point) => ({
         date: point.date,
         label: formatShortDate(point.date),

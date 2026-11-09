@@ -34,7 +34,7 @@ async function Charts() {
             <div>
               <h2 className="text-xl font-black">Deficit vs scale</h2>
               <p className="mt-1 text-sm font-semibold text-muted">
-                Actual kg change vs expected from Whoop burn − food
+                Complete days with Whoop burn, food, and weight
               </p>
             </div>
             <RecordWeightButton date={charts.currentDate} currentKg={charts.currentWeightKg} />
