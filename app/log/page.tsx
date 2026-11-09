@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ComingSoonButton } from "@/components/ComingSoonButton";
+import { AddFoodButton } from "@/components/AddFoodButton";
 import { OrangeHeader } from "@/components/OrangeHeader";
 import { getLogView, getSavedMeals } from "@/lib/data";
 import { formatNumber, formatTime } from "@/lib/format";
@@ -46,7 +46,7 @@ async function Log({
           ) : (
             <ul className="mt-2 divide-y divide-line">
               {day.foods.map((food, index) => (
-                <li key={`${food.time}-${food.item}-${index}`} className="flex items-start justify-between gap-3 py-3">
+                <li key={food.id ?? `${food.time}-${food.item}-${index}`} className="flex items-start justify-between gap-3 py-3">
                   <div>
                     <p className="text-sm font-semibold leading-5">{food.item}</p>
                     <p className="mt-1 text-xs font-semibold text-muted">
@@ -59,7 +59,7 @@ async function Log({
             </ul>
           )}
           <div className="mt-3 flex justify-end">
-            <ComingSoonButton label="Add Food" />
+            <AddFoodButton date={day.date} />
           </div>
         </section>
 
@@ -70,7 +70,7 @@ async function Log({
           ) : (
             <ul className="mt-2 divide-y divide-line">
               {day.waterEntries.map((entry, index) => (
-                <li key={`${entry.time}-${entry.item}-${index}`} className="flex items-start justify-between gap-3 py-3">
+                <li key={entry.id ?? `${entry.time}-${entry.item}-${index}`} className="flex items-start justify-between gap-3 py-3">
                   <div>
                     <p className="text-sm font-semibold leading-5">{entry.item}</p>
                     <p className="mt-1 text-xs font-semibold text-muted">

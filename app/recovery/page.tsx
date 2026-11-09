@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { OrangeHeader } from "@/components/OrangeHeader";
 import { ProgressBar } from "@/components/ProgressBar";
 import { RingStat } from "@/components/RingStat";
@@ -9,7 +10,15 @@ export const metadata: Metadata = {
   title: "Recover",
 };
 
-export default async function RecoveryPage() {
+export default function RecoveryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-header" />}>
+      <Recovery />
+    </Suspense>
+  );
+}
+
+async function Recovery() {
   const [days, workouts] = await Promise.all([getRecoveryDays(), getWorkouts()]);
   const latest = days[0];
   const toneName = latest?.recoveryScore == null ? "accent" : recoveryTone(latest.recoveryScore);

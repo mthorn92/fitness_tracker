@@ -25,7 +25,7 @@ export function OrangeHeader({ title, dateNav, dateBasePath = "/" }: OrangeHeade
           <h1 className="text-center text-lg font-extrabold text-white">{title}</h1>
         )}
         <p className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-[9px] font-bold uppercase leading-tight tracking-wide text-white">
-          Sample
+          DB
         </p>
       </div>
     </header>

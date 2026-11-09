@@ -6,16 +6,25 @@ export type MacroTotals = {
 };
 
 export type FoodItem = MacroTotals & {
+  id?: string;
   time: string;
   item: string;
   saved_meal?: string;
 };
 
 export type WaterEntry = {
+  id?: string;
   time: string;
   item: string;
   litres: number;
   estimated?: boolean;
+};
+
+export type ExerciseEntry = {
+  id?: string;
+  item: string;
+  kcal: number;
+  duration_min?: number | null;
 };
 
 export type DayWhoop = {
@@ -35,7 +44,7 @@ export type DayLog = {
   calories_kcal: number;
   water_l: number;
   drinks: unknown;
-  exercise: unknown[];
+  exercise: ExerciseEntry[];
   notes: string | null;
   water_entries: WaterEntry[];
   whoop: DayWhoop | null;
@@ -252,6 +261,7 @@ export type SavedMealView = {
 export type BodyView = {
   startDate: string;
   startDateLabel: string;
+  currentDate: string;
   currentDateLabel: string;
   startWeightKg: number;
   currentWeightKg: number | null;

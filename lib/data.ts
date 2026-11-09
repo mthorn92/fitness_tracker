@@ -1,10 +1,10 @@
 /**
  * All data reading lives in this file.
  *
- * The dashboard never imports JSON (or a future API) from page or component
- * files. When you are ready for a real backend, change getFitnessData() only.
+ * Pages never talk to SQL or JSON themselves. This module loads the snapshot
+ * from the database (Postgres when DATABASE_URL is set, local PGlite otherwise).
  */
-import sampleData from "@/data/fitness.json";
+import { connection } from "next/server";
 import {
   formatDateLabel,
   formatDatePill,
@@ -13,6 +13,7 @@ import {
   formatWeekday,
   shiftIsoDate,
 } from "@/lib/format";
+import { loadSnapshot } from "@/lib/store";
 import type {
   BodyView,
   DateNav,
@@ -37,16 +38,12 @@ const MEAL_ORDER: MealName[] = [
   "Evening Snacks",
 ];
 
-function readSampleData(): FitnessSnapshot {
-  return sampleData as FitnessSnapshot;
-}
-
 /**
  * Single place that loads the fitness snapshot.
- * Later this can become: return fetch("/api/fitness").then((r) => r.json())
  */
 export async function getFitnessData(): Promise<FitnessSnapshot> {
-  return readSampleData();
+  await connection();
+  return loadSnapshot();
 }
 
 function metric(current: number, target: number): ProgressMetric {
@@ -132,9 +129,11 @@ function groupMeals(foods: FoodItem[]): MealGroup[] {
 }
 
 function exerciseKcalForDate(data: FitnessSnapshot, date: string): number {
-  return data.whoop.workouts
+  const whoop = data.whoop.workouts
     .filter((workout) => workout.date === date)
     .reduce((sum, workout) => sum + workout.kcal, 0);
+  const logged = (data.days[date]?.exercise ?? []).reduce((sum, item) => sum + item.kcal, 0);
+  return whoop + logged;
 }
 
 function weightProgress(start: number, current: number | null, goal: number) {
@@ -261,6 +260,7 @@ export async function getBodyView(): Promise<BodyView> {
   return {
     startDate: data.start_date,
     startDateLabel: formatDateLabel(data.start_date),
+    currentDate: date,
     currentDateLabel: formatDatePill(date),
     startWeightKg: data.start_weight_kg,
     currentWeightKg,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { ComingSoonButton } from "@/components/ComingSoonButton";
+import { Suspense } from "react";
 import { OrangeHeader } from "@/components/OrangeHeader";
+import { RecordWeightButton } from "@/components/RecordWeightButton";
 import { WeightChart } from "@/components/WeightChart";
 import { getBodyView } from "@/lib/data";
 import { formatKg, formatNumber } from "@/lib/format";
@@ -9,7 +10,15 @@ export const metadata: Metadata = {
   title: "Goals",
 };
 
-export default async function BodyPage() {
+export default function BodyPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-header" />}>
+      <Body />
+    </Suspense>
+  );
+}
+
+async function Body() {
   const body = await getBodyView();
 
   return (
@@ -34,7 +43,7 @@ export default async function BodyPage() {
                 <span className="ml-1 text-base font-bold text-muted">kgs</span>
               </p>
             </div>
-            <ComingSoonButton label="Record Weight" />
+            <RecordWeightButton date={body.currentDate} currentKg={body.currentWeightKg} />
           </div>
         </section>
 
@@ -46,7 +55,7 @@ export default async function BodyPage() {
             </p>
           </div>
           <p className="mt-2 text-sm leading-6 text-muted">
-            Started {body.startDateLabel} at {formatKg(body.startWeightKg)}. Sample data only has this starting weigh-in so far.
+            Started {body.startDateLabel} at {formatKg(body.startWeightKg)}. The chart grows as new weigh-ins are saved.
           </p>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-line">
             <div

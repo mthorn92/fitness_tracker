@@ -53,7 +53,7 @@ async function Dashboard({
         ) : null}
 
         {today.meals.map((meal) => (
-          <MealCard key={meal.name} meal={meal} />
+          <MealCard key={meal.name} meal={meal} date={today.date} />
         ))}
 
         <p className="px-1 pb-2 text-center text-sm font-semibold text-muted">{today.fasting}</p>
