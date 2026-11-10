@@ -203,7 +203,7 @@ function recoveryForDate(data: FitnessSnapshot, date: string, day?: DayLog) {
     sleepHours: sleep?.asleep_hours ?? logged?.sleep_hours ?? 0,
     strain: cycle?.strain ?? logged?.strain ?? 0,
     steps: cycle?.step_count ?? logged?.step_count ?? 0,
-    kcal: cycle?.kcal ?? logged?.kcal ?? 0,
+    kcal: preferredWhoopBurnKcal(day?.whoop_burn_kcal, cycle?.kcal, logged?.kcal) ?? 0,
   };
 }
 
@@ -591,7 +591,8 @@ export async function getRecoveryDays(): Promise<RecoveryDay[]> {
       const cycle = data.whoop.cycles.find((item) => item.waking_date === date);
       const recovery = data.whoop.recovery.find((item) => item.waking_date === date);
       const sleep = data.whoop.sleep.find((item) => item.waking_date === date);
-      const logged = data.days[date]?.whoop;
+      const day = data.days[date];
+      const logged = day?.whoop;
 
       return {
         date,
@@ -608,7 +609,7 @@ export async function getRecoveryDays(): Promise<RecoveryDay[]> {
         sleepEfficiency: sleep?.sleep_efficiency_percentage ?? null,
         strain: cycle?.strain ?? logged?.strain ?? null,
         steps: cycle?.step_count ?? logged?.step_count ?? null,
-        kcal: cycle?.kcal ?? logged?.kcal ?? null,
+        kcal: preferredWhoopBurnKcal(day?.whoop_burn_kcal, cycle?.kcal, logged?.kcal),
         avgHr: cycle?.average_heart_rate ?? null,
         maxHr: cycle?.max_heart_rate ?? null,
       };
