@@ -46,8 +46,12 @@ export async function seedIfEmpty(): Promise<void> {
     if (day.notes) {
       await sql(`insert into day_notes (date, notes) values ($1,$2)`, [date, day.notes]);
     }
-    if (day.complete) {
-      await sql(`insert into day_flags (date, complete) values ($1,$2)`, [date, true]);
+    if (day.complete || day.cycle_closed != null) {
+      await sql(`insert into day_flags (date, complete, cycle_closed) values ($1,$2,$3)`, [
+        date,
+        day.complete === true,
+        day.cycle_closed ?? null,
+      ]);
     }
     if (day.whoop) {
       await sql(

@@ -4,7 +4,9 @@ import {
   deleteFood,
   deleteWater,
   ensureStore,
+  patchDayWhoopFields,
   upsertDayComplete,
+  upsertDayCycleClosed,
   upsertDayWhoop,
   upsertExercise,
   upsertFood,
@@ -24,6 +26,11 @@ export type DayWrite = {
   notes?: string | null;
   complete?: boolean;
   whoop?: DayWhoopInput;
+  /** Optional flat day fields (additive; map into day_whoop / day_flags). */
+  whoop_burn_kcal?: number;
+  cycle_closed?: boolean;
+  strain?: number;
+  recovery_pct?: number;
   weight_kg?: number;
   foods?: FoodInput[];
   water?: WaterInput[];
@@ -45,6 +52,10 @@ export type DayWriteResult = {
   saved_meals: { name: string }[];
   complete: boolean | null;
   whoop: boolean;
+  cycle_closed: boolean | null;
+  whoop_burn_kcal: number | null;
+  strain: number | null;
+  recovery_pct: number | null;
   deleted: { foods: string[]; water: string[]; exercises: string[] };
 };
 
@@ -82,6 +93,10 @@ export async function applyDayLog(write: DayWrite): Promise<DayWriteResult> {
       saved_meals: [],
       complete: null,
       whoop: false,
+      cycle_closed: null,
+      whoop_burn_kcal: null,
+      strain: null,
+      recovery_pct: null,
       deleted: { foods: [], water: [], exercises: [] },
     };
 
@@ -123,6 +138,26 @@ export async function applyDayLog(write: DayWrite): Promise<DayWriteResult> {
     if (write.whoop) {
       await upsertDayWhoop(write.date, write.whoop);
       result.whoop = true;
+    }
+    const whoopPatch = {
+      whoop_burn_kcal: write.whoop_burn_kcal,
+      strain: write.strain,
+      recovery_pct: write.recovery_pct,
+    };
+    const hasWhoopPatch =
+      whoopPatch.whoop_burn_kcal != null ||
+      whoopPatch.strain != null ||
+      whoopPatch.recovery_pct != null;
+    if (hasWhoopPatch) {
+      await patchDayWhoopFields(write.date, whoopPatch);
+      result.whoop = true;
+      if (whoopPatch.whoop_burn_kcal != null) result.whoop_burn_kcal = whoopPatch.whoop_burn_kcal;
+      if (whoopPatch.strain != null) result.strain = whoopPatch.strain;
+      if (whoopPatch.recovery_pct != null) result.recovery_pct = whoopPatch.recovery_pct;
+    }
+    if (write.cycle_closed !== undefined) {
+      await upsertDayCycleClosed(write.date, write.cycle_closed);
+      result.cycle_closed = write.cycle_closed;
     }
     return result;
   });

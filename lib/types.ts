@@ -54,6 +54,11 @@ export type DayLog = {
   complete?: boolean;
   water_entries: WaterEntry[];
   whoop: DayWhoop | null;
+  /** Optional flat aliases for bot/UI (derived from day_whoop / cycles when unset). */
+  whoop_burn_kcal?: number | null;
+  cycle_closed?: boolean | null;
+  strain?: number | null;
+  recovery_pct?: number | null;
 };
 
 export type NutritionTargets = {
@@ -316,5 +321,51 @@ export type ChartsView = {
     actualKgLost: number | null;
     kcalPerKgLost: number | null;
     cumulativeDeficitKcal: number;
+  };
+};
+
+/** Live diet dashboard payload (matches docs/diet-dashboard.html shape). */
+export type DietDashboardDay = {
+  date: string;
+  label: string;
+  weight_kg: number | null;
+  kcal: number | null;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  water_l: number;
+  whoop_burn_kcal: number | null;
+  cycle_closed: boolean | null;
+  complete: boolean;
+  deficit_kcal: number | null;
+  cumulative_deficit_kcal: number | null;
+  strain: number | null;
+  recovery_pct: number | null;
+};
+
+export type DietDashboardView = {
+  generated_at: string;
+  generated_label: string;
+  targets: {
+    calories_kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    water_l: number;
+  };
+  start_weight_kg: number;
+  goal_weight_kg: number;
+  kcal_per_kg: number;
+  today: DietDashboardDay;
+  days: DietDashboardDay[];
+  weight_rolling7: Array<number | null>;
+  cumulative_deficit_kcal: number;
+  expected_kg_lost: number;
+  personal: {
+    ready: boolean;
+    completed_days: number;
+    needed_days: number;
+    rolling_change_kg: number | null;
+    kcal_per_kg: number | null;
   };
 };

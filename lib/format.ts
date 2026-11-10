@@ -55,6 +55,23 @@ export function todayIsoDate(timeZone = "Australia/Sydney"): string {
   }).format(new Date());
 }
 
+/** e.g. "Tue 10 Nov 2026, 2:35 pm Melbourne time" */
+export function formatUpdatedLabel(date = new Date(), timeZone = "Australia/Melbourne"): string {
+  const weekday = new Intl.DateTimeFormat("en-AU", { weekday: "short", timeZone }).format(date);
+  const day = new Intl.DateTimeFormat("en-AU", { day: "numeric", timeZone }).format(date);
+  const month = new Intl.DateTimeFormat("en-AU", { month: "short", timeZone }).format(date);
+  const year = new Intl.DateTimeFormat("en-AU", { year: "numeric", timeZone }).format(date);
+  const time = new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone,
+  })
+    .format(date)
+    .toLowerCase();
+  return `${weekday} ${day} ${month} ${year}, ${time} Melbourne time`;
+}
+
 export function formatTime(hhmm: string): string {
   const [hours, minutes] = hhmm.split(":").map(Number);
   const period = hours >= 12 ? "pm" : "am";

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Fitness (sessions / strength) is a later tab. Recover already lists WHOOP workouts.
-
 const LINKS = [
   { href: "/", label: "Dashboard", icon: DashboardIcon },
   { href: "/log", label: "Log", icon: LogIcon },
@@ -17,7 +15,7 @@ export function BottomNav() {
 
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      <ul className="pointer-events-auto mx-auto flex max-w-lg items-center justify-between rounded-full bg-surface px-2 py-2 shadow-[0_10px_30px_rgba(28,28,30,0.12)]">
+      <ul className="pointer-events-auto mx-auto flex max-w-[40rem] items-center justify-between rounded-[14px] border border-line bg-surface px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
         {LINKS.map((link) => {
           const active = pathname === link.href;
           const Icon = link.icon;
@@ -25,7 +23,7 @@ export function BottomNav() {
             <li key={link.href} className="flex-1">
               <Link
                 href={link.href}
-                className={`flex flex-col items-center gap-0.5 rounded-full px-2 py-1.5 text-[11px] font-semibold touch-manipulation ${
+                className={`flex flex-col items-center gap-0.5 rounded-[10px] px-2 py-1.5 text-[11px] font-semibold touch-manipulation ${
                   active ? "bg-surface-2 text-accent" : "text-muted"
                 }`}
               >
