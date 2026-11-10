@@ -46,10 +46,36 @@ export async function seedIfEmpty(): Promise<void> {
     if (day.notes) {
       await sql(`insert into day_notes (date, notes) values ($1,$2)`, [date, day.notes]);
     }
+    if (day.complete || day.cycle_closed != null) {
+      await sql(`insert into day_flags (date, complete, cycle_closed) values ($1,$2,$3)`, [
+        date,
+        day.complete === true,
+        day.cycle_closed ?? null,
+      ]);
+    }
+    if (day.whoop) {
+      await sql(
+        `insert into day_whoop (
+           date, cycle_id, recovery_score, hrv_rmssd_milli, resting_heart_rate,
+           sleep_hours, strain, kcal, step_count
+         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [
+          date,
+          day.whoop.cycle_id ?? null,
+          day.whoop.recovery_score,
+          day.whoop.hrv_rmssd_milli,
+          day.whoop.resting_heart_rate,
+          day.whoop.sleep_hours,
+          day.whoop.strain,
+          day.whoop.kcal,
+          day.whoop.step_count ?? null,
+        ],
+      );
+    }
     for (const [index, food] of day.foods.entries()) {
       await sql(
-        `insert into foods (id, date, time, item, kcal, protein_g, carbs_g, fat_g, saved_meal)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        `insert into foods (id, date, time, item, kcal, protein_g, carbs_g, fat_g, meal, saved_meal)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
         [
           `food_${date}_${String(index + 1).padStart(2, "0")}`,
           date,
@@ -59,6 +85,7 @@ export async function seedIfEmpty(): Promise<void> {
           food.protein_g,
           food.carbs_g,
           food.fat_g,
+          food.meal ?? null,
           food.saved_meal ?? null,
         ],
       );

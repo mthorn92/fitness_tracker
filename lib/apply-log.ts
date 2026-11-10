@@ -4,12 +4,19 @@ import {
   deleteFood,
   deleteWater,
   ensureStore,
+  patchDayWhoopFields,
+  upsertDayComplete,
+  upsertDayCycleClosed,
+  upsertDayWhoop,
   upsertExercise,
   upsertFood,
+  upsertSavedMeal,
   upsertWater,
   upsertWeight,
+  type DayWhoopInput,
   type ExerciseInput,
   type FoodInput,
+  type SavedMealInput,
   type WaterInput,
 } from "@/lib/store";
 import { withBatchedRefresh } from "@/lib/refresh";
@@ -17,10 +24,18 @@ import { withBatchedRefresh } from "@/lib/refresh";
 export type DayWrite = {
   date: string;
   notes?: string | null;
+  complete?: boolean;
+  whoop?: DayWhoopInput;
+  /** Optional flat day fields (additive; map into day_whoop / day_flags). */
+  whoop_burn_kcal?: number;
+  cycle_closed?: boolean;
+  strain?: number;
+  recovery_pct?: number;
   weight_kg?: number;
   foods?: FoodInput[];
   water?: WaterInput[];
   exercises?: ExerciseInput[];
+  saved_meals?: SavedMealInput[];
   delete?: {
     foods?: string[];
     water?: string[];
@@ -34,6 +49,13 @@ export type DayWriteResult = {
   water: { id: string }[];
   exercises: { id: string }[];
   weight: { id: string } | null;
+  saved_meals: { name: string }[];
+  complete: boolean | null;
+  whoop: boolean;
+  cycle_closed: boolean | null;
+  whoop_burn_kcal: number | null;
+  strain: number | null;
+  recovery_pct: number | null;
   deleted: { foods: string[]; water: string[]; exercises: string[] };
 };
 
@@ -62,15 +84,27 @@ export async function upsertDayNote(date: string, notes: string | null): Promise
 export async function applyDayLog(write: DayWrite): Promise<DayWriteResult> {
   await ensureStore();
   return withBatchedRefresh(async () => {
-    const meals = await loadSavedMeals();
     const result: DayWriteResult = {
       date: write.date,
       foods: [],
       water: [],
       exercises: [],
       weight: null,
+      saved_meals: [],
+      complete: null,
+      whoop: false,
+      cycle_closed: null,
+      whoop_burn_kcal: null,
+      strain: null,
+      recovery_pct: null,
       deleted: { foods: [], water: [], exercises: [] },
     };
+
+    for (const meal of write.saved_meals ?? []) {
+      result.saved_meals.push(await upsertSavedMeal(meal));
+    }
+
+    const meals = await loadSavedMeals();
 
     for (const id of write.delete?.foods ?? []) {
       if (await deleteFood(id)) result.deleted.foods.push(id);
@@ -96,6 +130,34 @@ export async function applyDayLog(write: DayWrite): Promise<DayWriteResult> {
     }
     if (write.notes !== undefined) {
       await upsertDayNote(write.date, write.notes);
+    }
+    if (write.complete !== undefined) {
+      await upsertDayComplete(write.date, write.complete);
+      result.complete = write.complete;
+    }
+    if (write.whoop) {
+      await upsertDayWhoop(write.date, write.whoop);
+      result.whoop = true;
+    }
+    const whoopPatch = {
+      whoop_burn_kcal: write.whoop_burn_kcal,
+      strain: write.strain,
+      recovery_pct: write.recovery_pct,
+    };
+    const hasWhoopPatch =
+      whoopPatch.whoop_burn_kcal != null ||
+      whoopPatch.strain != null ||
+      whoopPatch.recovery_pct != null;
+    if (hasWhoopPatch) {
+      await patchDayWhoopFields(write.date, whoopPatch);
+      result.whoop = true;
+      if (whoopPatch.whoop_burn_kcal != null) result.whoop_burn_kcal = whoopPatch.whoop_burn_kcal;
+      if (whoopPatch.strain != null) result.strain = whoopPatch.strain;
+      if (whoopPatch.recovery_pct != null) result.recovery_pct = whoopPatch.recovery_pct;
+    }
+    if (write.cycle_closed !== undefined) {
+      await upsertDayCycleClosed(write.date, write.cycle_closed);
+      result.cycle_closed = write.cycle_closed;
     }
     return result;
   });

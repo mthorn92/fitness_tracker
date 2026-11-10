@@ -8,10 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "verify-import": "FITNESS_PGLITE_MEMORY=1 npx tsx scripts/verify-import.ts",
-    "test": "node --import tsx --test lib/budget.test.ts"
+    "test": "node --import tsx --test lib/budget.test.ts lib/charts.test.ts lib/deficit.test.ts lib/diet-window.test.ts lib/rings.test.ts lib/whoop-burn.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.15",
+    "chart.js": "^4.4.7",
     "next": "16.4.5",
     "pg": "^8.23.1",
     "react": "19.3.0",

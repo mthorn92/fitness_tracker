@@ -21,6 +21,9 @@ export async function POST(request: Request) {
     duration_min: asNumber(body.duration_min),
     kcal: asNumber(body.kcal) ?? 0,
     whoop_id: asString(body.whoop_id, 80),
+    strain: asNumber(body.strain),
+    avg_hr: asNumber(body.avg_hr),
+    source: asString(body.source, 80),
   });
   return json(saved, body.id ? 200 : 201);
 }

@@ -9,6 +9,7 @@ export type FoodItem = MacroTotals & {
   id?: string;
   time: string;
   item: string;
+  meal?: string;
   saved_meal?: string;
 };
 
@@ -25,17 +26,21 @@ export type ExerciseEntry = {
   item: string;
   kcal: number;
   duration_min?: number | null;
+  time?: string | null;
+  strain?: number | null;
+  avg_hr?: number | null;
+  source?: string | null;
 };
 
 export type DayWhoop = {
-  cycle_id: number;
+  cycle_id?: number | null;
   recovery_score: number;
   hrv_rmssd_milli: number;
   resting_heart_rate: number;
   sleep_hours: number;
   strain: number;
   kcal: number;
-  step_count: number;
+  step_count?: number | null;
 };
 
 export type DayLog = {
@@ -46,8 +51,14 @@ export type DayLog = {
   drinks: unknown;
   exercise: ExerciseEntry[];
   notes: string | null;
+  complete?: boolean;
   water_entries: WaterEntry[];
   whoop: DayWhoop | null;
+  /** Optional flat aliases for bot/UI (derived from day_whoop / cycles when unset). */
+  whoop_burn_kcal?: number | null;
+  cycle_closed?: boolean | null;
+  strain?: number | null;
+  recovery_pct?: number | null;
 };
 
 export type NutritionTargets = {
@@ -159,10 +170,12 @@ export type MealName =
   | "Lunch"
   | "Afternoon Snacks"
   | "Dinner"
-  | "Evening Snacks";
+  | "Evening Snacks"
+  | "Snacks"
+  | "Dessert";
 
 export type MealGroup = {
-  name: MealName;
+  name: string;
   foods: FoodItem[];
   kcal: number;
 };
@@ -180,11 +193,19 @@ export type WeightPoint = {
   kg: number;
 };
 
+export type TrendPoint = {
+  date: string;
+  label: string;
+  value: number;
+  avg7d: number;
+};
+
 export type TodayView = {
   date: string;
   dateLabel: string;
   weekday: string;
   notes: string | null;
+  complete: boolean;
   weightKg: number | null;
   goalWeightKg: number;
   startWeightKg: number;
@@ -271,4 +292,85 @@ export type BodyView = {
   weightProgressPct: number;
   targets: NutritionTargets;
   points: WeightPoint[];
+};
+
+export type DeficitOverlayPoint = {
+  date: string;
+  label: string;
+  expectedKgLost: number;
+  actualKgLost: number | null;
+  weighInKgLost: number | null;
+  cumulativeDeficitKcal: number;
+};
+
+/** Charts tab: deficit-vs-scale hero + weight/calorie 7dma series. */
+export type ChartsView = {
+  currentDate: string;
+  currentWeightKg: number | null;
+  goalWeightKg: number;
+  latestCaloriesKcal: number | null;
+  calorieTargetKcal: number;
+  weight: TrendPoint[];
+  calories: TrendPoint[];
+  deficit: {
+    baselineKg: number;
+    baselineDate: string;
+    baselineDateLabel: string;
+    points: DeficitOverlayPoint[];
+    expectedKgLost: number;
+    actualKgLost: number | null;
+    kcalPerKgLost: number | null;
+    cumulativeDeficitKcal: number;
+  };
+};
+
+/** Live diet dashboard payload (matches docs/diet-dashboard.html shape). */
+export type DietDashboardDay = {
+  date: string;
+  label: string;
+  weight_kg: number | null;
+  kcal: number | null;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  water_l: number;
+  whoop_burn_kcal: number | null;
+  cycle_closed: boolean | null;
+  complete: boolean;
+  deficit_kcal: number | null;
+  cumulative_deficit_kcal: number | null;
+  strain: number | null;
+  recovery_pct: number | null;
+};
+
+export type DietDashboardView = {
+  generated_at: string;
+  generated_label: string;
+  targets: {
+    calories_kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    water_l: number;
+  };
+  start_weight_kg: number;
+  goal_weight_kg: number;
+  kcal_per_kg: number;
+  today: DietDashboardDay;
+  days: DietDashboardDay[];
+  weight_rolling7: Array<number | null>;
+  cumulative_deficit_kcal: number;
+  expected_kg_lost: number;
+  /**
+   * Short date label when calendar today is on the chart and not counted yet.
+   * Null when today has no row, so a previous open day is not called in progress.
+   */
+  in_progress_label: string | null;
+  personal: {
+    ready: boolean;
+    completed_days: number;
+    needed_days: number;
+    rolling_change_kg: number | null;
+    kcal_per_kg: number | null;
+  };
 };
