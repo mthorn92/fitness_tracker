@@ -144,45 +144,24 @@ body {
   }
 }
 
-/* Header, then today / food / rings, then two chart rows. The grid is the viewport. */
+.dashboard > .card {
+  min-width: 0;
+  min-height: min-content;
+  overflow: visible;
+}
+
+/* Three columns on a wide window. Each row is at least as tall as its content, and leftover viewport space is shared. Nothing is clipped. */
 @media (min-width: 1100px) {
   .dashboard {
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto minmax(0, 1.42fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto repeat(3, minmax(min-content, 1fr));
     align-content: stretch;
-  }
-
-  .dashboard > .card {
-    min-height: 0;
-    overflow: auto;
-  }
-
-  .dashboard .card {
-    padding: 0.7rem 0.8rem 0.75rem;
-  }
-
-  .dashboard .card h2 {
-    margin-bottom: 0.4rem;
-  }
-
-  .dashboard .grid {
-    gap: 0.4rem 0.75rem;
-  }
-
-  .dashboard .metric .value {
-    margin-top: 0.05rem;
-  }
-
-  .dashboard .bar {
-    margin-top: 0.28rem;
   }
 
   .chart-tile {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
   }
 
   .chart-tile .note {
@@ -190,44 +169,7 @@ body {
   }
 
   .chart-tile .chart-wrap {
-    flex: 1 1 auto;
-    height: auto;
-    min-height: 0;
-  }
-
-  .food-tile {
-    overflow: hidden;
-  }
-
-  .food-list {
-    min-height: 0;
-    overflow: auto;
-  }
-
-  .chart-tile .tile-heading .big {
-    font-size: 1.15rem;
-  }
-
-  .dashboard .ring-btn {
-    min-height: 1.9rem;
-  }
-
-  .dashboard .ring-face {
-    width: 30px;
-    height: 30px;
-  }
-
-  .dashboard .ring-svg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .dashboard .rings-nav {
-    margin-bottom: 0.3rem;
-  }
-
-  .dashboard .rings-tally {
-    margin-top: 0.35rem;
+    flex: 1 1 220px;
   }
 }
 
@@ -305,7 +247,9 @@ body {
 
 .chart-wrap {
   position: relative;
-  height: 200px;
+  width: 100%;
+  height: 220px;
+  min-height: 220px;
 }
 
 .big {
@@ -645,6 +589,5 @@ body {
 }
 
 .food-tile .food-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
 }

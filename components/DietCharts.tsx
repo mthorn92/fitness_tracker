@@ -270,7 +270,14 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
       return new Chart(canvas, config);
     });
 
+    // Chart.js measures the parent on init. A flex/grid tile can still be 0px tall
+    // on that first pass (Safari does this). The min-height is real by the next frame.
+    const frame = requestAnimationFrame(() => {
+      for (const chart of charts.current) chart.resize();
+    });
+
     return () => {
+      cancelAnimationFrame(frame);
       for (const chart of charts.current) chart.destroy();
       charts.current = [];
     };
