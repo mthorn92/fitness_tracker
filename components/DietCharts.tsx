@@ -52,6 +52,7 @@ function baseOpts(yTitle?: string, beginAtZero = false) {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    layout: { padding: { top: 8, right: 4, bottom: 0, left: 0 } },
     interaction: { mode: "index" as const, intersect: false },
     plugins: { legend: { display: true, position: "bottom" as const } },
     scales: {
@@ -280,32 +281,23 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
 
   return (
     <>
-      <section className="card">
-        <h2>Weight</h2>
+      <section className="card chart-tile">
+        <div className="tile-heading">
+          <h2>Cumulative deficit</h2>
+          <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
+        </div>
         <div className="chart-wrap">
-          <canvas id={weightId} aria-label="Weight chart" />
+          <canvas id={deficitId} aria-label="Cumulative deficit chart" />
         </div>
         <p className="note">
-          Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the{" "}
-          {data.goal_weight_kg} kg goal.
-        </p>
-      </section>
-
-      <section className="card">
-        <h2>Cumulative deficit</h2>
-        <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
-        <p className="note" style={{ marginBottom: "0.7rem" }}>
           ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
           {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Completed days only (burn − food); past
           days count even if WHOOP still shows an open cycle. Analysis — not added to the food budget.
           {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
         </p>
-        <div className="chart-wrap">
-          <canvas id={deficitId} aria-label="Cumulative deficit chart" />
-        </div>
       </section>
 
-      <section className="card">
+      <section className="card chart-tile">
         <h2>Calories vs WHOOP burn</h2>
         <div className="chart-wrap">
           <canvas id={caloriesId} aria-label="Calories versus WHOOP burn chart" />
@@ -316,7 +308,18 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
         </p>
       </section>
 
-      <section className="card">
+      <section className="card chart-tile">
+        <h2>Weight</h2>
+        <div className="chart-wrap">
+          <canvas id={weightId} aria-label="Weight chart" />
+        </div>
+        <p className="note">
+          Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the{" "}
+          {data.goal_weight_kg} kg goal.
+        </p>
+      </section>
+
+      <section className="card chart-tile">
         <h2>Protein</h2>
         <div className="chart-wrap">
           <canvas id={proteinId} aria-label="Protein chart" />
@@ -324,7 +327,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
         <p className="note">Daily protein vs {data.targets.protein_g} g target.</p>
       </section>
 
-      <section className="card">
+      <section className="card chart-tile">
         <h2>Water</h2>
         <div className="chart-wrap">
           <canvas id={waterId} aria-label="Water chart" />
@@ -339,7 +342,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             ? `${Math.round(personal.kcal_per_kg).toLocaleString("en-AU")} kcal/kg`
             : `Needs ~2 weeks of data (${personal.completed_days}/${personal.needed_days})`}
         </div>
-        <p className="note" style={{ margin: "0.4rem 0 0" }}>
+        <p className="note">
           WHOOP burn estimates and water weight mean this figure settles over a few weeks. Comparing it
           with {data.kcal_per_kg.toLocaleString("en-AU")} shows how accurate WHOOP burn is for you.
         </p>
