@@ -54,6 +54,11 @@ export type DayLog = {
   complete?: boolean;
   water_entries: WaterEntry[];
   whoop: DayWhoop | null;
+  /** Optional flat aliases for bot/UI (derived from day_whoop / cycles when unset). */
+  whoop_burn_kcal?: number | null;
+  cycle_closed?: boolean | null;
+  strain?: number | null;
+  recovery_pct?: number | null;
 };
 
 export type NutritionTargets = {
@@ -188,6 +193,13 @@ export type WeightPoint = {
   kg: number;
 };
 
+export type TrendPoint = {
+  date: string;
+  label: string;
+  value: number;
+  avg7d: number;
+};
+
 export type TodayView = {
   date: string;
   dateLabel: string;
@@ -280,4 +292,80 @@ export type BodyView = {
   weightProgressPct: number;
   targets: NutritionTargets;
   points: WeightPoint[];
+};
+
+export type DeficitOverlayPoint = {
+  date: string;
+  label: string;
+  expectedKgLost: number;
+  actualKgLost: number | null;
+  weighInKgLost: number | null;
+  cumulativeDeficitKcal: number;
+};
+
+/** Charts tab: deficit-vs-scale hero + weight/calorie 7dma series. */
+export type ChartsView = {
+  currentDate: string;
+  currentWeightKg: number | null;
+  goalWeightKg: number;
+  latestCaloriesKcal: number | null;
+  calorieTargetKcal: number;
+  weight: TrendPoint[];
+  calories: TrendPoint[];
+  deficit: {
+    baselineKg: number;
+    baselineDate: string;
+    baselineDateLabel: string;
+    points: DeficitOverlayPoint[];
+    expectedKgLost: number;
+    actualKgLost: number | null;
+    kcalPerKgLost: number | null;
+    cumulativeDeficitKcal: number;
+  };
+};
+
+/** Live diet dashboard payload (matches docs/diet-dashboard.html shape). */
+export type DietDashboardDay = {
+  date: string;
+  label: string;
+  weight_kg: number | null;
+  kcal: number | null;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  water_l: number;
+  whoop_burn_kcal: number | null;
+  cycle_closed: boolean | null;
+  complete: boolean;
+  deficit_kcal: number | null;
+  cumulative_deficit_kcal: number | null;
+  strain: number | null;
+  recovery_pct: number | null;
+};
+
+export type DietDashboardView = {
+  generated_at: string;
+  generated_label: string;
+  targets: {
+    calories_kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    water_l: number;
+  };
+  start_weight_kg: number;
+  goal_weight_kg: number;
+  kcal_per_kg: number;
+  today: DietDashboardDay;
+  days: DietDashboardDay[];
+  weight_rolling7: Array<number | null>;
+  cumulative_deficit_kcal: number;
+  expected_kg_lost: number;
+  personal: {
+    ready: boolean;
+    completed_days: number;
+    needed_days: number;
+    rolling_change_kg: number | null;
+    kcal_per_kg: number | null;
+  };
 };

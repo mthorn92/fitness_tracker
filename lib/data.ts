@@ -6,19 +6,26 @@
  */
 import { connection } from "next/server";
 import { dayBudget } from "@/lib/budget";
+import { withSevenDayAverage } from "@/lib/charts";
+import { buildDeficitSeries, isChartDayIncluded, KCAL_PER_KG } from "@/lib/deficit";
 import {
   formatDateLabel,
   formatDatePill,
   formatShortDate,
   formatSport,
+  formatUpdatedLabel,
   formatWeekday,
   shiftIsoDate,
+  todayIsoDate,
 } from "@/lib/format";
 import { loadSnapshot } from "@/lib/store";
 import type {
   BodyView,
+  ChartsView,
   DateNav,
   DayLog,
+  DietDashboardDay,
+  DietDashboardView,
   FitnessSnapshot,
   FoodItem,
   MealGroup,
@@ -27,8 +34,18 @@ import type {
   RecoveryDay,
   SavedMealView,
   TodayView,
+  TrendPoint,
   WorkoutView,
 } from "@/lib/types";
+
+const DEFAULT_TARGETS = {
+  calories_kcal: 2000,
+  protein_g: 170,
+  carbs_g: 185,
+  fat_g: 65,
+  water_l: 3,
+} as const;
+const PERSONAL_NEEDED_DAYS = 14;
 
 const MEAL_ORDER: string[] = [
   "Breakfast",
@@ -249,6 +266,24 @@ export async function getSavedMeals(): Promise<SavedMealView[]> {
   }));
 }
 
+/** Food calories for a day — same source as the dashboard budget ring. */
+function dayFoodKcal(day: DayLog | undefined): number | null {
+  if (!day) return null;
+  const fromFoods = sumFoods(day.foods).kcal;
+  const kcal = fromFoods || day.calories_kcal || 0;
+  if (fromFoods <= 0 && day.calories_kcal <= 0 && day.foods.length === 0) return null;
+  return kcal;
+}
+
+function toTrendPoints(series: Array<{ date: string; value: number }>): TrendPoint[] {
+  return withSevenDayAverage(series).map((point) => ({
+    date: point.date,
+    label: formatShortDate(point.date),
+    value: point.value,
+    avg7d: point.avg7d,
+  }));
+}
+
 export async function getBodyView(): Promise<BodyView> {
   const data = await getFitnessData();
   const date = latestLoggedDate(data);
@@ -289,6 +324,234 @@ export async function getBodyView(): Promise<BodyView> {
     weightProgressPct,
     targets: data.targets,
     points,
+  };
+}
+
+function whoopBurnForDate(data: FitnessSnapshot, date: string): number | null {
+  const day = data.days[date];
+  if (day?.whoop_burn_kcal != null) return day.whoop_burn_kcal;
+  const logged = day?.whoop?.kcal;
+  if (logged != null) return logged;
+  const cycle = data.whoop.cycles.find((item) => item.waking_date === date);
+  return cycle?.kcal ?? null;
+}
+
+function cycleClosedForDate(data: FitnessSnapshot, date: string): boolean | null {
+  const day = data.days[date];
+  if (day?.cycle_closed != null) return day.cycle_closed;
+  const cycle = data.whoop.cycles.find((item) => item.waking_date === date);
+  if (!cycle) return null;
+  return cycle.end != null;
+}
+
+function dayMacros(day: DayLog | undefined) {
+  if (!day) return { kcal: null as number | null, protein_g: 0, carbs_g: 0, fat_g: 0, water_l: 0 };
+  const eaten = sumFoods(day.foods);
+  const kcal = dayFoodKcal(day);
+  const water_l =
+    day.water_l || day.water_entries.reduce((sum, entry) => sum + entry.litres, 0);
+  return {
+    kcal,
+    protein_g: eaten.protein_g,
+    carbs_g: eaten.carbs_g,
+    fat_g: eaten.fat_g,
+    water_l,
+  };
+}
+
+export async function getDietDashboardView(date?: string): Promise<DietDashboardView> {
+  const data = await getFitnessData();
+  const today = todayIsoDate();
+  const selected = resolveDate(data, date);
+  const targets = {
+    calories_kcal: data.targets.calories_kcal || DEFAULT_TARGETS.calories_kcal,
+    protein_g: data.targets.protein_g || DEFAULT_TARGETS.protein_g,
+    carbs_g: data.targets.carbs_g || DEFAULT_TARGETS.carbs_g,
+    fat_g: data.targets.fat_g || DEFAULT_TARGETS.fat_g,
+    water_l: data.targets.water_l || DEFAULT_TARGETS.water_l,
+  };
+
+  const dateSet = new Set<string>([
+    data.start_date,
+    ...Object.keys(data.days),
+    ...data.whoop.cycles.map((cycle) => cycle.waking_date),
+  ]);
+  // Include every calendar day from start through selected so charts stay continuous.
+  let cursor = data.start_date;
+  while (cursor <= selected) {
+    dateSet.add(cursor);
+    cursor = shiftIsoDate(cursor, 1);
+  }
+  const dates = [...dateSet].sort();
+
+  const deficitInputs = dates.map((iso) => ({
+    date: iso,
+    whoopKcal: whoopBurnForDate(data, iso),
+    foodKcal: dayFoodKcal(data.days[iso]),
+    weightKg: data.days[iso]?.weight_kg ?? (iso === data.start_date ? data.start_weight_kg : null),
+    complete: data.days[iso]?.complete ?? false,
+    cycleClosed: cycleClosedForDate(data, iso),
+  }));
+  const deficit = buildDeficitSeries(deficitInputs, { today });
+  const deficitByDate = new Map(deficit.points.map((point) => [point.date, point]));
+
+  let runningCumulative = 0;
+  const days: DietDashboardDay[] = dates.map((iso) => {
+    const day = data.days[iso];
+    const macros = dayMacros(day);
+    const closed = cycleClosedForDate(data, iso);
+    const point = deficitByDate.get(iso);
+    const isOpenToday = iso === today && closed !== true && day?.complete !== true;
+    let deficitKcal: number | null = null;
+    if (point) {
+      deficitKcal = point.dailyDeficitKcal;
+      runningCumulative = point.cumulativeDeficitKcal;
+    } else if (!isOpenToday && closed === true && macros.kcal != null) {
+      const burn = whoopBurnForDate(data, iso);
+      if (burn != null) {
+        deficitKcal = burn - macros.kcal;
+        runningCumulative += deficitKcal;
+      }
+    }
+    return {
+      date: iso,
+      label: formatShortDate(iso),
+      weight_kg: day?.weight_kg ?? (iso === data.start_date ? data.start_weight_kg : null),
+      kcal: macros.kcal,
+      protein_g: macros.protein_g,
+      carbs_g: macros.carbs_g,
+      fat_g: macros.fat_g,
+      water_l: macros.water_l,
+      whoop_burn_kcal: whoopBurnForDate(data, iso),
+      cycle_closed: closed,
+      complete: day?.complete ?? false,
+      deficit_kcal: isOpenToday ? null : deficitKcal,
+      cumulative_deficit_kcal: runningCumulative,
+      strain: day?.strain ?? day?.whoop?.strain ?? null,
+      recovery_pct: day?.recovery_pct ?? day?.whoop?.recovery_score ?? null,
+    };
+  });
+
+  const weightPoints = days
+    .filter((day) => day.weight_kg != null)
+    .map((day) => ({ date: day.date, value: day.weight_kg as number }));
+  const rolling = withSevenDayAverage(weightPoints);
+  const rollingByDate = new Map(rolling.map((point) => [point.date, point.avg7d]));
+  const weight_rolling7 = days.map((day) => rollingByDate.get(day.date) ?? null);
+
+  const closedDays = days.filter((day) => day.cycle_closed === true || day.complete);
+  const completed_days = closedDays.length;
+  const firstWeight = days.find((day) => day.weight_kg != null)?.weight_kg ?? null;
+  const lastWeight =
+    [...days].reverse().find((day) => day.weight_kg != null)?.weight_kg ?? null;
+  const rolling_change_kg =
+    firstWeight != null && lastWeight != null ? firstWeight - lastWeight : null;
+  const personalReady = completed_days >= PERSONAL_NEEDED_DAYS && (rolling_change_kg ?? 0) > 0;
+  const personalKcalPerKg =
+    personalReady && rolling_change_kg
+      ? deficit.cumulativeDeficitKcal / rolling_change_kg
+      : null;
+
+  const todayRow = days.find((day) => day.date === selected) ?? days[days.length - 1];
+  const now = new Date();
+
+  return {
+    generated_at: now.toISOString(),
+    generated_label: formatUpdatedLabel(now),
+    targets,
+    start_weight_kg: data.start_weight_kg,
+    goal_weight_kg: data.goal_weight_kg || 95,
+    kcal_per_kg: KCAL_PER_KG,
+    today: todayRow,
+    days,
+    weight_rolling7,
+    cumulative_deficit_kcal: deficit.cumulativeDeficitKcal || runningCumulative,
+    expected_kg_lost: (deficit.cumulativeDeficitKcal || runningCumulative) / KCAL_PER_KG,
+    personal: {
+      ready: personalReady,
+      completed_days,
+      needed_days: PERSONAL_NEEDED_DAYS,
+      rolling_change_kg,
+      kcal_per_kg: personalKcalPerKg,
+    },
+  };
+}
+
+export async function getChartsView(): Promise<ChartsView> {
+  const data = await getFitnessData();
+  const today = todayIsoDate();
+  const currentDate = latestLoggedDate(data);
+  const currentDay = data.days[currentDate];
+
+  const weightSeries: Array<{ date: string; value: number }> = [];
+  const calorieSeries: Array<{ date: string; value: number }> = [];
+
+  for (const [day, log] of Object.entries(data.days).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!isChartDayIncluded({ date: day, complete: log.complete }, today)) continue;
+
+    if (log.weight_kg != null) {
+      weightSeries.push({ date: day, value: log.weight_kg });
+    }
+    const kcal = dayFoodKcal(log);
+    if (kcal != null) {
+      calorieSeries.push({ date: day, value: kcal });
+    }
+  }
+
+  // Seed start weight only when that calendar day is chart-eligible.
+  if (
+    data.start_weight_kg != null &&
+    isChartDayIncluded(
+      { date: data.start_date, complete: data.days[data.start_date]?.complete },
+      today,
+    ) &&
+    !weightSeries.some((point) => point.date === data.start_date)
+  ) {
+    weightSeries.unshift({ date: data.start_date, value: data.start_weight_kg });
+  }
+
+  const deficitDates = new Set<string>([
+    data.start_date,
+    ...Object.keys(data.days),
+    ...data.whoop.cycles.map((cycle) => cycle.waking_date),
+  ]);
+  const deficitDays = [...deficitDates].sort().map((date) => ({
+    date,
+    whoopKcal: whoopBurnForDate(data, date),
+    foodKcal: dayFoodKcal(data.days[date]),
+    weightKg: data.days[date]?.weight_kg ?? (date === data.start_date ? data.start_weight_kg : null),
+    complete: data.days[date]?.complete ?? false,
+    cycleClosed: cycleClosedForDate(data, date),
+  }));
+  const deficit = buildDeficitSeries(deficitDays, { today });
+
+  const latestCaloriesKcal = dayFoodKcal(currentDay);
+
+  return {
+    currentDate,
+    currentWeightKg: currentDay?.weight_kg ?? null,
+    goalWeightKg: data.goal_weight_kg,
+    latestCaloriesKcal,
+    calorieTargetKcal: data.targets.calories_kcal,
+    weight: toTrendPoints(weightSeries),
+    calories: toTrendPoints(calorieSeries),
+    deficit: {
+      baselineKg: deficit.baselineKg,
+      baselineDate: deficit.baselineDate,
+      baselineDateLabel: deficit.baselineDate ? formatShortDate(deficit.baselineDate) : "",
+      points: deficit.points.map((point) => ({
+        date: point.date,
+        label: formatShortDate(point.date),
+        expectedKgLost: point.expectedKgLost,
+        actualKgLost: point.actualKgLost,
+        weighInKgLost: point.weighInKgLost,
+        cumulativeDeficitKcal: point.cumulativeDeficitKcal,
+      })),
+      expectedKgLost: deficit.expectedKgLost,
+      actualKgLost: deficit.actualKgLost,
+      kcalPerKgLost: deficit.kcalPerKgLost,
+      cumulativeDeficitKcal: deficit.cumulativeDeficitKcal,
+    },
   };
 }
 

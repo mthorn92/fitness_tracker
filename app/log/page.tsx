@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function LogPage({ searchParams }: PageProps<"/log">) {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-header" />}>
+    <Suspense fallback={<div className="min-h-dvh bg-background" />}>
       <Log searchParams={searchParams} />
     </Suspense>
   );
@@ -31,7 +31,7 @@ async function Log({
   return (
     <main className="flex flex-1 flex-col pb-28">
       <OrangeHeader dateNav={day.dateNav} dateBasePath="/log" />
-      <div className="-mt-10 flex flex-col gap-3 px-4">
+      <div className="mt-3 flex flex-col gap-3 px-4">
         <section className="grid grid-cols-2 gap-3">
           <SummaryCard label="Calories" value={formatNumber(day.foodKcal)} hint={`/ ${formatNumber(day.calories.target)}`} />
           <SummaryCard
@@ -42,7 +42,7 @@ async function Log({
         </section>
 
         {day.recovery ? (
-          <section className="rounded-[1.6rem] bg-surface px-5 py-4 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+          <section className="card !mb-0">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-extrabold">WHOOP</h2>
               {day.complete ? (

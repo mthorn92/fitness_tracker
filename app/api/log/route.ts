@@ -67,6 +67,26 @@ export async function POST(request: Request) {
     if (complete == null) return json({ error: "invalid_complete" }, 400);
     write.complete = complete;
   }
+  if ("cycle_closed" in body) {
+    const cycleClosed = asBoolean(body.cycle_closed);
+    if (cycleClosed == null) return json({ error: "invalid_cycle_closed" }, 400);
+    write.cycle_closed = cycleClosed;
+  }
+  if ("whoop_burn_kcal" in body) {
+    const burn = asNumber(body.whoop_burn_kcal);
+    if (burn == null) return json({ error: "invalid_whoop_burn_kcal" }, 400);
+    write.whoop_burn_kcal = burn;
+  }
+  if ("strain" in body) {
+    const strain = asNumber(body.strain);
+    if (strain == null) return json({ error: "invalid_strain" }, 400);
+    write.strain = strain;
+  }
+  if ("recovery_pct" in body) {
+    const recovery = asNumber(body.recovery_pct);
+    if (recovery == null) return json({ error: "invalid_recovery_pct" }, 400);
+    write.recovery_pct = recovery;
+  }
   if ("weight_kg" in body) {
     const kg = asNumber(body.weight_kg);
     if (kg == null) return json({ error: "invalid_weight" }, 400);
@@ -86,7 +106,14 @@ export async function POST(request: Request) {
 
   const saved = await applyDayLog(write);
   const created =
-    foods.length || water.length || exercises.length || savedMeals.length || whoop != null;
+    foods.length ||
+    water.length ||
+    exercises.length ||
+    savedMeals.length ||
+    whoop != null ||
+    write.whoop_burn_kcal != null ||
+    write.strain != null ||
+    write.recovery_pct != null;
   return json(saved, created ? 201 : 200);
 }
 

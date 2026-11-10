@@ -8,9 +8,9 @@ export async function GET(request: Request) {
     openapi: "3.1.0",
     info: {
       title: "Training log",
-      version: "1.1.0",
+      version: "1.2.0",
       description:
-        "Personal food, water, weight, exercise, WHOOP and saved-meal log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row. Saved meals upsert by name.",
+        "Personal food, water, weight, exercise, WHOOP and saved-meal log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row. Saved meals upsert by name. Optional flat day fields whoop_burn_kcal, cycle_closed, strain, recovery_pct are additive aliases.",
     },
     security: [{ cursorAppToken: [], bearerAuth: [] }],
     components: {
@@ -121,6 +121,26 @@ export async function GET(request: Request) {
               type: "boolean",
               description: "Day-level complete flag",
               example: true,
+            },
+            cycle_closed: {
+              type: "boolean",
+              description: "Optional: WHOOP cycle closed for this waking date (deficit charts)",
+              example: true,
+            },
+            whoop_burn_kcal: {
+              type: "number",
+              description: "Optional flat alias for day WHOOP burn kcal (writes day_whoop.kcal)",
+              example: 2219,
+            },
+            strain: {
+              type: "number",
+              description: "Optional flat day-level WHOOP strain (writes day_whoop.strain)",
+              example: 12.4,
+            },
+            recovery_pct: {
+              type: "number",
+              description: "Optional flat recovery % (writes day_whoop.recovery_score)",
+              example: 64,
             },
             notes: { type: "string", nullable: true },
             weight_kg: { type: "number" },

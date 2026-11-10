@@ -1,21 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Nunito } from "next/font/google";
 import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
-const nunito = Nunito({
-  variable: "--font-nunito",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: {
-    default: "Training log",
+    default: "Diet dashboard",
     template: "%s · Training log",
   },
   description: "A mobile-first personal fitness dashboard.",
@@ -24,7 +13,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Training log",
+    title: "Diet dashboard",
     statusBarStyle: "default",
   },
 };
@@ -32,16 +21,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#ee9a3a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f4f0" },
+    { media: "(prefers-color-scheme: dark)", color: "#121314" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en-AU"
-      className={`${nunito.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className={`${nunito.className} min-h-full bg-background text-foreground`}>
+    <html lang="en-AU" className="h-full antialiased">
+      <body className="min-h-full bg-background text-foreground">
         <AppShell>{children}</AppShell>
       </body>
     </html>

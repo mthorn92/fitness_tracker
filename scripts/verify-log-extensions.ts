@@ -116,12 +116,32 @@ async function main() {
     throw new Error("saved meal upsert by name failed");
   }
 
+  await applyDayLog({
+    date,
+    whoop_burn_kcal: 2910,
+    cycle_closed: true,
+    strain: 11.2,
+    recovery_pct: 71,
+  });
+  const refreshed = (await loadSnapshot()).days[date];
+  if (!refreshed) throw new Error("missing day after flat whoop fields");
+  if (refreshed.whoop_burn_kcal !== 2910) throw new Error("whoop_burn_kcal not saved");
+  if (refreshed.cycle_closed !== true) throw new Error("cycle_closed not saved");
+  if (refreshed.strain !== 11.2) throw new Error("strain not saved");
+  if (refreshed.recovery_pct !== 71) throw new Error("recovery_pct not saved");
+
   console.log("log extensions ok", {
     complete: day.complete,
     whoop: day.whoop.recovery_score,
     meals: day.foods.map((food) => food.meal),
     exercise: ride,
     savedMealKcal: saved.kcal,
+    flat: {
+      whoop_burn_kcal: refreshed.whoop_burn_kcal,
+      cycle_closed: refreshed.cycle_closed,
+      strain: refreshed.strain,
+      recovery_pct: refreshed.recovery_pct,
+    },
   });
 }
 
