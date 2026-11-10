@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dailyDeficitKcal } from "./deficit";
+import { buildDeficitSeries, dailyDeficitKcal } from "./deficit";
 import {
   buildMonthGrid,
   canGoToNextMonth,
@@ -88,18 +88,24 @@ test("today with an open cycle is in progress and not scored green or red", () =
   assert.equal(quiet.fill, 0);
 });
 
-test("a closed today is scored, and a past open cycle is scored too", () => {
+test("a closed or completed today is scored, and a past open cycle is scored too", () => {
   const closed = ringForDay(
     day({ date: today, foodKcal: 1500, whoopKcal: 2000, cycleClosed: true }),
     today,
   );
   assert.equal(closed.judgement, "under");
 
+  const completedOpen = ringForDay(
+    day({ date: today, foodKcal: 1500, whoopKcal: 2000, cycleClosed: false, complete: true }),
+    today,
+  );
+  assert.equal(completedOpen.judgement, "under");
+
   const unknown = ringForDay(
     day({ date: today, foodKcal: 1500, whoopKcal: 2000, cycleClosed: null }),
     today,
   );
-  assert.equal(unknown.judgement, "under");
+  assert.equal(unknown.judgement, "progress");
 
   const pastOpen = ringForDay(
     day({ date: "2026-11-09", foodKcal: 499, whoopKcal: 1372, cycleClosed: false }),
@@ -228,6 +234,53 @@ test("streak skips an unfinished today and stops on a gap or a red day", () => {
     ),
     2,
   );
+});
+
+test("rings and cumulative deficit count the same days", () => {
+  const calendarToday = "2026-11-11";
+  const past = {
+    date: "2026-11-10",
+    foodKcal: 1800,
+    whoopKcal: 2200,
+    weightKg: 104,
+    cycleClosed: false as boolean | null,
+    complete: false,
+  };
+  const current = {
+    date: calendarToday,
+    foodKcal: 1500,
+    whoopKcal: 1900,
+    weightKg: 103.8,
+    cycleClosed: false as boolean | null,
+    complete: false,
+  };
+  const summary = buildDeficitSeries([past, current], { today: calendarToday });
+  assert.deepEqual(
+    summary.points.map((point) => point.date),
+    ["2026-11-10"],
+  );
+  assert.equal(summary.cumulativeDeficitKcal, dailyDeficitKcal(2200, 1800));
+
+  const pastRing = ringForDay(past, calendarToday);
+  assert.equal(pastRing.judgement, "under");
+  assert.equal(pastRing.deltaKcal, summary.points[0].dailyDeficitKcal);
+
+  const todayRing = ringForDay(current, calendarToday);
+  assert.equal(todayRing.judgement, "progress");
+  assert.equal(
+    summary.points.some((point) => point.date === calendarToday),
+    false,
+  );
+
+  const completed = { ...current, complete: true };
+  const completedSummary = buildDeficitSeries([past, completed], { today: calendarToday });
+  assert.deepEqual(
+    completedSummary.points.map((point) => point.date),
+    ["2026-11-10", calendarToday],
+  );
+  const completedRing = ringForDay(completed, calendarToday);
+  assert.equal(completedRing.judgement, "under");
+  assert.equal(completedRing.deltaKcal, completedSummary.points[1].dailyDeficitKcal);
 });
 
 test("month navigation stays on or before the current month", () => {

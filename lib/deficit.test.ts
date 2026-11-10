@@ -3,8 +3,10 @@ import test from "node:test";
 import {
   buildDeficitSeries,
   dailyDeficitKcal,
+  deficitInProgressLabel,
   hasDeficitAnchor,
   isChartDayIncluded,
+  isDeficitDayReady,
   KCAL_PER_KG,
 } from "./deficit";
 
@@ -90,4 +92,74 @@ test("anchor and today helpers", () => {
   assert.equal(isChartDayIncluded({ date: "2026-11-09", complete: false }, "2026-11-09"), false);
   assert.equal(isChartDayIncluded({ date: "2026-11-09", complete: true }, "2026-11-09"), true);
   assert.equal(isChartDayIncluded({ date: "2026-11-08", complete: false }, "2026-11-09"), true);
+  assert.equal(isDeficitDayReady({ date: "2026-11-09", cycleClosed: false }, "2026-11-10"), true);
+  assert.equal(isDeficitDayReady({ date: "2026-11-09", cycleClosed: false }, "2026-11-09"), false);
+  assert.equal(isDeficitDayReady({ date: "2026-11-10", cycleClosed: false, complete: true }, "2026-11-10"), true);
+});
+
+test("counts past day even when WHOOP cycle still open", () => {
+  const summary = buildDeficitSeries(
+    [
+      {
+        date: "2026-11-09",
+        whoopKcal: 2200,
+        foodKcal: 1800,
+        weightKg: 104.5,
+        cycleClosed: false,
+      },
+    ],
+    { today: "2026-11-10" },
+  );
+  assert.equal(summary.points.length, 1);
+  assert.equal(summary.cumulativeDeficitKcal, 400);
+});
+
+test("excludes open cycle on calendar today", () => {
+  const summary = buildDeficitSeries(
+    [
+      {
+        date: "2026-11-09",
+        whoopKcal: 2200,
+        foodKcal: 1800,
+        weightKg: 104.5,
+        cycleClosed: false,
+      },
+    ],
+    { today: "2026-11-09" },
+  );
+  assert.equal(summary.points.length, 0);
+  assert.equal(summary.cumulativeDeficitKcal, 0);
+});
+
+test("in-progress label is calendar today, never the previous open day", () => {
+  const yesterday = {
+    date: "2026-11-10",
+    label: "Tue, 10 Nov",
+    cycleClosed: false as boolean | null,
+    complete: false,
+  };
+  assert.equal(deficitInProgressLabel([yesterday], "2026-11-11"), null);
+
+  assert.equal(
+    deficitInProgressLabel(
+      [yesterday, { date: "2026-11-11", label: "Wed, 11 Nov", cycleClosed: false, complete: false }],
+      "2026-11-11",
+    ),
+    "Wed, 11 Nov",
+  );
+
+  assert.equal(
+    deficitInProgressLabel(
+      [{ date: "2026-11-11", label: "Wed, 11 Nov", cycleClosed: true, complete: false }],
+      "2026-11-11",
+    ),
+    null,
+  );
+  assert.equal(
+    deficitInProgressLabel(
+      [{ date: "2026-11-11", label: "Wed, 11 Nov", cycleClosed: false, complete: true }],
+      "2026-11-11",
+    ),
+    null,
+  );
 });

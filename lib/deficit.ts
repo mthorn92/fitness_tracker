@@ -74,8 +74,51 @@ export function isChartDayIncluded(
 ): boolean {
   if (!today) return true;
   if (day.date !== today) return true;
-  if (day.cycleClosed != null) return day.cycleClosed === true;
-  return day.complete === true;
+  if (day.cycleClosed === true || day.complete === true) return true;
+  if (day.cycleClosed === false) return false;
+  return false;
+}
+
+/**
+ * Whether burn − food should count for cumulative deficit and the monthly rings.
+ * Past calendar days count even when WHOOP still reports an open cycle; only the
+ * current calendar day waits for cycle_closed / complete.
+ */
+export function isDeficitDayReady(
+  day: Pick<DeficitDayInput, "date" | "complete" | "cycleClosed">,
+  today?: string | null,
+): boolean {
+  if (day.cycleClosed === true || day.complete === true) return true;
+  if (today && day.date < today) return true;
+  if (day.cycleClosed === false) return false;
+  return !today || day.date !== today;
+}
+
+/**
+ * Label for the cumulative-deficit "in progress" note.
+ * Only a row for calendar today can be in progress. If today has no row yet,
+ * this returns null so yesterday is not described as in progress.
+ */
+export function deficitInProgressLabel(
+  days: Array<{
+    date: string;
+    label: string;
+    complete?: boolean;
+    cycleClosed?: boolean | null;
+  }>,
+  today: string,
+): string | null {
+  const row = days.find((day) => day.date === today);
+  if (!row) return null;
+  if (
+    isDeficitDayReady(
+      { date: row.date, complete: row.complete ?? false, cycleClosed: row.cycleClosed },
+      today,
+    )
+  ) {
+    return null;
+  }
+  return row.label;
 }
 
 /**
@@ -91,8 +134,9 @@ export function dailyDeficitKcal(whoopKcal: number, foodKcal: number): number {
  * Build cumulative Whoop−food deficit vs scale loss.
  *
  * Starts at the first day with Whoop burn + food + weigh-in (that weight is baseline).
- * Incomplete "today" is excluded when `today` is set. Later days accumulate only when
- * both Whoop and food exist; weigh-ins update actual kg without inventing burn.
+ * An open WHOOP cycle excludes only calendar today. Past days count once the calendar
+ * day has passed. Later days accumulate only when both Whoop and food exist;
+ * weigh-ins update actual kg without inventing burn.
  */
 export function buildDeficitSeries(
   days: DeficitDayInput[],
@@ -116,8 +160,7 @@ export function buildDeficitSeries(
 
   for (const day of eligible) {
     if (day.date < baselineDate) continue;
-    // Explicitly open WHOOP cycles are analysis-excluded (burn − food not counted yet).
-    if (day.cycleClosed === false) continue;
+    if (!isDeficitDayReady(day, today)) continue;
 
     const hasDeficitInputs = day.whoopKcal != null && day.foodKcal != null;
     const hasWeighIn = day.weightKg != null;

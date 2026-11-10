@@ -1,4 +1,4 @@
-import { dailyDeficitKcal } from "@/lib/deficit";
+import { dailyDeficitKcal, isDeficitDayReady } from "@/lib/deficit";
 import { formatDatePill, formatNumber, shiftIsoDate } from "@/lib/format";
 
 /**
@@ -8,6 +8,9 @@ import { formatDatePill, formatNumber, shiftIsoDate } from "@/lib/format";
  * Green (under) means eaten <= burned. Red (over) means eaten > burned,
  * drawn as a full ring plus an overflow mark.
  * The kcal difference reuses dailyDeficitKcal (burn − food).
+ * Which days count reuses isDeficitDayReady: a past day counts even when the
+ * WHOOP cycle is still open; today stays unscored until the cycle is closed
+ * or the day is marked complete.
  */
 
 export type RingJudgement = "empty" | "future" | "progress" | "under" | "over";
@@ -18,8 +21,10 @@ export type RingDayInput = {
   foodKcal: number | null;
   /** WHOOP burn kcal. Null when the cycle has no burn figure. */
   whoopKcal: number | null;
-  /** WHOOP cycle closed. Only `false` on today keeps the day unscored. */
+  /** WHOOP cycle closed. A past day still scores when this is false. */
   cycleClosed: boolean | null;
+  /** Day marked complete. Today scores when this is true even if the cycle is open. */
+  complete?: boolean;
 };
 
 export type DayRing = {
@@ -62,9 +67,14 @@ export function ringForDay(day: RingDayInput, today: string): DayRing {
   const food = usableFood(day.foodKcal) ? day.foodKcal : null;
   const burned = usableBurn(day.whoopKcal) ? day.whoopKcal : null;
 
+  const ready = isDeficitDayReady(
+    { date: day.date, complete: day.complete === true, cycleClosed: day.cycleClosed },
+    today,
+  );
+
   let judgement: RingJudgement;
   if (day.date > today) judgement = "future";
-  else if (day.date === today && day.cycleClosed === false) judgement = "progress";
+  else if (!ready) judgement = "progress";
   else if (food == null || burned == null) judgement = "empty";
   else if (food > burned) judgement = "over";
   else judgement = "under";
