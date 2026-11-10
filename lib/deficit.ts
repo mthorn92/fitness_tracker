@@ -79,6 +79,15 @@ export function isChartDayIncluded(
 }
 
 /**
+ * One day's energy difference: WHOOP burn minus food eaten.
+ * Positive means under (ate less than was burned). Negative is over.
+ * Shared by the cumulative deficit chart and the monthly rings.
+ */
+export function dailyDeficitKcal(whoopKcal: number, foodKcal: number): number {
+  return whoopKcal - foodKcal;
+}
+
+/**
  * Build cumulative Whoop−food deficit vs scale loss.
  *
  * Starts at the first day with Whoop burn + food + weigh-in (that weight is baseline).
@@ -136,8 +145,8 @@ export function buildDeficitSeries(
 
     const whoopKcal = day.whoopKcal as number;
     const foodKcal = day.foodKcal as number;
-    const dailyDeficitKcal = whoopKcal - foodKcal;
-    cumulativeDeficitKcal += dailyDeficitKcal;
+    const deficit = dailyDeficitKcal(whoopKcal, foodKcal);
+    cumulativeDeficitKcal += deficit;
 
     let weighInKgLost: number | null = null;
     if (hasWeighIn) {
@@ -149,7 +158,7 @@ export function buildDeficitSeries(
       date: day.date,
       whoopKcal,
       foodKcal,
-      dailyDeficitKcal,
+      dailyDeficitKcal: deficit,
       cumulativeDeficitKcal,
       expectedKgLost: cumulativeDeficitKcal / KCAL_PER_KG,
       actualKgLost: lastActualKgLost,

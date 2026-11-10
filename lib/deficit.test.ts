@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildDeficitSeries, hasDeficitAnchor, isChartDayIncluded, KCAL_PER_KG } from "./deficit";
+import {
+  buildDeficitSeries,
+  dailyDeficitKcal,
+  hasDeficitAnchor,
+  isChartDayIncluded,
+  KCAL_PER_KG,
+} from "./deficit";
 
 test("series starts at first day with Whoop + food + weight", () => {
   const summary = buildDeficitSeries([
@@ -64,6 +70,12 @@ test("kcal per kg is null when scale has not moved down", () => {
   assert.equal(summary.actualKgLost, 0);
   assert.equal(summary.kcalPerKgLost, null);
   assert.ok(summary.expectedKgLost > 0);
+});
+
+test("daily deficit is burn minus food", () => {
+  assert.equal(dailyDeficitKcal(2200, 2000), 200);
+  assert.equal(dailyDeficitKcal(1800, 2500), -700);
+  assert.equal(dailyDeficitKcal(2000, 2000), 0);
 });
 
 test("anchor and today helpers", () => {
