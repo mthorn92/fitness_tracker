@@ -74,8 +74,24 @@ export function isChartDayIncluded(
 ): boolean {
   if (!today) return true;
   if (day.date !== today) return true;
-  if (day.cycleClosed != null) return day.cycleClosed === true;
-  return day.complete === true;
+  if (day.cycleClosed === true || day.complete === true) return true;
+  if (day.cycleClosed === false) return false;
+  return false;
+}
+
+/**
+ * Whether burn − food should count for cumulative deficit.
+ * Past calendar days count even when WHOOP still reports an open cycle; only the
+ * current calendar day waits for cycle_closed / complete.
+ */
+export function isDeficitDayReady(
+  day: Pick<DeficitDayInput, "date" | "complete" | "cycleClosed">,
+  today?: string | null,
+): boolean {
+  if (day.cycleClosed === true || day.complete === true) return true;
+  if (today && day.date < today) return true;
+  if (day.cycleClosed === false) return false;
+  return !today || day.date !== today;
 }
 
 /**
@@ -107,8 +123,7 @@ export function buildDeficitSeries(
 
   for (const day of eligible) {
     if (day.date < baselineDate) continue;
-    // Explicitly open WHOOP cycles are analysis-excluded (burn − food not counted yet).
-    if (day.cycleClosed === false) continue;
+    if (!isDeficitDayReady(day, today)) continue;
 
     const hasDeficitInputs = day.whoopKcal != null && day.foodKcal != null;
     const hasWeighIn = day.weightKg != null;
