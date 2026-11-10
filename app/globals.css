@@ -252,6 +252,11 @@ body {
   min-height: 220px;
 }
 
+.chart-wrap canvas {
+  display: block;
+  max-width: 100%;
+}
+
 .big {
   font-variant-numeric: tabular-nums;
   font-size: 1.6rem;
@@ -588,6 +593,17 @@ body {
   margin-bottom: 0;
 }
 
+.food-list {
+  overflow-y: auto;
+  min-height: 0;
+}
+
 .food-tile .food-list {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 800px) {
+  .food-tile {
+    height: 100%;
+  }
 }
