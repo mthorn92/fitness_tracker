@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RecoveryPage() {
   return (
-    <Suspense fallback={<div className="min-h-dvh bg-header" />}>
+    <Suspense fallback={<div className="min-h-dvh bg-background" />}>
       <Recovery />
     </Suspense>
   );
@@ -27,9 +27,9 @@ async function Recovery() {
   return (
     <main className="flex flex-1 flex-col pb-28">
       <OrangeHeader title={latest ? latest.dateLabel : "Recover"} />
-      <div className="-mt-10 flex flex-col gap-3 px-4">
+      <div className="mt-3 flex flex-col gap-3 px-4">
         {latest ? (
-          <section className="rounded-[1.6rem] bg-surface px-5 py-5 shadow-[0_8px_24px_rgba(28,28,30,0.06)]">
+          <section className="card !mb-0">
             <div className="flex items-center gap-4">
               <RingStat
                 value={latest.recoveryScore ?? 0}

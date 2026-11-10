@@ -1,21 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f3f5;
-  --foreground: #1c1c1e;
-  --surface: #ffffff;
-  --surface-2: #f6f6f8;
-  --muted: #8e8e93;
-  --line: #ececee;
-  --accent: #f0983a;
+  --bg: #f6f4f0;
+  --card: #fff;
+  --ink: #1c1b19;
+  --muted: #6b6964;
+  --line: #e4e0d8;
+  --accent: #2c6e5a;
+  --food: #3b6d9a;
+  --burn: #c16a2d;
+  --good: #2c6e5a;
+  --warn: #a15c2a;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --surface: var(--card);
+  --surface-2: #efece6;
+  --header: var(--accent);
+  --header-2: #3d8570;
+  --pill: #d7e8e1;
+  --pill-ink: #1c4034;
+  --go: var(--good);
+  --low: #b54a3a;
   --accent-ink: #ffffff;
-  --header: #ee9a3a;
-  --header-2: #f4b45c;
-  --pill: #f6d7a4;
-  --pill-ink: #5c3b12;
-  --go: #2fae4a;
-  --warn: #e8892e;
-  --low: #e25b4a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121314;
+    --card: #1b1c1e;
+    --ink: #eeeae4;
+    --muted: #9a9791;
+    --line: #2c2d30;
+    --accent: #7dbaa6;
+    --food: #7eadd4;
+    --burn: #e0a06a;
+    --good: #7dbaa6;
+    --warn: #d4a06a;
+    --surface-2: #222326;
+    --pill: #243530;
+    --pill-ink: #cfe8df;
+    --low: #e07a6c;
+  }
 }
 
 @theme inline {
@@ -34,26 +59,128 @@
   --color-go: var(--go);
   --color-warn: var(--warn);
   --color-low: var(--low);
-  --font-sans: var(--font-nunito);
-  --font-mono: var(--font-geist-mono);
-}
-
-html {
-  background: var(--background);
-  color: var(--foreground);
-}
-
-body {
-  min-height: 100dvh;
-  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
-  background: var(--background);
+  --color-food: var(--food);
+  --color-burn: var(--burn);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 * {
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  background: var(--bg);
+  color: var(--ink);
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.diet-main {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 6rem;
+}
+
+.diet-main h1 {
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.2rem;
+}
+
+.diet-main h2,
+.card h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.65rem;
+}
+
+.updated,
+.note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0 0 1.1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 0.9rem 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric .label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric .value {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.2rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-top: 0.15rem;
+}
+
+.metric .sub {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+}
+
+.span2 {
+  grid-column: 1 / -1;
+}
+
+.bar {
+  height: 4px;
+  background: var(--line);
+  border-radius: 99px;
+  margin-top: 0.45rem;
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+
+.bar.over > span {
+  background: var(--warn);
+}
+
+.chart-wrap {
+  position: relative;
+  height: 200px;
+}
+
+.big {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
 .header-wave {
-  background:
-    radial-gradient(120% 90% at 50% -10%, var(--header-2), var(--header) 58%);
+  background: linear-gradient(180deg, var(--surface-2), var(--bg));
 }

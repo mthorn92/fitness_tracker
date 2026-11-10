@@ -148,6 +148,10 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
       complete: false,
       water_entries: [],
       whoop: null,
+      whoop_burn_kcal: null,
+      cycle_closed: null,
+      strain: null,
+      recovery_pct: null,
     };
     return days[date];
   };
@@ -197,11 +201,17 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
   for (const row of flags) {
     const day = ensureDay(text(row.date));
     day.complete = bool(row.complete);
+    if (row.cycle_closed != null) {
+      day.cycle_closed = bool(row.cycle_closed);
+    }
   }
 
   for (const row of dayWhoop) {
     const day = ensureDay(text(row.date));
     day.whoop = mapDayWhoop(row);
+    day.whoop_burn_kcal = day.whoop.kcal;
+    day.strain = day.whoop.strain;
+    day.recovery_pct = day.whoop.recovery_score;
   }
 
   for (const row of exercises) {
@@ -230,6 +240,21 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
     };
   }
 
+  const mappedCycles = cycles.map(mapCycle);
+  const mappedRecovery = recovery.map(mapRecovery);
+
+  // Fill flat day aliases from synced WHOOP tables when day_whoop / flags omit them.
+  for (const cycle of mappedCycles) {
+    const day = ensureDay(cycle.waking_date);
+    if (day.whoop_burn_kcal == null) day.whoop_burn_kcal = cycle.kcal;
+    if (day.strain == null) day.strain = cycle.strain;
+    if (day.cycle_closed == null) day.cycle_closed = cycle.end != null;
+  }
+  for (const row of mappedRecovery) {
+    const day = ensureDay(row.waking_date);
+    if (day.recovery_pct == null) day.recovery_pct = row.recovery_score;
+  }
+
   return {
     goal_weight_kg: num(profile.goal_weight_kg),
     start_weight_kg: num(profile.start_weight_kg),
@@ -245,8 +270,8 @@ export async function loadSnapshot(): Promise<FitnessSnapshot> {
     days,
     saved_meals,
     whoop: {
-      cycles: cycles.map(mapCycle),
-      recovery: recovery.map(mapRecovery),
+      cycles: mappedCycles,
+      recovery: mappedRecovery,
       sleep: sleep.map(mapSleep),
       workouts: workouts.map(mapWorkout),
       updated_at: new Date().toISOString(),
@@ -504,6 +529,55 @@ export async function upsertDayComplete(date: string, complete: boolean): Promis
      values ($1,$2, now())
      on conflict (date) do update set complete = excluded.complete, updated_at = now()`,
     [date, complete],
+  );
+  await refreshPages();
+}
+
+export async function upsertDayCycleClosed(date: string, cycleClosed: boolean): Promise<void> {
+  await ready();
+  await sql(
+    `insert into day_flags (date, complete, cycle_closed, updated_at)
+     values ($1, false, $2, now())
+     on conflict (date) do update set cycle_closed = excluded.cycle_closed, updated_at = now()`,
+    [date, cycleClosed],
+  );
+  await refreshPages();
+}
+
+export type DayWhoopPatch = {
+  whoop_burn_kcal?: number;
+  strain?: number;
+  recovery_pct?: number;
+};
+
+/** Partial day_whoop upsert for flat optional fields (does not clear unset columns). */
+export async function patchDayWhoopFields(date: string, patch: DayWhoopPatch): Promise<void> {
+  await ready();
+  await sql(
+    `insert into day_whoop (
+       date, recovery_score, hrv_rmssd_milli, resting_heart_rate,
+       sleep_hours, strain, kcal, updated_at
+     ) values (
+       $1,
+       coalesce($2::double precision, 0::double precision),
+       0::double precision,
+       0::double precision,
+       0::double precision,
+       coalesce($3::double precision, 0::double precision),
+       coalesce($4::double precision, 0::double precision),
+       now()
+     )
+     on conflict (date) do update set
+       recovery_score = coalesce($2::double precision, day_whoop.recovery_score),
+       strain = coalesce($3::double precision, day_whoop.strain),
+       kcal = coalesce($4::double precision, day_whoop.kcal),
+       updated_at = now()`,
+    [
+      date,
+      patch.recovery_pct ?? null,
+      patch.strain ?? null,
+      patch.whoop_burn_kcal ?? null,
+    ],
   );
   await refreshPages();
 }

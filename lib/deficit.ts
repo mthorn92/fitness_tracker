@@ -11,6 +11,8 @@ export type DeficitDayInput = {
   weightKg: number | null;
   /** Day marked complete in the store. */
   complete?: boolean;
+  /** WHOOP cycle closed for this waking date (preferred over complete when set). */
+  cycleClosed?: boolean | null;
 };
 
 export type DeficitPoint = {
@@ -67,11 +69,12 @@ export function hasDeficitAnchor(day: DeficitDayInput): boolean {
 }
 
 export function isChartDayIncluded(
-  day: Pick<DeficitDayInput, "date" | "complete">,
+  day: Pick<DeficitDayInput, "date" | "complete" | "cycleClosed">,
   today?: string | null,
 ): boolean {
   if (!today) return true;
   if (day.date !== today) return true;
+  if (day.cycleClosed != null) return day.cycleClosed === true;
   return day.complete === true;
 }
 
@@ -104,6 +107,8 @@ export function buildDeficitSeries(
 
   for (const day of eligible) {
     if (day.date < baselineDate) continue;
+    // Explicitly open WHOOP cycles are analysis-excluded (burn − food not counted yet).
+    if (day.cycleClosed === false) continue;
 
     const hasDeficitInputs = day.whoopKcal != null && day.foodKcal != null;
     const hasWeighIn = day.weightKg != null;
