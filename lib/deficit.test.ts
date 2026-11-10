@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildDeficitSeries, hasDeficitAnchor, isChartDayIncluded, KCAL_PER_KG } from "./deficit";
+import {
+  buildDeficitSeries,
+  hasDeficitAnchor,
+  isChartDayIncluded,
+  isDeficitDayReady,
+  KCAL_PER_KG,
+} from "./deficit";
 
 test("series starts at first day with Whoop + food + weight", () => {
   const summary = buildDeficitSeries([
@@ -78,4 +84,40 @@ test("anchor and today helpers", () => {
   assert.equal(isChartDayIncluded({ date: "2026-11-09", complete: false }, "2026-11-09"), false);
   assert.equal(isChartDayIncluded({ date: "2026-11-09", complete: true }, "2026-11-09"), true);
   assert.equal(isChartDayIncluded({ date: "2026-11-08", complete: false }, "2026-11-09"), true);
+  assert.equal(isDeficitDayReady({ date: "2026-11-09", cycleClosed: false }, "2026-11-10"), true);
+  assert.equal(isDeficitDayReady({ date: "2026-11-09", cycleClosed: false }, "2026-11-09"), false);
+});
+
+test("counts past day even when WHOOP cycle still open", () => {
+  const summary = buildDeficitSeries(
+    [
+      {
+        date: "2026-11-09",
+        whoopKcal: 2200,
+        foodKcal: 1800,
+        weightKg: 104.5,
+        cycleClosed: false,
+      },
+    ],
+    { today: "2026-11-10" },
+  );
+  assert.equal(summary.points.length, 1);
+  assert.equal(summary.cumulativeDeficitKcal, 400);
+});
+
+test("excludes open cycle on calendar today", () => {
+  const summary = buildDeficitSeries(
+    [
+      {
+        date: "2026-11-09",
+        whoopKcal: 2200,
+        foodKcal: 1800,
+        weightKg: 104.5,
+        cycleClosed: false,
+      },
+    ],
+    { today: "2026-11-09" },
+  );
+  assert.equal(summary.points.length, 0);
+  assert.equal(summary.cumulativeDeficitKcal, 0);
 });

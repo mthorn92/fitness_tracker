@@ -297,8 +297,8 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
         <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
         <p className="note" style={{ marginBottom: "0.7rem" }}>
           ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
-          {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Closed WHOOP-cycle days only (burn − food).
-          Analysis — not added to the food budget.
+          {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Completed days only (burn − food); past
+          days count even if WHOOP still shows an open cycle. Analysis — not added to the food budget.
           {todayOpen ? ` ${data.today.label} is in progress and not counted yet.` : null}
         </p>
         <div className="chart-wrap">
