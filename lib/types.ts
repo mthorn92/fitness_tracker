@@ -361,6 +361,11 @@ export type DietDashboardView = {
   weight_rolling7: Array<number | null>;
   cumulative_deficit_kcal: number;
   expected_kg_lost: number;
+  /**
+   * Short date label when calendar today is on the chart and not counted yet.
+   * Null when today has no row, so a previous open day is not called in progress.
+   */
+  in_progress_label: string | null;
   personal: {
     ready: boolean;
     completed_days: number;

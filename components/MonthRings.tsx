@@ -40,6 +40,7 @@ function toInput(day: DietDashboardDay): RingDayInput {
     foodKcal: day.kcal,
     whoopKcal: day.whoop_burn_kcal,
     cycleClosed: day.cycle_closed,
+    complete: day.complete,
   };
 }
 

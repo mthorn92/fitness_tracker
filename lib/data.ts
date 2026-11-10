@@ -7,7 +7,16 @@
 import { connection } from "next/server";
 import { dayBudget } from "@/lib/budget";
 import { withSevenDayAverage } from "@/lib/charts";
-import { buildDeficitSeries, isChartDayIncluded, KCAL_PER_KG } from "@/lib/deficit";
+import {
+  buildDeficitSeries,
+  dailyDeficitKcal,
+  deficitInProgressLabel,
+  isChartDayIncluded,
+  isDeficitDayReady,
+  KCAL_PER_KG,
+} from "@/lib/deficit";
+import { dietChartStartDate, enumerateIsoDates } from "@/lib/diet-window";
+import { preferredWhoopBurnKcal } from "@/lib/whoop-burn";
 import {
   formatDateLabel,
   formatDatePill,
@@ -329,11 +338,8 @@ export async function getBodyView(): Promise<BodyView> {
 
 function whoopBurnForDate(data: FitnessSnapshot, date: string): number | null {
   const day = data.days[date];
-  if (day?.whoop_burn_kcal != null) return day.whoop_burn_kcal;
-  const logged = day?.whoop?.kcal;
-  if (logged != null) return logged;
   const cycle = data.whoop.cycles.find((item) => item.waking_date === date);
-  return cycle?.kcal ?? null;
+  return preferredWhoopBurnKcal(day?.whoop_burn_kcal, cycle?.kcal, day?.whoop?.kcal);
 }
 
 function cycleClosedForDate(data: FitnessSnapshot, date: string): boolean | null {
@@ -371,18 +377,22 @@ export async function getDietDashboardView(date?: string): Promise<DietDashboard
     water_l: data.targets.water_l || DEFAULT_TARGETS.water_l,
   };
 
-  const dateSet = new Set<string>([
-    data.start_date,
-    ...Object.keys(data.days),
-    ...data.whoop.cycles.map((cycle) => cycle.waking_date),
-  ]);
-  // Include every calendar day from start through selected so charts stay continuous.
-  let cursor = data.start_date;
-  while (cursor <= selected) {
-    dateSet.add(cursor);
-    cursor = shiftIsoDate(cursor, 1);
-  }
-  const dates = [...dateSet].sort();
+  const candidateDates = [
+    ...new Set([
+      data.start_date,
+      ...Object.keys(data.days),
+      ...data.whoop.cycles.map((cycle) => cycle.waking_date),
+    ]),
+  ].sort();
+  const windowMeta = candidateDates.map((iso) => ({
+    date: iso,
+    foodKcal: dayFoodKcal(data.days[iso]),
+    whoopKcal: whoopBurnForDate(data, iso),
+  }));
+  // Drop WHOOP-only prelude (for example Fri–Sun before food logging).
+  const chartStart = dietChartStartDate(windowMeta, today);
+  const chartEnd = selected >= chartStart ? selected : chartStart;
+  const dates = enumerateIsoDates(chartStart, chartEnd);
 
   const deficitInputs = dates.map((iso) => ({
     date: iso,
@@ -401,15 +411,18 @@ export async function getDietDashboardView(date?: string): Promise<DietDashboard
     const macros = dayMacros(day);
     const closed = cycleClosedForDate(data, iso);
     const point = deficitByDate.get(iso);
-    const isOpenToday = iso === today && closed !== true && day?.complete !== true;
+    const ready = isDeficitDayReady(
+      { date: iso, complete: day?.complete ?? false, cycleClosed: closed },
+      today,
+    );
     let deficitKcal: number | null = null;
     if (point) {
       deficitKcal = point.dailyDeficitKcal;
       runningCumulative = point.cumulativeDeficitKcal;
-    } else if (!isOpenToday && closed === true && macros.kcal != null) {
+    } else if (ready && macros.kcal != null) {
       const burn = whoopBurnForDate(data, iso);
       if (burn != null) {
-        deficitKcal = burn - macros.kcal;
+        deficitKcal = dailyDeficitKcal(burn, macros.kcal);
         runningCumulative += deficitKcal;
       }
     }
@@ -425,7 +438,7 @@ export async function getDietDashboardView(date?: string): Promise<DietDashboard
       whoop_burn_kcal: whoopBurnForDate(data, iso),
       cycle_closed: closed,
       complete: day?.complete ?? false,
-      deficit_kcal: isOpenToday ? null : deficitKcal,
+      deficit_kcal: ready ? deficitKcal : null,
       cumulative_deficit_kcal: runningCumulative,
       strain: day?.strain ?? day?.whoop?.strain ?? null,
       recovery_pct: day?.recovery_pct ?? day?.whoop?.recovery_score ?? null,
@@ -467,6 +480,15 @@ export async function getDietDashboardView(date?: string): Promise<DietDashboard
     weight_rolling7,
     cumulative_deficit_kcal: deficit.cumulativeDeficitKcal || runningCumulative,
     expected_kg_lost: (deficit.cumulativeDeficitKcal || runningCumulative) / KCAL_PER_KG,
+    in_progress_label: deficitInProgressLabel(
+      days.map((day) => ({
+        date: day.date,
+        label: day.label,
+        complete: day.complete,
+        cycleClosed: day.cycle_closed,
+      })),
+      today,
+    ),
     personal: {
       ready: personalReady,
       completed_days,
