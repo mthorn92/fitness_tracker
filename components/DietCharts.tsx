@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   Chart,
   type ChartConfiguration,
@@ -69,12 +69,11 @@ function baseOpts(yTitle?: string, beginAtZero = false) {
 }
 
 export function DietCharts({ data }: { data: DietDashboardView }) {
-  const weightId = useId();
-  const deficitId = useId();
-  const caloriesId = useId();
-  const proteinId = useId();
-  const waterId = useId();
-  const charts = useRef<Chart[]>([]);
+  const weightCanvas = useRef<HTMLCanvasElement>(null);
+  const deficitCanvas = useRef<HTMLCanvasElement>(null);
+  const caloriesCanvas = useRef<HTMLCanvasElement>(null);
+  const proteinCanvas = useRef<HTMLCanvasElement>(null);
+  const waterCanvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const ink = cssVar("--ink");
@@ -94,10 +93,8 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
     Chart.defaults.plugins.legend.labels.padding = 12;
     Chart.defaults.elements.point.hitRadius = 8;
 
-    const configs: Array<{ id: string; config: ChartConfiguration }> = [
+    const configs: ChartConfiguration[] = [
       {
-        id: weightId,
-        config: {
           type: "line",
           data: {
             labels,
@@ -137,11 +134,8 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             ],
           },
           options: baseOpts("kg"),
-        },
       },
       {
-        id: deficitId,
-        config: {
           type: "line",
           data: {
             labels,
@@ -160,11 +154,8 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             ],
           },
           options: baseOpts("kcal", true),
-        },
       },
       {
-        id: caloriesId,
-        config: {
           type: "bar",
           data: {
             labels,
@@ -204,11 +195,8 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             ],
           },
           options: baseOpts("kcal", true),
-        },
       },
       {
-        id: proteinId,
-        config: {
           type: "bar",
           data: {
             labels,
@@ -232,11 +220,8 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             ],
           },
           options: baseOpts("g", true),
-        },
       },
       {
-        id: waterId,
-        config: {
           type: "bar",
           data: {
             labels,
@@ -260,28 +245,70 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             ],
           },
           options: baseOpts("L", true),
-        },
       },
     ];
 
-    charts.current = configs.map(({ id, config }) => {
-      const canvas = document.getElementById(id) as HTMLCanvasElement | null;
-      if (!canvas) throw new Error(`Missing chart canvas ${id}`);
-      return new Chart(canvas, config);
+    const canvases = [weightCanvas, deficitCanvas, caloriesCanvas, proteinCanvas, waterCanvas].map(
+      (slot) => slot.current,
+    );
+    if (canvases.some((canvas) => canvas == null)) return;
+
+    const created = canvases.map((canvas, index) => {
+      const node = canvas as HTMLCanvasElement;
+      // Chart.js otherwise forces border-box, and Safari then collapses the bitmap to 0.
+      node.style.boxSizing = "content-box";
+      const config = configs[index];
+      return new Chart(node, {
+        ...config,
+        options: {
+          ...config.options,
+          responsive: false,
+          animation: false,
+        },
+      });
     });
 
-    // Chart.js measures the parent on init. A flex/grid tile can still be 0px tall
-    // on that first pass (Safari does this). The min-height is real by the next frame.
-    const frame = requestAnimationFrame(() => {
-      for (const chart of charts.current) chart.resize();
+    // A grid tile often reports 0×0 on the first Safari measure. Resizing to that
+    // locks in a blank canvas. Wait until the box is real, then size to it.
+    const paint = () => {
+      let waiting = false;
+      for (const chart of created) {
+        const parent = chart.canvas.parentElement;
+        const width = parent?.clientWidth ?? 0;
+        const height = parent?.clientHeight ?? 0;
+        if (width < 2 || height < 2) {
+          waiting = true;
+          continue;
+        }
+        if (chart.width !== width || chart.height !== height) {
+          chart.resize(width, height);
+        }
+      }
+      return waiting;
+    };
+
+    let frames = 0;
+    let raf = 0;
+    const tick = () => {
+      if (!paint() || frames >= 20) return;
+      frames += 1;
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+
+    const observer = new ResizeObserver(() => {
+      paint();
     });
+    for (const chart of created) {
+      if (chart.canvas.parentElement) observer.observe(chart.canvas.parentElement);
+    }
 
     return () => {
-      cancelAnimationFrame(frame);
-      for (const chart of charts.current) chart.destroy();
-      charts.current = [];
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      for (const chart of created) chart.destroy();
     };
-  }, [caloriesId, data, deficitId, proteinId, waterId, weightId]);
+  }, [data]);
 
   const expected = data.expected_kg_lost;
   const personal = data.personal;
@@ -294,7 +321,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
           <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
         </div>
         <div className="chart-wrap">
-          <canvas id={deficitId} aria-label="Cumulative deficit chart" />
+          <canvas ref={deficitCanvas} aria-label="Cumulative deficit chart" />
         </div>
         <p className="note">
           ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
@@ -307,7 +334,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
       <section className="card chart-tile">
         <h2>Calories vs WHOOP burn</h2>
         <div className="chart-wrap">
-          <canvas id={caloriesId} aria-label="Calories versus WHOOP burn chart" />
+          <canvas ref={caloriesCanvas} aria-label="Calories versus WHOOP burn chart" />
         </div>
         <p className="note">
           Bars are food. The solid line is WHOOP cycle burn. Dashed line is the{" "}
@@ -318,7 +345,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
       <section className="card chart-tile">
         <h2>Weight</h2>
         <div className="chart-wrap">
-          <canvas id={weightId} aria-label="Weight chart" />
+          <canvas ref={weightCanvas} aria-label="Weight chart" />
         </div>
         <p className="note">
           Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the{" "}
@@ -329,7 +356,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
       <section className="card chart-tile">
         <h2>Protein</h2>
         <div className="chart-wrap">
-          <canvas id={proteinId} aria-label="Protein chart" />
+          <canvas ref={proteinCanvas} aria-label="Protein chart" />
         </div>
         <p className="note">Daily protein vs {data.targets.protein_g} g target.</p>
       </section>
@@ -337,7 +364,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
       <section className="card chart-tile">
         <h2>Water</h2>
         <div className="chart-wrap">
-          <canvas id={waterId} aria-label="Water chart" />
+          <canvas ref={waterCanvas} aria-label="Water chart" />
         </div>
         <p className="note">Daily water vs {data.targets.water_l} L target.</p>
       </section>

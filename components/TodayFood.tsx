@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { formatNumber, formatTime } from "@/lib/format";
 import type { FoodItem } from "@/lib/types";
 
@@ -66,9 +69,65 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
   });
 
   const total = foods.reduce((sum, food) => sum + food.kcal, 0);
+  const tileRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const tile = tileRef.current;
+    const list = listRef.current;
+    if (!tile || !list) return;
+
+    const naturalHeight = (node: HTMLElement) => {
+      const style = getComputedStyle(node);
+      const pad = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      let kids = 0;
+      for (const child of node.children) kids += (child as HTMLElement).offsetHeight;
+      const gap = parseFloat(style.rowGap || style.gap || "0") || 0;
+      return kids + pad + border + Math.max(0, node.children.length - 1) * gap;
+    };
+
+    const fit = () => {
+      const row = tile.parentElement;
+      if (!row) return;
+      const tileTop = tile.getBoundingClientRect().top;
+      const siblings = [...row.children].filter((el) => {
+        if (el === tile) return false;
+        return Math.abs((el as HTMLElement).getBoundingClientRect().top - tileTop) < 8;
+      }) as HTMLElement[];
+      if (siblings.length === 0) {
+        list.style.maxHeight = "";
+        return;
+      }
+      const rowHeight = Math.max(...siblings.map(naturalHeight));
+      const style = getComputedStyle(tile);
+      const pad = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      const gap = parseFloat(style.rowGap || style.gap || "0") || 0;
+      const heading = tile.querySelector(".tile-heading")?.getBoundingClientRect().height ?? 0;
+      const totalRow = tile.querySelector(".food-total")?.getBoundingClientRect().height ?? 0;
+      const gaps = gap * Math.max(0, tile.children.length - 1);
+      const max = Math.max(72, Math.floor(rowHeight - pad - border - heading - totalRow - gaps));
+      list.style.maxHeight = `${max}px`;
+    };
+
+    fit();
+    const observer = new ResizeObserver(fit);
+    const row = tile.parentElement;
+    if (row) {
+      for (const child of row.children) {
+        if (child !== tile) observer.observe(child);
+      }
+    }
+    window.addEventListener("resize", fit);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", fit);
+    };
+  }, [foods]);
 
   return (
-    <section className="card food-tile" aria-labelledby="todays-food-title">
+    <section className="card food-tile" aria-labelledby="todays-food-title" ref={tileRef}>
       <div className="tile-heading">
         <h2 id="todays-food-title">Today&apos;s food</h2>
         {dateLabel ? <p className="tile-meta">{dateLabel}</p> : null}
@@ -76,7 +135,7 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
       {foods.length === 0 ? (
         <p className="food-empty">No food logged.</p>
       ) : (
-        <div className="food-list">
+        <div className="food-list" ref={listRef}>
           {names.map((name) => {
             const items = buckets.get(name) ?? [];
             return (
