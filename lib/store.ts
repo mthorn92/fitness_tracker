@@ -9,7 +9,10 @@ import type {
   FitnessSnapshot,
   FoodItem,
   NutritionTargets,
+  PlanWeekday,
   SavedMeal,
+  SessionSet,
+  TrainingSession,
   WaterEntry,
   WhoopCycle,
   WhoopRecovery,
@@ -646,4 +649,126 @@ export async function updateTargets(targets: NutritionTargets & { goal_weight_kg
     ],
   );
   await refreshPages();
+}
+
+const SESSION_ID = /^session_(\d{4}-\d{2}-\d{2})_(\d{2})$/;
+const PLAN_DAYS = new Set(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+
+export async function nextSessionId(date: string): Promise<string> {
+  await ready();
+  const rows = await sql<{ id: string }>("select id from sessions where date = $1", [date]);
+  let max = 0;
+  for (const row of rows) {
+    const match = SESSION_ID.exec(row.id);
+    if (match && match[1] === date) max = Math.max(max, Number(match[2]));
+  }
+  return `session_${date}_${String(max + 1).padStart(2, "0")}`;
+}
+
+export async function listSessions(filter: {
+  date?: string;
+  from?: string;
+  to?: string;
+} = {}): Promise<TrainingSession[]> {
+  await ready();
+  if (filter.date) {
+    const rows = await sql<Record<string, unknown>>(
+      "select * from sessions where date = $1 order by id",
+      [filter.date],
+    );
+    return rows.map(mapSession);
+  }
+  if (filter.from && filter.to) {
+    const rows = await sql<Record<string, unknown>>(
+      "select * from sessions where date >= $1 and date <= $2 order by date, id",
+      [filter.from, filter.to],
+    );
+    return rows.map(mapSession);
+  }
+  const rows = await sql<Record<string, unknown>>("select * from sessions order by date, id");
+  return rows.map(mapSession);
+}
+
+export async function upsertSession(
+  input: TrainingSession,
+): Promise<{ session: TrainingSession; created: boolean }> {
+  await ready();
+  const existing = await sql<{ id: string }>("select id from sessions where id = $1", [input.id]);
+  await sql(
+    `insert into sessions (
+       id, date, plan_id, plan_day, completed, rpe, feedback, sets, duration_min, avg_hr, updated_at
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10, now())
+     on conflict (id) do update set
+       date = excluded.date,
+       plan_id = excluded.plan_id,
+       plan_day = excluded.plan_day,
+       completed = excluded.completed,
+       rpe = excluded.rpe,
+       feedback = excluded.feedback,
+       sets = excluded.sets,
+       duration_min = excluded.duration_min,
+       avg_hr = excluded.avg_hr,
+       updated_at = now()`,
+    [
+      input.id,
+      input.date,
+      input.plan_id,
+      input.plan_day,
+      input.completed,
+      input.rpe,
+      input.feedback,
+      JSON.stringify(input.sets),
+      input.duration_min,
+      input.avg_hr,
+    ],
+  );
+  await refreshPages();
+  const session = (await listSessions({ date: input.date })).find((row) => row.id === input.id);
+  if (!session) throw new Error("Session failed to save.");
+  return { session, created: existing.length === 0 };
+}
+
+function mapSession(row: Record<string, unknown>): TrainingSession {
+  const planDay = optionalText(row.plan_day);
+  return {
+    id: text(row.id),
+    date: text(row.date),
+    plan_id: optionalText(row.plan_id) ?? null,
+    plan_day: planDay && PLAN_DAYS.has(planDay) ? (planDay as PlanWeekday) : null,
+    completed: bool(row.completed),
+    rpe: row.rpe == null || row.rpe === "" ? null : num(row.rpe),
+    feedback: optionalText(row.feedback) ?? null,
+    sets: parseSets(row.sets),
+    duration_min: row.duration_min == null || row.duration_min === "" ? null : num(row.duration_min),
+    avg_hr: row.avg_hr == null || row.avg_hr === "" ? null : num(row.avg_hr),
+  };
+}
+
+function parseSets(value: unknown): SessionSet[] {
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  const sets: SessionSet[] = [];
+  for (const item of parsed) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const exercise_key = optionalText(row.exercise_key);
+    if (!exercise_key) continue;
+    sets.push({
+      exercise_key,
+      set: num(row.set),
+      reps: row.reps == null ? null : num(row.reps),
+      load_kg: row.load_kg == null ? null : num(row.load_kg),
+      band: optionalText(row.band) ?? null,
+      hold_s: row.hold_s == null ? null : num(row.hold_s),
+      done: bool(row.done),
+    });
+  }
+  return sets;
 }
