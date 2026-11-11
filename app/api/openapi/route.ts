@@ -8,9 +8,9 @@ export async function GET(request: Request) {
     openapi: "3.1.0",
     info: {
       title: "Training log",
-      version: "1.2.0",
+      version: "1.3.0",
       description:
-        "Personal food, water, weight, exercise, WHOOP and saved-meal log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row. Saved meals upsert by name. Optional flat day fields whoop_burn_kcal, cycle_closed, strain, recovery_pct are additive aliases.",
+        "Personal food, water, weight, exercise, WHOOP and saved-meal log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row. Saved meals upsert by name. Optional flat day fields whoop_burn_kcal, cycle_closed, strain, recovery_pct are additive aliases. Strength and run sessions are a separate additive API at /api/sessions and do not change /api/log or the food budget.",
     },
     security: [{ cursorAppToken: [], bearerAuth: [] }],
     components: {
@@ -163,6 +163,44 @@ export async function GET(request: Request) {
             },
           },
         },
+        SessionSet: {
+          type: "object",
+          required: ["exercise_key", "set", "done"],
+          properties: {
+            exercise_key: { type: "string", example: "bench_press" },
+            set: { type: "integer", minimum: 1, example: 1 },
+            reps: { type: "number", nullable: true, example: 7 },
+            load_kg: { type: "number", nullable: true, example: 50 },
+            band: { type: "string", nullable: true, example: "2 red" },
+            hold_s: { type: "number", nullable: true, example: 5 },
+            done: { type: "boolean", example: true },
+          },
+        },
+        Session: {
+          type: "object",
+          required: ["date", "completed"],
+          properties: {
+            id: {
+              type: "string",
+              description: "Stable id session_YYYY-MM-DD_NN. Omitted on create; sending it again updates that row.",
+              example: "session_2026-11-16_01",
+            },
+            date: { type: "string", example: "2026-11-16" },
+            plan_id: { type: "string", nullable: true, example: "plan_2026-11-16" },
+            plan_day: {
+              type: "string",
+              nullable: true,
+              enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+              example: "mon",
+            },
+            completed: { type: "boolean", example: true },
+            rpe: { type: "number", nullable: true, minimum: 1, maximum: 10, example: 7 },
+            feedback: { type: "string", nullable: true },
+            sets: { type: "array", items: { $ref: "#/components/schemas/SessionSet" } },
+            duration_min: { type: "number", nullable: true, description: "Run duration in minutes", example: 28 },
+            avg_hr: { type: "number", nullable: true, description: "Average heart rate for a run", example: 138 },
+          },
+        },
       },
     },
     paths: {
@@ -230,6 +268,62 @@ export async function GET(request: Request) {
                     strain: 0.86,
                     kcal: 1372,
                   },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/sessions": {
+        get: {
+          summary: "Read logged training sessions",
+          parameters: [
+            {
+              name: "date",
+              in: "query",
+              schema: { type: "string", example: "2026-11-16" },
+              description: "One day. Do not combine with from/to.",
+            },
+            {
+              name: "from",
+              in: "query",
+              schema: { type: "string", example: "2026-11-16" },
+              description: "Range start (inclusive). Requires to.",
+            },
+            {
+              name: "to",
+              in: "query",
+              schema: { type: "string", example: "2026-11-22" },
+              description: "Range end (inclusive). Requires from.",
+            },
+          ],
+        },
+        post: {
+          summary: "Create or update one training session by id",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Session" },
+                example: {
+                  id: "session_2026-11-16_01",
+                  date: "2026-11-16",
+                  plan_id: "plan_2026-11-16",
+                  plan_day: "mon",
+                  completed: true,
+                  rpe: 7,
+                  feedback: "Stopped with reps in reserve.",
+                  sets: [
+                    {
+                      exercise_key: "bench_press",
+                      set: 1,
+                      reps: 7,
+                      load_kg: 50,
+                      band: null,
+                      hold_s: null,
+                      done: true,
+                    },
+                  ],
                 },
               },
             },

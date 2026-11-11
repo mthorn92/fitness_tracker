@@ -374,3 +374,140 @@ export type DietDashboardView = {
     kcal_per_kg: number | null;
   };
 };
+
+export type PlanWeekType = "build" | "deload";
+
+export type PlanWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export type PlanProgression = "compound" | "accessory" | "pullup" | "none";
+
+export type PlanDayKind = "lift" | "cardio" | "rest";
+
+export type PlanItem = {
+  key: string;
+  name: string;
+  sets: number;
+  reps: number;
+  load_kg?: number;
+  band?: string;
+  hold_s?: number;
+  /** Superset slot, such as A1 or A2. */
+  group?: string;
+  progression: PlanProgression;
+  /** Kilograms added when a rep ladder finishes. Compounds use this. */
+  load_step_kg?: number;
+  extra?: string;
+};
+
+export type PlanLiftDay = {
+  label: string;
+  kind: "lift";
+  items: PlanItem[];
+};
+
+export type PlanCardioDay = {
+  label: string;
+  kind: "cardio";
+  duration_min_min: number;
+  duration_min_max: number;
+  hr_cap_bpm: number;
+  note?: string;
+};
+
+export type PlanRestDay = {
+  label: string;
+  kind: "rest";
+  note?: string;
+};
+
+export type PlanDay = PlanLiftDay | PlanCardioDay | PlanRestDay;
+
+/** 8-week block loaded from data/plans. */
+export type TrainingPlan = {
+  id: string;
+  name: string;
+  start_date: string;
+  daily_walk: string;
+  weeks: Array<{ week: number; type: PlanWeekType }>;
+  deload_rule: {
+    sets: "halve_round_up";
+    load: "keep";
+    rir_note: string;
+  };
+  progression: {
+    compound: { reps: number[]; then: "add_load_and_reset" };
+    accessory: { reps: number[]; then: "add_load_and_reset" };
+    pullup: {
+      add_reps_per_build_week: 1;
+      cap_reps: number;
+      then: "lighter_band_and_reset";
+    };
+  };
+  progression_rules: string[];
+  days: Record<PlanWeekday, PlanDay>;
+};
+
+export type PrescribedExercise = {
+  key: string;
+  name: string;
+  sets: number;
+  reps: number;
+  load_kg: number | null;
+  band: string | null;
+  hold_s: number | null;
+  group: string | null;
+  extra: string | null;
+  progression: PlanProgression;
+};
+
+/**
+ * What the plan prescribes on one calendar date.
+ * Logged sessions do not change this.
+ */
+export type PrescribedDay = {
+  date: string;
+  plan_id: string;
+  plan_name: string;
+  start_date: string;
+  end_date: string;
+  in_block: boolean;
+  week: number | null;
+  weeks_in_block: number;
+  week_type: PlanWeekType | null;
+  plan_day: PlanWeekday | null;
+  label: string | null;
+  kind: PlanDayKind | null;
+  deload_note: string | null;
+  daily_walk: string;
+  items: PrescribedExercise[];
+  cardio: {
+    duration_min_min: number;
+    duration_min_max: number;
+    hr_cap_bpm: number;
+  } | null;
+  note: string | null;
+};
+
+export type SessionSet = {
+  exercise_key: string;
+  set: number;
+  reps: number | null;
+  load_kg: number | null;
+  band: string | null;
+  hold_s: number | null;
+  done: boolean;
+};
+
+/** One logged training session. Ids are session_YYYY-MM-DD_NN. */
+export type TrainingSession = {
+  id: string;
+  date: string;
+  plan_id: string | null;
+  plan_day: PlanWeekday | null;
+  completed: boolean;
+  rpe: number | null;
+  feedback: string | null;
+  sets: SessionSet[];
+  duration_min: number | null;
+  avg_hr: number | null;
+};

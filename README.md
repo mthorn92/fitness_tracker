@@ -6,7 +6,7 @@ The bot writes to a **database**. On your computer that is a local Postgres file
 
 Your existing sample log is imported once so daily calories, macros and water match the current tracker.
 
-There is still no live WHOOP connection. WHOOP rows from the sample file are imported so Recover has something to show. A Fitness (workouts / strength) section comes later.
+There is still no live WHOOP connection. WHOOP rows from the sample file are imported so Recover has something to show. The dashboard also shows today's workout from the 8-week plan. Logging a session does not change the food budget.
 
 ## Run it on your computer
 
@@ -55,6 +55,7 @@ The **website** stays Private (Cursor sign-in in the browser).
 | GET | `/api/log?date=2026-11-09` | Read one day (includes saved meals) |
 | POST | `/api/log` | **Main bot call** — log or correct food, water, weight, exercise for one date |
 | GET | `/api/openapi` | Machine-readable API description |
+| GET/POST | `/api/sessions` | Read or upsert a strength/run session (`session_YYYY-MM-DD_NN`). Same auth as `/api/log`. Does not change food, water, weight or the 2,000 kcal budget. |
 | PATCH/DELETE | `/api/foods/:id` | Correct or remove one food |
 | POST | `/api/water` `/api/weights` `/api/exercises` | Single-item writes if you prefer |
 
@@ -123,6 +124,6 @@ Locally, the API treats you as a simulated signed-in viewer, so curl works witho
 ## Not included yet
 
 - Wiring the Grok Bot’s connection to the published URL + token (test one meal first)
-- A Fitness section for sessions / strength
+- Editing the plan from the website (the plan file and `/api/sessions` are the log)
 - Live WHOOP sync (keep credentials on the server; dedupe by WHOOP id)
 - Hosted backups beyond what the Cursor database provides

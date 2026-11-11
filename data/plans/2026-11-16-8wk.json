@@ -1,0 +1,257 @@
+{
+  "id": "plan_2026-11-16",
+  "name": "8-week strength",
+  "start_date": "2026-11-16",
+  "daily_walk": "Daily walk",
+  "weeks": [
+    { "week": 1, "type": "build" },
+    { "week": 2, "type": "build" },
+    { "week": 3, "type": "build" },
+    { "week": 4, "type": "deload" },
+    { "week": 5, "type": "build" },
+    { "week": 6, "type": "build" },
+    { "week": 7, "type": "build" },
+    { "week": 8, "type": "deload" }
+  ],
+  "deload_rule": {
+    "sets": "halve_round_up",
+    "load": "keep",
+    "rir_note": "Stop with 4+ reps in reserve"
+  },
+  "progression": {
+    "compound": { "reps": [7, 8, 9], "then": "add_load_and_reset" },
+    "accessory": { "reps": [10, 12, 15], "then": "add_load_and_reset" },
+    "pullup": { "add_reps_per_build_week": 1, "cap_reps": 10, "then": "lighter_band_and_reset" }
+  },
+  "progression_rules": [
+    "Compounds add a rep each build week (7, then 8, then 9). The next build week adds that exercise's load_step_kg and resets to 7 reps. Bench and box squat and deadlift step 5 kg. Overhead press steps 2.5 kg.",
+    "Accessories that start at 10 reps go 10, then 12, then 15. The next build week adds load_step_kg when the exercise has one, and resets to 10. Accessories written at another rep count stay on those reps.",
+    "Banded pull-ups add one rep per build week. The build week after 10 reps drops to a lighter band (2 red, then 1 red, then bodyweight) and resets to the starting reps.",
+    "Deload weeks halve the sets and round up, keep the same load and reps as the previous build week, and stop with 4+ reps in reserve.",
+    "Easy runs stay 25-30 minutes with heart rate under 145 bpm, including deload weeks. Walk every day."
+  ],
+  "days": {
+    "mon": {
+      "label": "Day A push",
+      "kind": "lift",
+      "items": [
+        {
+          "key": "bench_press",
+          "name": "Bench press",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 50,
+          "group": "A1",
+          "progression": "compound",
+          "load_step_kg": 5
+        },
+        {
+          "key": "banded_pullup",
+          "name": "Banded pull-up",
+          "sets": 3,
+          "reps": 6,
+          "band": "2 red",
+          "group": "A2",
+          "progression": "pullup"
+        },
+        {
+          "key": "strict_pullup",
+          "name": "Strict pull-up",
+          "sets": 2,
+          "reps": 1,
+          "extra": "attempt",
+          "progression": "none"
+        },
+        {
+          "key": "overhead_press",
+          "name": "Overhead press",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 25,
+          "progression": "compound",
+          "load_step_kg": 2.5
+        },
+        {
+          "key": "rope_pushdown",
+          "name": "Rope pushdown",
+          "sets": 3,
+          "reps": 10,
+          "group": "C1",
+          "progression": "accessory"
+        },
+        {
+          "key": "db_lateral_raise",
+          "name": "Dumbbell lateral raise",
+          "sets": 3,
+          "reps": 10,
+          "load_kg": 8,
+          "group": "C2",
+          "extra": "per hand",
+          "progression": "accessory"
+        }
+      ]
+    },
+    "tue": {
+      "label": "Easy run",
+      "kind": "cardio",
+      "duration_min_min": 25,
+      "duration_min_max": 30,
+      "hr_cap_bpm": 145
+    },
+    "wed": {
+      "label": "Day B legs",
+      "kind": "lift",
+      "items": [
+        {
+          "key": "box_squat",
+          "name": "Box squat to bench",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 40,
+          "progression": "compound",
+          "load_step_kg": 5
+        },
+        {
+          "key": "bulgarian_split_squat",
+          "name": "Bulgarian split squat",
+          "sets": 3,
+          "reps": 10,
+          "extra": "per leg",
+          "progression": "accessory"
+        },
+        {
+          "key": "deadbug",
+          "name": "Dead bug",
+          "sets": 3,
+          "reps": 10,
+          "group": "A1",
+          "progression": "accessory"
+        },
+        {
+          "key": "calf_raise",
+          "name": "Calf raise",
+          "sets": 3,
+          "reps": 12,
+          "group": "A2",
+          "progression": "accessory"
+        }
+      ]
+    },
+    "thu": {
+      "label": "Day C pull",
+      "kind": "lift",
+      "items": [
+        {
+          "key": "banded_pullup",
+          "name": "Banded pull-up",
+          "sets": 4,
+          "reps": 8,
+          "band": "2 red",
+          "group": "A1",
+          "progression": "pullup"
+        },
+        {
+          "key": "cable_row",
+          "name": "Cable row",
+          "sets": 3,
+          "reps": 10,
+          "group": "A2",
+          "progression": "accessory"
+        },
+        {
+          "key": "pullup_negative",
+          "name": "Pull-up negative",
+          "sets": 3,
+          "reps": 1,
+          "hold_s": 5,
+          "extra": "negative",
+          "progression": "none"
+        },
+        {
+          "key": "pullup_top_hold",
+          "name": "Pull-up top hold",
+          "sets": 1,
+          "reps": 1,
+          "hold_s": 10,
+          "extra": "top hold",
+          "progression": "none"
+        },
+        {
+          "key": "face_pull",
+          "name": "Face pull",
+          "sets": 2,
+          "reps": 12,
+          "progression": "accessory"
+        },
+        {
+          "key": "db_curl",
+          "name": "Dumbbell curl",
+          "sets": 2,
+          "reps": 10,
+          "progression": "accessory"
+        }
+      ]
+    },
+    "fri": {
+      "label": "Easy run",
+      "kind": "cardio",
+      "duration_min_min": 25,
+      "duration_min_max": 30,
+      "hr_cap_bpm": 145
+    },
+    "sat": {
+      "label": "Day D hinge",
+      "kind": "lift",
+      "items": [
+        {
+          "key": "deadlift",
+          "name": "Deadlift",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 50,
+          "progression": "compound",
+          "load_step_kg": 5
+        },
+        {
+          "key": "cable_pull_through",
+          "name": "Cable pull-through",
+          "sets": 3,
+          "reps": 10,
+          "group": "A1",
+          "progression": "accessory"
+        },
+        {
+          "key": "dead_hang",
+          "name": "Dead hang",
+          "sets": 2,
+          "reps": 1,
+          "hold_s": 20,
+          "group": "A2",
+          "extra": "dead hang",
+          "progression": "none"
+        },
+        {
+          "key": "goblet_squat",
+          "name": "Goblet squat",
+          "sets": 2,
+          "reps": 10,
+          "group": "B1",
+          "progression": "accessory"
+        },
+        {
+          "key": "scap_pullup",
+          "name": "Scap pull-up",
+          "sets": 2,
+          "reps": 8,
+          "group": "B2",
+          "progression": "none"
+        }
+      ]
+    },
+    "sun": {
+      "label": "Rest",
+      "kind": "rest",
+      "note": "Rest, walk, or an optional swim"
+    }
+  }
+}
