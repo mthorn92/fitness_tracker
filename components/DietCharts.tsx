@@ -31,8 +31,19 @@ Chart.register(
   Tooltip,
 );
 
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function cssVar(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+/** Chart.js throws or draws nothing on NaN, Infinity, or a numeric string. */
+function chartPoint(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function hexAlpha(c: string, a: number): string {
@@ -46,8 +57,8 @@ function hexAlpha(c: string, a: number): string {
 }
 
 function baseOpts(yTitle?: string, beginAtZero = false) {
-  const muted = cssVar("--muted");
-  const line = cssVar("--line");
+  const muted = cssVar("--muted", "#6b6964");
+  const line = cssVar("--line", "#e4e0d8");
   const ticks = { padding: 6, maxRotation: 0 as const, autoSkip: true, maxTicksLimit: 6 };
   return {
     responsive: true,
@@ -76,18 +87,19 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
   const waterCanvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const ink = cssVar("--ink");
-    const muted = cssVar("--muted");
-    const accent = cssVar("--accent");
-    const food = cssVar("--food");
-    const burn = cssVar("--burn");
+    const ink = cssVar("--ink", "#1c1b19");
+    const muted = cssVar("--muted", "#6b6964");
+    const accent = cssVar("--accent", "#2c6e5a");
+    const food = cssVar("--food", "#3b6d9a");
+    const burn = cssVar("--burn", "#c16a2d");
     const labels = data.days.map((d) => d.label);
+    const series = (values: unknown[]) => values.map(chartPoint);
 
     Chart.defaults.font.family =
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
     Chart.defaults.font.size = 11;
     Chart.defaults.color = muted;
-    Chart.defaults.borderColor = cssVar("--line");
+    Chart.defaults.borderColor = cssVar("--line", "#e4e0d8");
     Chart.defaults.plugins.legend.labels.boxWidth = 10;
     Chart.defaults.plugins.legend.labels.boxHeight = 10;
     Chart.defaults.plugins.legend.labels.padding = 12;
@@ -101,7 +113,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             datasets: [
               {
                 label: "Daily",
-                data: data.days.map((d) => d.weight_kg),
+                data: series(data.days.map((d) => d.weight_kg)),
                 borderColor: "transparent",
                 backgroundColor: hexAlpha(ink, 0.35),
                 pointRadius: 4,
@@ -111,7 +123,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
               },
               {
                 label: "7-day avg",
-                data: data.weight_rolling7,
+                data: series(data.weight_rolling7),
                 borderColor: accent,
                 backgroundColor: accent,
                 borderWidth: 2.6,
@@ -142,7 +154,9 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
             datasets: [
               {
                 label: "Cumulative deficit",
-                data: data.days.map((d) => (d.deficit_kcal == null ? null : d.cumulative_deficit_kcal)),
+                data: series(
+                  data.days.map((d) => (d.deficit_kcal == null ? null : d.cumulative_deficit_kcal)),
+                ),
                 borderColor: accent,
                 backgroundColor: hexAlpha(accent, 0.16),
                 borderWidth: 2.4,
@@ -163,7 +177,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
               {
                 type: "bar",
                 label: "Food",
-                data: data.days.map((d) => d.kcal),
+                data: series(data.days.map((d) => d.kcal)),
                 backgroundColor: hexAlpha(food, 0.55),
                 borderColor: food,
                 borderWidth: 0,
@@ -173,7 +187,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
               {
                 type: "line",
                 label: "WHOOP burn",
-                data: data.days.map((d) => d.whoop_burn_kcal),
+                data: series(data.days.map((d) => d.whoop_burn_kcal)),
                 borderColor: burn,
                 backgroundColor: burn,
                 borderWidth: 2.2,
@@ -204,7 +218,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
               {
                 type: "bar",
                 label: "Protein",
-                data: data.days.map((d) => d.protein_g),
+                data: series(data.days.map((d) => d.protein_g)),
                 backgroundColor: hexAlpha(accent, 0.55),
                 borderRadius: 3,
               } as ChartDataset,
@@ -229,7 +243,7 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
               {
                 type: "bar",
                 label: "Water",
-                data: data.days.map((d) => d.water_l),
+                data: series(data.days.map((d) => d.water_l)),
                 backgroundColor: hexAlpha(food, 0.55),
                 borderRadius: 3,
               } as ChartDataset,
@@ -253,35 +267,52 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
     );
     if (canvases.some((canvas) => canvas == null)) return;
 
-    const created = canvases.map((canvas, index) => {
+    // iOS Safari keeps several full-resolution canvases and then throws the
+    // bitmaps away. Cap the backing store so a phone is less likely to do that.
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const created: Chart[] = [];
+    canvases.forEach((canvas, index) => {
       const node = canvas as HTMLCanvasElement;
-      // Chart.js otherwise forces border-box, and Safari then collapses the bitmap to 0.
-      node.style.boxSizing = "content-box";
-      const config = configs[index];
-      return new Chart(node, {
-        ...config,
-        options: {
-          ...config.options,
-          responsive: false,
-          animation: false,
-        },
-      });
+      try {
+        // Chart.js otherwise forces border-box, and Safari then collapses the bitmap.
+        node.style.boxSizing = "content-box";
+        const config = configs[index];
+        created.push(
+          new Chart(node, {
+            ...config,
+            options: {
+              ...config.options,
+              responsive: false,
+              animation: false,
+              devicePixelRatio: pixelRatio,
+            },
+          }),
+        );
+      } catch (error) {
+        console.error("Chart failed to start:", node.getAttribute("aria-label"), error);
+      }
     });
 
-    // A grid tile often reports 0×0 on the first Safari measure. Resizing to that
-    // locks in a blank canvas. Wait until the box is real, then size to it.
-    const paint = () => {
+    // Resize only when the tile has a real size. A 0×0 pass locks in a blank canvas.
+    // force redraws even when the size is unchanged, which is what iOS needs after
+    // it discards the bitmap (background tab, bfcache) without changing layout.
+    const paint = (force = false) => {
       let waiting = false;
       for (const chart of created) {
-        const parent = chart.canvas.parentElement;
-        const width = parent?.clientWidth ?? 0;
-        const height = parent?.clientHeight ?? 0;
-        if (width < 2 || height < 2) {
-          waiting = true;
-          continue;
-        }
-        if (chart.width !== width || chart.height !== height) {
-          chart.resize(width, height);
+        try {
+          const parent = chart.canvas.parentElement;
+          const width = Math.floor(parent?.clientWidth ?? 0);
+          const height = Math.floor(parent?.clientHeight ?? 0);
+          if (width < 2 || height < 2) {
+            waiting = true;
+            continue;
+          }
+          if (force || chart.width !== width || chart.height !== height) {
+            (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
+            chart.resize(width, height);
+          }
+        } catch (error) {
+          console.error("Chart redraw failed:", chart.canvas.getAttribute("aria-label"), error);
         }
       }
       return waiting;
@@ -290,22 +321,47 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
     let frames = 0;
     let raf = 0;
     const tick = () => {
-      if (!paint() || frames >= 20) return;
+      if (!paint(false) || frames >= 20) return;
       frames += 1;
       raf = requestAnimationFrame(tick);
     };
     tick();
 
+    const redraw = () => {
+      paint(true);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") redraw();
+    };
     const observer = new ResizeObserver(() => {
-      paint();
+      paint(false);
+    });
+    const paintedOnScreen = new WeakSet<HTMLCanvasElement>();
+    const seen = new IntersectionObserver((entries) => {
+      let due = false;
+      for (const entry of entries) {
+        if (!entry.isIntersecting || !(entry.target instanceof HTMLCanvasElement)) continue;
+        if (paintedOnScreen.has(entry.target)) continue;
+        paintedOnScreen.add(entry.target);
+        due = true;
+      }
+      if (due) redraw();
     });
     for (const chart of created) {
       if (chart.canvas.parentElement) observer.observe(chart.canvas.parentElement);
+      seen.observe(chart.canvas);
     }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", redraw);
+    window.addEventListener("orientationchange", redraw);
 
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      seen.disconnect();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", redraw);
+      window.removeEventListener("orientationchange", redraw);
       for (const chart of created) chart.destroy();
     };
   }, [data]);
