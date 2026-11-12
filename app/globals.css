@@ -196,13 +196,84 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.chart-tile[data-tile="deficit"] .tile-heading {
-  margin-bottom: 0.15rem;
+.deficit-stats-wrap {
+  container-type: inline-size;
+  container-name: deficit-stats;
+  margin: 0 0 0.7rem;
 }
 
-.deficit-compare {
-  margin: 0 0 0.5rem;
-  line-height: 1.35;
+.deficit-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+.deficit-stat {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.deficit-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.deficit-swatch {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 99px;
+}
+
+.deficit-swatch[data-series="whoop"] {
+  background: var(--accent);
+}
+
+.deficit-swatch[data-series="fixed"] {
+  background: var(--burn);
+}
+
+.deficit-stat .big {
+  margin: 0.15rem 0 0;
+  font-size: clamp(1.25rem, 16cqi, 1.6rem);
+  line-height: 1.05;
+}
+
+.deficit-kg {
+  margin: 0.18rem 0 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(0.95rem, 12cqi, 1.08rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+@container deficit-stats (min-width: 19rem) {
+  .deficit-stats {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0;
+  }
+
+  .deficit-stat {
+    padding-right: 0.9rem;
+  }
+
+  .deficit-stat + .deficit-stat {
+    padding-right: 0;
+    padding-left: 0.9rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .deficit-stat-label {
+    min-height: 2.5em;
+  }
 }
 
 @media (min-width: 800px) {
