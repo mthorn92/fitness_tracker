@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ASSUMED_TDEE_KCAL,
   buildDeficitSeries,
+  buildFixedTdeeDeficitSeries,
   dailyDeficitKcal,
   deficitInProgressLabel,
+  fixedTdeeCumulativeForChartDays,
+  fixedTdeeDailyDeficitKcal,
+  fixedTdeeSeriesLabel,
   hasDeficitAnchor,
   isChartDayIncluded,
   isDeficitDayReady,
@@ -78,6 +83,94 @@ test("daily deficit is burn minus food", () => {
   assert.equal(dailyDeficitKcal(2200, 2000), 200);
   assert.equal(dailyDeficitKcal(1800, 2500), -700);
   assert.equal(dailyDeficitKcal(2000, 2000), 0);
+});
+
+test("fixed TDEE deficit is 2700 minus food and ignores WHOOP burn", () => {
+  assert.equal(ASSUMED_TDEE_KCAL, 2700);
+  assert.equal(fixedTdeeSeriesLabel(), "Fixed TDEE 2,700");
+  assert.equal(fixedTdeeDailyDeficitKcal(2000), 700);
+  assert.equal(fixedTdeeDailyDeficitKcal(2700), 0);
+  assert.equal(fixedTdeeDailyDeficitKcal(3000), -300);
+
+  const lowBurn = buildFixedTdeeDeficitSeries([
+    { date: "2026-11-08", whoopKcal: 2000, foodKcal: 1800, weightKg: 100 },
+  ]);
+  const highBurn = buildFixedTdeeDeficitSeries([
+    { date: "2026-11-08", whoopKcal: 4000, foodKcal: 1800, weightKg: 100 },
+  ]);
+  assert.equal(lowBurn.cumulativeDeficitKcal, 900);
+  assert.equal(highBurn.cumulativeDeficitKcal, 900);
+  assert.equal(lowBurn.points[0].dailyDeficitKcal, 900);
+  assert.ok(Math.abs(lowBurn.expectedKgLost - 900 / KCAL_PER_KG) < 1e-9);
+});
+
+test("fixed TDEE series uses the same days as the WHOOP deficit series", () => {
+  const days = [
+    { date: "2026-11-06", whoopKcal: 2453, foodKcal: null, weightKg: null },
+    { date: "2026-11-07", whoopKcal: 2091, foodKcal: null, weightKg: 104 },
+    { date: "2026-11-08", whoopKcal: 2000, foodKcal: 1800, weightKg: 103.8 },
+    { date: "2026-11-09", whoopKcal: 1372, foodKcal: 499, weightKg: 103.5 },
+    { date: "2026-11-10", whoopKcal: 2200, foodKcal: null, weightKg: 103.2 },
+    {
+      date: "2026-11-11",
+      whoopKcal: 2100,
+      foodKcal: 2500,
+      weightKg: null,
+      cycleClosed: false,
+    },
+  ];
+  const whoop = buildDeficitSeries(days, { today: "2026-11-12" });
+  const fixed = buildFixedTdeeDeficitSeries(days, { today: "2026-11-12" });
+
+  assert.deepEqual(
+    fixed.points.map((point) => point.date),
+    whoop.points.map((point) => point.date),
+  );
+  // Nov 8: 2700−1800, Nov 9: +2700−499, Nov 10 has no food so it stays flat,
+  // Nov 11 is a past open cycle and still counts: +2700−2500.
+  assert.deepEqual(
+    fixed.points.map((point) => point.cumulativeDeficitKcal),
+    [900, 3101, 3101, 3301],
+  );
+  assert.equal(fixed.points[2].dailyDeficitKcal, null);
+  assert.equal(fixed.points[2].foodKcal, null);
+  assert.ok(Math.abs(fixed.expectedKgLost - 3301 / KCAL_PER_KG) < 1e-9);
+  assert.equal(whoop.cumulativeDeficitKcal, 2000 - 1800 + (1372 - 499) + (2100 - 2500));
+});
+
+test("fixed TDEE series excludes incomplete today", () => {
+  const days = [
+    { date: "2026-11-08", whoopKcal: 2000, foodKcal: 1500, weightKg: 104.5, complete: true },
+    { date: "2026-11-09", whoopKcal: 1372, foodKcal: 499, weightKg: 104, complete: false },
+  ];
+  const whoop = buildDeficitSeries(days, { today: "2026-11-09" });
+  const fixed = buildFixedTdeeDeficitSeries(days, { today: "2026-11-09" });
+
+  assert.deepEqual(
+    fixed.points.map((point) => point.date),
+    whoop.points.map((point) => point.date),
+  );
+  assert.deepEqual(
+    fixed.points.map((point) => point.date),
+    ["2026-11-08"],
+  );
+  assert.equal(fixed.cumulativeDeficitKcal, 2700 - 1500);
+  assert.equal(whoop.cumulativeDeficitKcal, 500);
+});
+
+test("chart fixed-TDEE line follows plotted days and skips food with no burn", () => {
+  const series = fixedTdeeCumulativeForChartDays([
+    { plotted: false, foodKcal: 1800, whoopKcal: 2000 },
+    { plotted: true, foodKcal: 1800, whoopKcal: 2000 },
+    { plotted: true, foodKcal: null, whoopKcal: 2200 },
+    { plotted: true, foodKcal: 1600, whoopKcal: null },
+    { plotted: false, foodKcal: 1000, whoopKcal: 2100 },
+    { plotted: true, foodKcal: 2500, whoopKcal: 2100 },
+  ]);
+
+  assert.deepEqual(series.values, [null, 900, 900, 900, null, 1100]);
+  assert.equal(series.cumulativeDeficitKcal, 1100);
+  assert.ok(Math.abs(series.expectedKgLost - 1100 / KCAL_PER_KG) < 1e-9);
 });
 
 test("anchor and today helpers", () => {
