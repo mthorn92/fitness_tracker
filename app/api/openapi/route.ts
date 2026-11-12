@@ -330,6 +330,20 @@ export async function GET(request: Request) {
           },
         },
       },
+      "/api/strava/connect": {
+        get: {
+          summary: "Start a one-time Strava connection",
+          description:
+            "Same auth as /api/log. Redirects a signed-in browser to Strava. Requires STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET. Does not return tokens.",
+        },
+      },
+      "/api/strava/callback": {
+        get: {
+          summary: "Finish the one-time Strava connection",
+          description:
+            "Strava redirects here with a code. The server exchanges it and stores the refresh token. The response never includes the code or the token.",
+        },
+      },
     },
   });
 }

@@ -12,10 +12,13 @@ import {
 } from "@/components/DietCharts";
 import { DietTodayCard } from "@/components/DietTodayCard";
 import { MonthRings } from "@/components/MonthRings";
+import { StravaRunsTile } from "@/components/StravaRunsTile";
+import { StrengthDayTile } from "@/components/StrengthDayTile";
 import { TodayFood } from "@/components/TodayFood";
 import { TrainingTodayCard } from "@/components/TrainingTodayCard";
 import { DASHBOARD_TAB_EVENT, type DashboardTab } from "@/components/dashboard-tab";
-import type { TrainingTile } from "@/lib/training-view";
+import type { ExerciseBoard } from "@/lib/exercise-board";
+import type { StravaTileModel } from "@/lib/strava-summary";
 import type { DietDashboardView, FoodItem } from "@/lib/types";
 
 const STORAGE_KEY = "dashboard-tab";
@@ -73,14 +76,16 @@ export function Dashboard({
   updated,
   data,
   foods,
-  training,
+  board,
+  strava,
   today,
 }: {
   initialTab: DashboardTab;
   updated: string;
   data: DietDashboardView;
   foods: FoodItem[];
-  training: TrainingTile;
+  board: ExerciseBoard;
+  strava: StravaTileModel;
   today: string;
 }) {
   const tab = useSyncExternalStore(
@@ -170,14 +175,22 @@ export function Dashboard({
       </header>
       <DietTodayCard data={data} />
       <TodayFood foods={foods} dateLabel={data.today.label} />
+      <MonthRings days={data.days} today={today} />
       <WeightChartTile canvasRef={charts.weight} data={data} />
       <CaloriesChartTile canvasRef={charts.calories} data={data} />
       <DeficitChartTile canvasRef={charts.deficit} data={data} />
       <ProteinChartTile canvasRef={charts.protein} data={data} />
       <WaterChartTile canvasRef={charts.water} data={data} />
       <PersonalKcalTile data={data} />
-      <MonthRings days={data.days} today={today} />
-      <TrainingTodayCard view={training} />
+      <TrainingTodayCard view={board.today} mode={board.todayMode} />
+      {board.days[0] ? <StrengthDayTile day={board.days[0]} /> : null}
+      {board.days[1] ? <StrengthDayTile day={board.days[1]} /> : null}
+      <div className="tile-spare" data-tab-group="exercise" data-tile="spare" data-position="3" aria-hidden="true">
+        <span>3 · Spare</span>
+      </div>
+      {board.days[2] ? <StrengthDayTile day={board.days[2]} /> : null}
+      {board.days[3] ? <StrengthDayTile day={board.days[3]} /> : null}
+      <StravaRunsTile model={strava} />
     </main>
   );
 }

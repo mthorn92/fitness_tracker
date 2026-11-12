@@ -1,10 +1,30 @@
+import { formatRpe, TrainingBlocks } from "@/components/TrainingBlocks";
 import type { TrainingTile } from "@/lib/training-view";
 
-export function TrainingTodayCard({ view }: { view: TrainingTile }) {
+export function TrainingTodayCard({
+  view,
+  mode = "full",
+}: {
+  view: TrainingTile;
+  mode?: "full" | "lift";
+}) {
   const meta = [view.dateLabel, view.weekLabel].filter(Boolean).join(" · ");
 
+  if (mode === "lift") {
+    return (
+      <section className="card exercise-today" data-tab-group="exercise" data-tile="today">
+        <div className="tile-heading">
+          <h2>Today</h2>
+          {meta ? <p className="tile-meta">{meta}</p> : null}
+        </div>
+        <p className="train-lead">{view.dayLabel ?? "Strength"} is highlighted.</p>
+        {view.dailyWalk ? <p className="note">{view.dailyWalk}</p> : null}
+      </section>
+    );
+  }
+
   return (
-    <section className="card training-tile" data-tab-group="exercise" data-tile="training">
+    <section className="card training-tile exercise-today" data-tab-group="exercise" data-tile="today">
       <div className="tile-heading">
         <h2>{view.heading}</h2>
         {meta ? <p className="tile-meta">{meta}</p> : null}
@@ -33,26 +53,7 @@ export function TrainingTodayCard({ view }: { view: TrainingTile }) {
             <p className="note">Plan {view.cardioText}</p>
           ) : null}
           {view.restNote ? <p className="train-dose">{view.restNote}</p> : null}
-          {view.groups.length > 0 ? (
-            <div className="train-groups">
-              {view.groups.map((group, index) => (
-                <div key={`${group.letter ?? "set"}-${index}`} className="train-block">
-                  {group.letter ? <p className="train-kicker">Superset {group.letter}</p> : null}
-                  <ul className="train-list">
-                    {group.rows.map((row) => (
-                      <li key={row.key}>
-                        <div className="train-name">{row.name}</div>
-                        <div className="train-dose">
-                          {view.state === "completed" ? `Plan ${row.prescription}` : row.prescription}
-                        </div>
-                        {row.logged ? <div className="train-log">{row.logged}</div> : null}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <TrainingBlocks groups={view.groups} completed={view.state === "completed"} />
           {view.rpe != null ? <p className="train-result">RPE {formatRpe(view.rpe)}</p> : null}
           {view.feedback ? <p className="note">{view.feedback}</p> : null}
           {view.dailyWalk ? <p className="note">{view.dailyWalk}</p> : null}
@@ -60,9 +61,4 @@ export function TrainingTodayCard({ view }: { view: TrainingTile }) {
       )}
     </section>
   );
-}
-
-function formatRpe(value: number): string {
-  const rounded = Math.round(value * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }

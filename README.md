@@ -121,6 +121,21 @@ Locally, the API treats you as a simulated signed-in viewer, so curl works witho
 | `data/fitness.json` | One-time seed, only if the database is empty |
 | `app/api/` | Authenticated bot/website API |
 
+## Strava runs
+
+The Exercise tab can show runs from Strava. Until `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, and a refresh token are set, that tile says **Strava not connected yet** and the rest of the dashboard is unchanged.
+
+Keep the client secret and refresh token in the Cursor Apps dashboard secrets (the same place as `LOG_API_TOKEN`). Do not put them in a file or in chat. After the first successful connection, a rotated refresh token is saved in the database. Strava invalidates the previous one, so the saved copy is used first.
+
+The easy path, once the client id and secret are saved and the app has been published again:
+
+1. Sign in to the dashboard.
+2. Open `https://training-log.apps.grok.bot/api/strava/connect`.
+3. Approve Strava (scope `activity:read_all`, so private runs are included).
+4. You land back on the Exercise tab. The refresh token stays on the server.
+
+A manual path, if you would rather paste `STRAVA_REFRESH_TOKEN` yourself, is written up in the pull request that added this tile.
+
 ## Not included yet
 
 - Wiring the Grok Bot’s connection to the published URL + token (test one meal first)
