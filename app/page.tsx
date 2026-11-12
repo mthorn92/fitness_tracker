@@ -1,9 +1,6 @@
 import { Suspense } from "react";
-import { DietCharts } from "@/components/DietCharts";
-import { DietTodayCard } from "@/components/DietTodayCard";
-import { MonthRings } from "@/components/MonthRings";
-import { TodayFood } from "@/components/TodayFood";
-import { TrainingTodayCard } from "@/components/TrainingTodayCard";
+import { Dashboard } from "@/components/Dashboard";
+import { parseDashboardTab } from "@/components/dashboard-tab";
 import { getDietDashboardView, getLogView } from "@/lib/data";
 import { todayIsoDate } from "@/lib/format";
 import { getTrainingTile } from "@/lib/training-view";
@@ -29,16 +26,13 @@ async function DietDashboard({
   const training = await getTrainingTile(trainingDate);
 
   return (
-    <main className="dashboard">
-      <header className="dashboard-head">
-        <h1>Diet dashboard</h1>
-        <p className="updated">Updated {data.generated_label}</p>
-      </header>
-      <TrainingTodayCard view={training} />
-      <DietTodayCard data={data} />
-      <TodayFood foods={log.foods} dateLabel={data.today.label} />
-      <MonthRings days={data.days} today={todayIsoDate()} />
-      <DietCharts data={data} />
-    </main>
+    <Dashboard
+      initialTab={parseDashboardTab(params.tab)}
+      updated={data.generated_label}
+      data={data}
+      foods={log.foods}
+      training={training}
+      today={todayIsoDate()}
+    />
   );
 }

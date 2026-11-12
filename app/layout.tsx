@@ -3,9 +3,10 @@ import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  applicationName: "Max's Dashboard",
   title: {
-    default: "Diet dashboard",
-    template: "%s · Training log",
+    default: "Max's Dashboard",
+    template: "%s · Max's Dashboard",
   },
   description: "A mobile-first personal fitness dashboard.",
   icons: {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Diet dashboard",
+    title: "Max's Dashboard",
     statusBarStyle: "default",
   },
 };
