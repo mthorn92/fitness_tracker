@@ -19,7 +19,7 @@ export function DietTodayCard({ data }: { data: DietDashboardView }) {
     today.cycle_closed === true ? "cycle closed" : today.cycle_closed === false ? "cycle open" : null;
 
   return (
-    <section className="card">
+    <section className="card" data-tab-group="diet" data-tile="daily">
       <h2>{today.label}</h2>
       <div className="grid">
         <div className="metric span2">

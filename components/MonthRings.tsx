@@ -128,7 +128,13 @@ export function MonthRings({ days, today }: { days: DietDashboardDay[]; today: s
   }
 
   return (
-    <section className="card month-rings" aria-label="Monthly rings" ref={rootRef}>
+    <section
+      className="card month-rings"
+      aria-label="Monthly rings"
+      data-tab-group="diet"
+      data-tile="rings"
+      ref={rootRef}
+    >
       <div className="rings-nav">
         <button type="button" className="rings-arrow" aria-label="Previous month" onClick={() => go(-1)}>
           <Chevron direction="left" />

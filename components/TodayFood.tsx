@@ -127,7 +127,13 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
   }, [foods]);
 
   return (
-    <section className="card food-tile" aria-labelledby="todays-food-title" ref={tileRef}>
+    <section
+      className="card food-tile"
+      aria-labelledby="todays-food-title"
+      data-tab-group="diet"
+      data-tile="food"
+      ref={tileRef}
+    >
       <div className="tile-heading">
         <h2 id="todays-food-title">Today&apos;s food</h2>
         {dateLabel ? <p className="tile-meta">{dateLabel}</p> : null}

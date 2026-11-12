@@ -4,7 +4,7 @@ export function TrainingTodayCard({ view }: { view: TrainingTile }) {
   const meta = [view.dateLabel, view.weekLabel].filter(Boolean).join(" · ");
 
   return (
-    <section className="card training-tile">
+    <section className="card training-tile" data-tab-group="exercise" data-tile="training">
       <div className="tile-heading">
         <h2>{view.heading}</h2>
         {meta ? <p className="tile-meta">{meta}</p> : null}

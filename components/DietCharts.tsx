@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
+import { DASHBOARD_TAB_EVENT } from "@/components/dashboard-tab";
 import {
   Chart,
   type ChartConfiguration,
@@ -79,7 +80,15 @@ function baseOpts(yTitle?: string, beginAtZero = false) {
   };
 }
 
-export function DietCharts({ data }: { data: DietDashboardView }) {
+export type DietChartRefs = {
+  weight: RefObject<HTMLCanvasElement | null>;
+  deficit: RefObject<HTMLCanvasElement | null>;
+  calories: RefObject<HTMLCanvasElement | null>;
+  protein: RefObject<HTMLCanvasElement | null>;
+  water: RefObject<HTMLCanvasElement | null>;
+};
+
+export function useDietCharts(data: DietDashboardView): DietChartRefs {
   const weightCanvas = useRef<HTMLCanvasElement>(null);
   const deficitCanvas = useRef<HTMLCanvasElement>(null);
   const caloriesCanvas = useRef<HTMLCanvasElement>(null);
@@ -351,92 +360,160 @@ export function DietCharts({ data }: { data: DietDashboardView }) {
       if (chart.canvas.parentElement) observer.observe(chart.canvas.parentElement);
       seen.observe(chart.canvas);
     }
+    // A hidden tab is display:none, so its canvas is 0×0 until the tab is shown.
+    // Reuse the same non-zero-size redraw; a second frame covers a late layout.
+    let tabFrame = 0;
+    const onTab = () => {
+      redraw();
+      cancelAnimationFrame(tabFrame);
+      tabFrame = requestAnimationFrame(() => redraw());
+    };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pageshow", redraw);
     window.addEventListener("orientationchange", redraw);
+    document.addEventListener(DASHBOARD_TAB_EVENT, onTab);
 
     return () => {
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(tabFrame);
       observer.disconnect();
       seen.disconnect();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", redraw);
       window.removeEventListener("orientationchange", redraw);
+      document.removeEventListener(DASHBOARD_TAB_EVENT, onTab);
       for (const chart of created) chart.destroy();
     };
   }, [data]);
 
-  const expected = data.expected_kg_lost;
-  const personal = data.personal;
+  return {
+    weight: weightCanvas,
+    deficit: deficitCanvas,
+    calories: caloriesCanvas,
+    protein: proteinCanvas,
+    water: waterCanvas,
+  };
+}
 
+export function WeightChartTile({
+  canvasRef,
+  data,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  data: DietDashboardView;
+}) {
   return (
-    <>
-      <section className="card chart-tile">
-        <div className="tile-heading">
-          <h2>Cumulative deficit</h2>
-          <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
-        </div>
-        <div className="chart-wrap">
-          <canvas ref={deficitCanvas} aria-label="Cumulative deficit chart" />
-        </div>
-        <p className="note">
-          ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
-          {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Completed days only (burn − food); past
-          days count even if WHOOP still shows an open cycle. Analysis — not added to the food budget.
-          {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
-        </p>
-      </section>
+    <section className="card chart-tile" data-tab-group="diet" data-tile="weight">
+      <h2>Weight</h2>
+      <div className="chart-wrap">
+        <canvas ref={canvasRef} aria-label="Weight chart" />
+      </div>
+      <p className="note">
+        Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the{" "}
+        {data.goal_weight_kg} kg goal.
+      </p>
+    </section>
+  );
+}
 
-      <section className="card chart-tile">
-        <h2>Calories vs WHOOP burn</h2>
-        <div className="chart-wrap">
-          <canvas ref={caloriesCanvas} aria-label="Calories versus WHOOP burn chart" />
-        </div>
-        <p className="note">
-          Bars are food. The solid line is WHOOP cycle burn. Dashed line is the{" "}
-          {data.targets.calories_kcal.toLocaleString("en-AU")} kcal food budget.
-        </p>
-      </section>
+export function CaloriesChartTile({
+  canvasRef,
+  data,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  data: DietDashboardView;
+}) {
+  return (
+    <section className="card chart-tile" data-tab-group="diet" data-tile="burn">
+      <h2>Calories vs WHOOP burn</h2>
+      <div className="chart-wrap">
+        <canvas ref={canvasRef} aria-label="Calories versus WHOOP burn chart" />
+      </div>
+      <p className="note">
+        Bars are food. The solid line is WHOOP cycle burn. Dashed line is the{" "}
+        {data.targets.calories_kcal.toLocaleString("en-AU")} kcal food budget.
+      </p>
+    </section>
+  );
+}
 
-      <section className="card chart-tile">
-        <h2>Weight</h2>
-        <div className="chart-wrap">
-          <canvas ref={weightCanvas} aria-label="Weight chart" />
-        </div>
-        <p className="note">
-          Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the{" "}
-          {data.goal_weight_kg} kg goal.
-        </p>
-      </section>
+export function DeficitChartTile({
+  canvasRef,
+  data,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  data: DietDashboardView;
+}) {
+  const expected = data.expected_kg_lost;
+  return (
+    <section className="card chart-tile" data-tab-group="diet" data-tile="deficit">
+      <div className="tile-heading">
+        <h2>Cumulative deficit</h2>
+        <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
+      </div>
+      <div className="chart-wrap">
+        <canvas ref={canvasRef} aria-label="Cumulative deficit chart" />
+      </div>
+      <p className="note">
+        ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
+        {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Completed days only (burn − food); past
+        days count even if WHOOP still shows an open cycle. Analysis — not added to the food budget.
+        {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
+      </p>
+    </section>
+  );
+}
 
-      <section className="card chart-tile">
-        <h2>Protein</h2>
-        <div className="chart-wrap">
-          <canvas ref={proteinCanvas} aria-label="Protein chart" />
-        </div>
-        <p className="note">Daily protein vs {data.targets.protein_g} g target.</p>
-      </section>
+export function ProteinChartTile({
+  canvasRef,
+  data,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  data: DietDashboardView;
+}) {
+  return (
+    <section className="card chart-tile" data-tab-group="diet" data-tile="protein">
+      <h2>Protein</h2>
+      <div className="chart-wrap">
+        <canvas ref={canvasRef} aria-label="Protein chart" />
+      </div>
+      <p className="note">Daily protein vs {data.targets.protein_g} g target.</p>
+    </section>
+  );
+}
 
-      <section className="card chart-tile">
-        <h2>Water</h2>
-        <div className="chart-wrap">
-          <canvas ref={waterCanvas} aria-label="Water chart" />
-        </div>
-        <p className="note">Daily water vs {data.targets.water_l} L target.</p>
-      </section>
+export function WaterChartTile({
+  canvasRef,
+  data,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  data: DietDashboardView;
+}) {
+  return (
+    <section className="card chart-tile" data-tab-group="diet" data-tile="water">
+      <h2>Water</h2>
+      <div className="chart-wrap">
+        <canvas ref={canvasRef} aria-label="Water chart" />
+      </div>
+      <p className="note">Daily water vs {data.targets.water_l} L target.</p>
+    </section>
+  );
+}
 
-      <section className="card">
-        <h2>Personal kcal/kg</h2>
-        <div className="big">
-          {personal.ready && personal.kcal_per_kg != null
-            ? `${Math.round(personal.kcal_per_kg).toLocaleString("en-AU")} kcal/kg`
-            : `Needs ~2 weeks of data (${personal.completed_days}/${personal.needed_days})`}
-        </div>
-        <p className="note">
-          WHOOP burn estimates and water weight mean this figure settles over a few weeks. Comparing it
-          with {data.kcal_per_kg.toLocaleString("en-AU")} shows how accurate WHOOP burn is for you.
-        </p>
-      </section>
-    </>
+export function PersonalKcalTile({ data }: { data: DietDashboardView }) {
+  const personal = data.personal;
+  return (
+    <section className="card" data-tab-group="diet" data-tile="personal">
+      <h2>Personal kcal/kg</h2>
+      <div className="big">
+        {personal.ready && personal.kcal_per_kg != null
+          ? `${Math.round(personal.kcal_per_kg).toLocaleString("en-AU")} kcal/kg`
+          : `Needs ~2 weeks of data (${personal.completed_days}/${personal.needed_days})`}
+      </div>
+      <p className="note">
+        WHOOP burn estimates and water weight mean this figure settles over a few weeks. Comparing it
+        with {data.kcal_per_kg.toLocaleString("en-AU")} shows how accurate WHOOP burn is for you.
+      </p>
+    </section>
   );
 }
