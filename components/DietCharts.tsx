@@ -17,6 +17,7 @@ import {
   PointElement,
   Tooltip,
 } from "chart.js";
+import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import type { DietDashboardView } from "@/lib/types";
 
 Chart.register(
@@ -103,6 +104,13 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
     const burn = cssVar("--burn", "#c16a2d");
     const labels = data.days.map((d) => d.label);
     const series = (values: unknown[]) => values.map(chartPoint);
+    const fixedTdee = fixedTdeeCumulativeForChartDays(
+      data.days.map((day) => ({
+        plotted: day.deficit_kcal != null,
+        foodKcal: day.kcal,
+        whoopKcal: day.whoop_burn_kcal,
+      })),
+    );
 
     Chart.defaults.font.family =
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
@@ -173,6 +181,21 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
                 fill: true,
                 tension: 0.2,
                 spanGaps: false,
+              },
+              {
+                label: fixedTdeeSeriesLabel(),
+                data: series(fixedTdee.values),
+                borderColor: muted,
+                backgroundColor: "transparent",
+                borderWidth: 1.75,
+                borderDash: [5, 4],
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                pointBackgroundColor: muted,
+                fill: false,
+                tension: 0.2,
+                spanGaps: false,
+                order: 1,
               },
             ],
           },
@@ -445,19 +468,34 @@ export function DeficitChartTile({
   data: DietDashboardView;
 }) {
   const expected = data.expected_kg_lost;
+  const fixed = fixedTdeeCumulativeForChartDays(
+    data.days.map((day) => ({
+      plotted: day.deficit_kcal != null,
+      foodKcal: day.kcal,
+      whoopKcal: day.whoop_burn_kcal,
+    })),
+  );
+  const fixedKg = fixed.expectedKgLost.toLocaleString("en-AU", { maximumFractionDigits: 2 });
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="deficit">
       <div className="tile-heading">
         <h2>Cumulative deficit</h2>
         <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
       </div>
+      <p className="tile-meta deficit-compare">
+        {fixedTdeeSeriesLabel()}
+        {" · "}
+        {Math.round(fixed.cumulativeDeficitKcal).toLocaleString("en-AU")} kcal · ≈{fixedKg} kg
+      </p>
       <div className="chart-wrap">
-        <canvas ref={canvasRef} aria-label="Cumulative deficit chart" />
+        <canvas ref={canvasRef} aria-label="Cumulative deficit chart, with a fixed TDEE comparison" />
       </div>
       <p className="note">
         ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
         {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Completed days only (burn − food); past
-        days count even if WHOOP still shows an open cycle. Analysis — not added to the food budget.
+        days count even if WHOOP still shows an open cycle. Dashed line is a fixed{" "}
+        {ASSUMED_TDEE_KCAL.toLocaleString("en-AU")} kcal burn minus food on those same days. Analysis
+        — not added to the food budget.
         {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
       </p>
     </section>

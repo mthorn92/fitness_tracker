@@ -1,6 +1,12 @@
 /** Rough energy density used to convert cumulative deficit → expected kg. */
 export const KCAL_PER_KG = 7700;
 
+/**
+ * Assumed daily burn for the comparison deficit line on the diet chart.
+ * Display only: it does not change the food budget or the WHOOP deficit.
+ */
+export const ASSUMED_TDEE_KCAL = 2700;
+
 export type DeficitDayInput = {
   date: string;
   /** Whoop day burn (cycle or day_whoop kcal). */
@@ -128,6 +134,126 @@ export function deficitInProgressLabel(
  */
 export function dailyDeficitKcal(whoopKcal: number, foodKcal: number): number {
   return whoopKcal - foodKcal;
+}
+
+/** Legend/summary text for the fixed-TDEE comparison, e.g. "Fixed TDEE 2,700". */
+export function fixedTdeeSeriesLabel(kcal = ASSUMED_TDEE_KCAL): string {
+  return `Fixed TDEE ${kcal.toLocaleString("en-AU")}`;
+}
+
+/**
+ * One day's deficit against the fixed TDEE: assumed burn minus food eaten.
+ * Positive means under. WHOOP burn is not an input.
+ */
+export function fixedTdeeDailyDeficitKcal(foodKcal: number, assumedTdeeKcal = ASSUMED_TDEE_KCAL): number {
+  return assumedTdeeKcal - foodKcal;
+}
+
+export type FixedTdeeChartDay = {
+  /** True when the existing deficit chart draws this day. */
+  plotted: boolean;
+  /** Logged food kcal. Null when nothing was logged. */
+  foodKcal: number | null;
+  /**
+   * WHOOP burn for this day. Required for the day to count: the existing
+   * series only adds burn − food when both exist. A plotted weigh-in with
+   * no burn keeps the fixed line flat.
+   */
+  whoopKcal: number | null;
+};
+
+export type FixedTdeeChartSeries = {
+  /** Parallel to the input days. Null where the existing chart has a gap. */
+  values: Array<number | null>;
+  cumulativeDeficitKcal: number;
+  expectedKgLost: number;
+};
+
+function finiteKcal(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return value;
+}
+
+/**
+ * Cumulative fixed-TDEE deficit aligned to the diet chart's days.
+ *
+ * A day adds ASSUMED_TDEE − food only when the existing series counts it:
+ * the chart plots the day, food was logged, and WHOOP burn is present (so
+ * today still open, and days with no food, do not invent a deficit). A
+ * plotted day that does not count stays flat. Days the chart skips are null.
+ */
+export function fixedTdeeCumulativeForChartDays(days: FixedTdeeChartDay[]): FixedTdeeChartSeries {
+  let cumulative = 0;
+  let sawPlotted = false;
+  const values = days.map((day) => {
+    if (!day.plotted) return null;
+    sawPlotted = true;
+    const food = finiteKcal(day.foodKcal);
+    const burn = finiteKcal(day.whoopKcal);
+    if (food != null && burn != null) {
+      cumulative += fixedTdeeDailyDeficitKcal(food);
+    }
+    return cumulative;
+  });
+  const total = sawPlotted ? cumulative : 0;
+  return {
+    values,
+    cumulativeDeficitKcal: total,
+    expectedKgLost: total / KCAL_PER_KG,
+  };
+}
+
+export type FixedTdeeDeficitPoint = {
+  date: string;
+  foodKcal: number | null;
+  /** Null when this plotted day did not add a fixed-TDEE deficit. */
+  dailyDeficitKcal: number | null;
+  cumulativeDeficitKcal: number;
+  expectedKgLost: number;
+};
+
+export type FixedTdeeDeficitSummary = {
+  /** Same dates, same order, as buildDeficitSeries points. */
+  points: FixedTdeeDeficitPoint[];
+  cumulativeDeficitKcal: number;
+  expectedKgLost: number;
+};
+
+/**
+ * Fixed-TDEE cumulative on the same days as buildDeficitSeries.
+ *
+ * Inclusion is taken from that series, so an open cycle excludes only
+ * calendar today, past days still count, and a day with no logged food does
+ * not add 2,700. This does not change the WHOOP deficit result.
+ */
+export function buildFixedTdeeDeficitSeries(
+  days: DeficitDayInput[],
+  options: BuildDeficitOptions = {},
+): FixedTdeeDeficitSummary {
+  const whoop = buildDeficitSeries(days, options);
+  const inputByDate = new Map(days.map((day) => [day.date, day]));
+  let cumulative = 0;
+  const points = whoop.points.map((point) => {
+    const input = inputByDate.get(point.date);
+    const food = finiteKcal(input?.foodKcal);
+    const burn = finiteKcal(input?.whoopKcal);
+    const counted = food != null && burn != null;
+    const daily = counted ? fixedTdeeDailyDeficitKcal(food) : null;
+    if (daily != null) cumulative += daily;
+    return {
+      date: point.date,
+      foodKcal: counted ? food : null,
+      dailyDeficitKcal: daily,
+      cumulativeDeficitKcal: cumulative,
+      expectedKgLost: cumulative / KCAL_PER_KG,
+    };
+  });
+  const latest = points[points.length - 1];
+  return {
+    points,
+    cumulativeDeficitKcal: latest?.cumulativeDeficitKcal ?? 0,
+    expectedKgLost: latest?.expectedKgLost ?? 0,
+  };
 }
 
 /**

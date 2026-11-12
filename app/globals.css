@@ -196,6 +196,15 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.chart-tile[data-tile="deficit"] .tile-heading {
+  margin-bottom: 0.15rem;
+}
+
+.deficit-compare {
+  margin: 0 0 0.5rem;
+  line-height: 1.35;
+}
+
 @media (min-width: 800px) {
   .dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
