@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import { Dashboard } from "@/components/Dashboard";
 import { parseDashboardTab } from "@/components/dashboard-tab";
 import { getDietDashboardView, getLogView } from "@/lib/data";
+import { getExerciseBoard } from "@/lib/exercise-board";
 import { todayIsoDate } from "@/lib/format";
-import { getTrainingTile } from "@/lib/training-view";
+import { getStravaSummary } from "@/lib/strava";
+import { fixtureRuns, modelFromRuns } from "@/lib/strava-summary";
 
 export default function HomePage({ searchParams }: PageProps<"/">) {
   return (
@@ -23,7 +25,14 @@ async function DietDashboard({
   const data = await getDietDashboardView(date);
   const log = await getLogView(data.today.date);
   const trainingDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIsoDate();
-  const training = await getTrainingTile(trainingDate);
+  const board = await getExerciseBoard(trainingDate);
+  // Sample runs for local screenshots. A production build ignores this.
+  const previewStrava =
+    process.env.NODE_ENV !== "production" &&
+    (params.strava === "preview" || process.env.STRAVA_FIXTURE === "1");
+  const strava = previewStrava
+    ? modelFromRuns(fixtureRuns(trainingDate), trainingDate)
+    : await getStravaSummary(trainingDate);
 
   return (
     <Dashboard
@@ -31,7 +40,8 @@ async function DietDashboard({
       updated={data.generated_label}
       data={data}
       foods={log.foods}
-      training={training}
+      board={board}
+      strava={strava}
       today={todayIsoDate()}
     />
   );

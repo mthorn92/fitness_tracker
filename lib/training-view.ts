@@ -65,7 +65,7 @@ export async function getTrainingTile(date: string): Promise<TrainingTile> {
     };
   }
 
-  const groups = groupRows(prescribed, completed);
+  const groups = trainingGroups(prescribed, completed);
   const cardioText = prescribed.cardio
     ? `${prescribed.cardio.duration_min_min}–${prescribed.cardio.duration_min_max} min · heart rate under ${prescribed.cardio.hr_cap_bpm} bpm`
     : null;
@@ -111,7 +111,7 @@ async function weekLabelFor(day: PrescribedDay): Promise<string | null> {
   return `Week ${day.week} of ${day.weeks_in_block} · ${day.week_type} · ${done}/${scheduled} sessions`;
 }
 
-function groupRows(day: PrescribedDay, session: TrainingSession | null): TrainingGroup[] {
+export function trainingGroups(day: PrescribedDay, session: TrainingSession | null): TrainingGroup[] {
   const logged = new Map<string, SessionSet[]>();
   for (const set of session?.sets ?? []) {
     const list = logged.get(set.exercise_key) ?? [];
