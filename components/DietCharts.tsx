@@ -18,6 +18,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
+import { formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
 
 Chart.register(
@@ -56,6 +57,25 @@ function hexAlpha(c: string, a: number): string {
     return `rgba(${r}, ${g}, ${b}, ${a})`;
   }
   return c;
+}
+
+/** Same stroke, markers, and gaps for both cumulative-deficit lines. */
+function equalDeficitLine(label: string, color: string, data: Array<number | null>) {
+  return {
+    label,
+    data,
+    borderColor: color,
+    backgroundColor: color,
+    borderWidth: 2.4,
+    pointRadius: 4,
+    pointHoverRadius: 5,
+    pointBackgroundColor: color,
+    pointBorderColor: color,
+    pointBorderWidth: 1.5,
+    fill: false as const,
+    tension: 0.2,
+    spanGaps: false,
+  };
 }
 
 function baseOpts(yTitle?: string, beginAtZero = false) {
@@ -169,37 +189,32 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
           data: {
             labels,
             datasets: [
-              {
-                label: "Cumulative deficit",
-                data: series(
-                  data.days.map((d) => (d.deficit_kcal == null ? null : d.cumulative_deficit_kcal)),
-                ),
-                borderColor: accent,
-                backgroundColor: hexAlpha(accent, 0.16),
-                borderWidth: 2.4,
-                pointRadius: 4,
-                fill: true,
-                tension: 0.2,
-                spanGaps: false,
-              },
-              {
-                label: fixedTdeeSeriesLabel(),
-                data: series(fixedTdee.values),
-                borderColor: muted,
-                backgroundColor: "transparent",
-                borderWidth: 1.75,
-                borderDash: [5, 4],
-                pointRadius: 2,
-                pointHoverRadius: 4,
-                pointBackgroundColor: muted,
-                fill: false,
-                tension: 0.2,
-                spanGaps: false,
-                order: 1,
-              },
+              equalDeficitLine(
+                "WHOOP burn",
+                accent,
+                series(data.days.map((d) => (d.deficit_kcal == null ? null : d.cumulative_deficit_kcal))),
+              ),
+              equalDeficitLine(fixedTdeeSeriesLabel(), burn, series(fixedTdee.values)),
             ],
           },
-          options: baseOpts("kcal", true),
+          options: {
+            ...baseOpts("kcal", true),
+            plugins: {
+              legend: {
+                display: true,
+                position: "bottom" as const,
+                labels: {
+                  color: ink,
+                  usePointStyle: true,
+                  pointStyle: "circle" as const,
+                  boxWidth: 7,
+                  boxHeight: 7,
+                  padding: 16,
+                  font: { size: 12 },
+                },
+              },
+            },
+          },
       },
       {
           type: "bar",
@@ -467,7 +482,6 @@ export function DeficitChartTile({
   canvasRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
 }) {
-  const expected = data.expected_kg_lost;
   const fixed = fixedTdeeCumulativeForChartDays(
     data.days.map((day) => ({
       plotted: day.deficit_kcal != null,
@@ -475,27 +489,42 @@ export function DeficitChartTile({
       whoopKcal: day.whoop_burn_kcal,
     })),
   );
-  const fixedKg = fixed.expectedKgLost.toLocaleString("en-AU", { maximumFractionDigits: 2 });
+  const kcalPerKg = data.kcal_per_kg.toLocaleString("en-AU");
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="deficit">
-      <div className="tile-heading">
-        <h2>Cumulative deficit</h2>
-        <div className="big">{Math.round(data.cumulative_deficit_kcal).toLocaleString("en-AU")} kcal</div>
+      <h2>Cumulative deficit</h2>
+      <div className="deficit-stats-wrap">
+        <div className="deficit-stats">
+          <div className="deficit-stat">
+            <div className="deficit-stat-label">
+              <span className="deficit-swatch" data-series="whoop" aria-hidden="true" />
+              WHOOP burn
+            </div>
+            <div className="big">{formatNumber(Math.round(data.cumulative_deficit_kcal))} kcal</div>
+            <div className="deficit-kg">≈ {formatNumber(data.expected_kg_lost, 2)} kg</div>
+          </div>
+          <div className="deficit-stat">
+            <div className="deficit-stat-label">
+              <span className="deficit-swatch" data-series="fixed" aria-hidden="true" />
+              {fixedTdeeSeriesLabel()}
+            </div>
+            <div className="big">{formatNumber(Math.round(fixed.cumulativeDeficitKcal))} kcal</div>
+            <div className="deficit-kg">≈ {formatNumber(fixed.expectedKgLost, 2)} kg</div>
+          </div>
+        </div>
       </div>
-      <p className="tile-meta deficit-compare">
-        {fixedTdeeSeriesLabel()}
-        {" · "}
-        {Math.round(fixed.cumulativeDeficitKcal).toLocaleString("en-AU")} kcal · ≈{fixedKg} kg
-      </p>
       <div className="chart-wrap">
-        <canvas ref={canvasRef} aria-label="Cumulative deficit chart, with a fixed TDEE comparison" />
+        <canvas
+          ref={canvasRef}
+          aria-label={`Cumulative deficit chart comparing WHOOP burn with ${fixedTdeeSeriesLabel()}`}
+        />
       </div>
       <p className="note">
-        ≈{expected.toLocaleString("en-AU", { maximumFractionDigits: 2 })} kg expected lost at{" "}
-        {data.kcal_per_kg.toLocaleString("en-AU")} kcal/kg. Completed days only (burn − food); past
-        days count even if WHOOP still shows an open cycle. Dashed line is a fixed{" "}
-        {ASSUMED_TDEE_KCAL.toLocaleString("en-AU")} kcal burn minus food on those same days. Analysis
-        — not added to the food budget.
+        WHOOP burn is calories burned minus food. {fixedTdeeSeriesLabel()} uses{" "}
+        {ASSUMED_TDEE_KCAL.toLocaleString("en-AU")} kcal as the burn instead, minus food on those
+        same days. The kilograms under each total are the expected weight lost at {kcalPerKg} kcal
+        per kg. Counted days only: a past day counts even if WHOOP still shows an open cycle.
+        Comparison only. Neither figure is added to the food budget.
         {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
       </p>
     </section>
