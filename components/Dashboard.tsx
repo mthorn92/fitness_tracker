@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
+import { ChartRangeBar } from "@/components/ChartRangeBar";
 import {
   CaloriesChartTile,
   DeficitChartTile,
@@ -21,9 +22,15 @@ import { DASHBOARD_TAB_EVENT, DASHBOARD_TABS, isDashboardTab, type DashboardTab 
 import type { ExerciseBoard } from "@/lib/exercise-board";
 import type { StravaTileModel } from "@/lib/strava-summary";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
+import {
+  buildDietChartModel,
+  isChartRange,
+  type ChartRangeId,
+} from "@/lib/chart-range";
 import type { DietDashboardView, FoodItem } from "@/lib/types";
 
 const STORAGE_KEY = "dashboard-tab";
+const RANGE_STORAGE_KEY = "dashboard-range";
 
 const TAB_LABELS: Record<DashboardTab, string> = {
   diet: "Diet",
@@ -73,6 +80,54 @@ function emitTab() {
   for (const listener of tabListeners) listener();
 }
 
+function readStoredRange(): ChartRangeId | null {
+  try {
+    const stored = localStorage.getItem(RANGE_STORAGE_KEY);
+    return isChartRange(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredRange(range: ChartRangeId) {
+  try {
+    localStorage.setItem(RANGE_STORAGE_KEY, range);
+  } catch {
+    // Private mode can reject storage. The URL still keeps the choice.
+  }
+}
+
+function writeRangeUrl(range: ChartRangeId) {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("range") === range) return;
+  url.searchParams.set("range", range);
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+const rangeListeners = new Set<() => void>();
+
+function subscribeRange(listener: () => void) {
+  rangeListeners.add(listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === RANGE_STORAGE_KEY) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    rangeListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function emitRange() {
+  for (const listener of rangeListeners) listener();
+}
+
+function currentRange(fallback: ChartRangeId): ChartRangeId {
+  const fromUrl = new URLSearchParams(window.location.search).get("range");
+  if (isChartRange(fromUrl)) return fromUrl;
+  return readStoredRange() ?? fallback;
+}
+
 function currentTab(fallback: DashboardTab): DashboardTab {
   const fromUrl = new URLSearchParams(window.location.search).get("tab");
   if (isDashboardTab(fromUrl)) return fromUrl;
@@ -81,6 +136,7 @@ function currentTab(fallback: DashboardTab): DashboardTab {
 
 export function Dashboard({
   initialTab,
+  initialRange,
   updated,
   data,
   foods,
@@ -91,6 +147,7 @@ export function Dashboard({
   investing,
 }: {
   initialTab: DashboardTab;
+  initialRange: ChartRangeId;
   updated: string;
   data: DietDashboardView;
   foods: FoodItem[];
@@ -105,7 +162,23 @@ export function Dashboard({
     () => currentTab(initialTab),
     () => initialTab,
   );
-  const charts = useDietCharts(data);
+  const range = useSyncExternalStore(
+    subscribeRange,
+    () => currentRange(initialRange),
+    () => initialRange,
+  );
+  const model = useMemo(
+    () =>
+      buildDietChartModel({
+        days: data.days,
+        weightRolling7: data.weight_rolling7,
+        range,
+        targets: data.targets,
+        goalWeightKg: data.goal_weight_kg,
+      }),
+    [data, range],
+  );
+  const charts = useDietCharts(model);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -125,6 +198,24 @@ export function Dashboard({
     emitTab();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("range");
+    if (isChartRange(fromUrl)) {
+      writeStoredRange(fromUrl);
+      return;
+    }
+    const stored = readStoredRange();
+    if (!stored) return;
+    params.set("range", stored);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}?${params.toString()}${window.location.hash}`,
+    );
+    emitRange();
+  }, []);
+
   useLayoutEffect(() => {
     document.dispatchEvent(new Event(DASHBOARD_TAB_EVENT));
   }, [tab]);
@@ -133,6 +224,12 @@ export function Dashboard({
     writeStoredTab(next);
     writeTabUrl(next);
     emitTab();
+  }
+
+  function selectRange(next: ChartRangeId) {
+    writeStoredRange(next);
+    writeRangeUrl(next);
+    emitRange();
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -158,10 +255,9 @@ export function Dashboard({
   return (
     <main className="dashboard" data-tab={tab}>
       <header className="dashboard-head">
-        <div className="dashboard-heading">
-          <h1>Max&apos;s Dashboard</h1>
-          <p className="updated">Updated {updated}</p>
-        </div>
+        <h1>Max&apos;s Dashboard</h1>
+        <p className="updated">Updated {updated}</p>
+        <ChartRangeBar range={range} onChange={selectRange} />
         <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
           {DASHBOARD_TABS.map((name) => (
             <button
@@ -181,11 +277,11 @@ export function Dashboard({
       <DietTodayCard data={data} />
       <TodayFood foods={foods} dateLabel={data.today.label} />
       <MonthRings days={data.days} today={today} />
-      <WeightChartTile canvasRef={charts.weight} data={data} />
-      <CaloriesChartTile canvasRef={charts.calories} data={data} />
-      <DeficitChartTile canvasRef={charts.deficit} data={data} />
-      <ProteinChartTile canvasRef={charts.protein} data={data} />
-      <WaterChartTile canvasRef={charts.water} data={data} />
+      <WeightChartTile canvasRef={charts.weight} model={model} />
+      <CaloriesChartTile canvasRef={charts.calories} data={data} model={model} />
+      <DeficitChartTile canvasRef={charts.deficit} data={data} model={model} />
+      <ProteinChartTile canvasRef={charts.protein} data={data} model={model} />
+      <WaterChartTile canvasRef={charts.water} data={data} model={model} />
       <PersonalKcalTile data={data} />
       <TrainingTodayCard view={board.today} mode={board.todayMode} />
       {board.days[0] ? <StrengthDayTile day={board.days[0]} /> : null}

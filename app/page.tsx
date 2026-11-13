@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Dashboard } from "@/components/Dashboard";
 import { InvestingSections } from "@/components/InvestingSections";
 import { parseDashboardTab } from "@/components/dashboard-tab";
+import { parseChartRange } from "@/lib/chart-range";
 import { getDietDashboardView, getLogView } from "@/lib/data";
 import { INVESTING_PAPER_SLUG } from "@/lib/doc-text";
 import { loadDocument } from "@/lib/documents";
@@ -47,6 +48,7 @@ async function DietDashboard({
   return (
     <Dashboard
       initialTab={parseDashboardTab(params.tab)}
+      initialRange={parseChartRange(params.range)}
       updated={data.generated_label}
       data={data}
       foods={log.foods}

@@ -98,25 +98,20 @@ body {
 }
 
 .dashboard-head {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title range"
+    "updated updated"
+    "tabs tabs";
   align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem 1rem;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
   grid-column: 1 / -1;
 }
 
-.dashboard-heading {
-  display: flex;
-  flex: 1 1 12rem;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.2rem 1rem;
-  min-width: 0;
-}
-
 .dashboard-head h1 {
+  grid-area: title;
   margin: 0;
   font-size: 1.25rem;
   font-weight: 650;
@@ -124,13 +119,15 @@ body {
 }
 
 .dashboard-head .updated {
+  grid-area: updated;
   margin: 0;
 }
 
 .tabs {
+  grid-area: tabs;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 1 0 100%;
+  width: 100%;
   gap: 0.15rem;
   padding: 0.15rem;
   border: 1px solid var(--line);
@@ -171,6 +168,69 @@ body {
   .tabs button:not([aria-selected="true"]):hover {
     color: var(--ink);
   }
+}
+
+.range-bar {
+  grid-area: range;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.range-bar button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  min-height: 0;
+  padding: 4px 7px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.range-bar button[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.range-bar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .range-bar button:not([aria-checked="true"]):hover {
+    color: var(--ink);
+  }
+}
+
+.chart-tile:has(.chart-stat) h2 {
+  margin-bottom: 0.15rem;
+}
+
+.chart-stat {
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .dashboard[data-tab="diet"] > [data-tab-group]:not([data-tab-group="diet"]),
@@ -282,9 +342,21 @@ body {
   .dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+@media (min-width: 1100px) {
+  .dashboard-head {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "title updated range tabs";
+    row-gap: 0;
+  }
+
+  .dashboard-head .updated {
+    justify-self: end;
+  }
 
   .tabs {
-    flex: 0 0 24rem;
+    width: 24rem;
   }
 }
 
