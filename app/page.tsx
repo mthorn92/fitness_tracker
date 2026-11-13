@@ -1,17 +1,17 @@
+import { cacheLife, cacheTag } from "next/cache";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Dashboard } from "@/components/Dashboard";
 import { InvestingSections } from "@/components/InvestingSections";
 import { parseDashboardTab } from "@/components/dashboard-tab";
-import { parseChartRange } from "@/lib/chart-range";
-import { getDietDashboardView, getLogView } from "@/lib/data";
+import { parseChartRange, type ChartRangeId } from "@/lib/chart-range";
+import { getDashboardPageData } from "@/lib/data";
 import { INVESTING_PAPER_SLUG } from "@/lib/doc-text";
+import { listDocumentImageSizes } from "@/lib/document-assets";
 import { loadDocument } from "@/lib/documents";
 import { getExerciseBoard } from "@/lib/exercise-board";
 import { todayIsoDate } from "@/lib/format";
-import { getStravaSummary, getStravaWorkouts } from "@/lib/strava";
-import { fixtureRuns, modelFromRuns } from "@/lib/strava-summary";
-import { fixtureActivities, modelFromActivities } from "@/lib/strava-workouts";
+import { loadExerciseActivities } from "@/lib/workouts";
 
 export default function HomePage({ searchParams }: PageProps<"/">) {
   return (
@@ -21,6 +21,21 @@ export default function HomePage({ searchParams }: PageProps<"/">) {
   );
 }
 
+async function loadDiet(date: string | undefined, range: ChartRangeId) {
+  "use cache: private";
+  cacheLife({ stale: 60, revalidate: 60, expire: 300 });
+  cacheTag("dashboard");
+  return getDashboardPageData(date, range);
+}
+
+async function loadPaper(slug: string) {
+  "use cache: private";
+  cacheLife({ stale: 300, revalidate: 300, expire: 3600 });
+  cacheTag(`document:${slug}`);
+  const [paper, images] = await Promise.all([loadDocument(slug), listDocumentImageSizes(slug)]);
+  return { paper, images };
+}
+
 async function DietDashboard({
   searchParams,
 }: {
@@ -28,33 +43,27 @@ async function DietDashboard({
 }) {
   const params = await searchParams;
   const date = typeof params.date === "string" ? params.date : undefined;
-  const data = await getDietDashboardView(date);
-  const log = await getLogView(data.today.date);
+  const range = parseChartRange(params.range);
   const trainingDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIsoDate();
-  const board = await getExerciseBoard(trainingDate);
-  // Sample activities for local screenshots. A production build ignores this.
-  const previewStrava =
-    process.env.NODE_ENV !== "production" &&
-    (params.strava === "preview" || process.env.STRAVA_FIXTURE === "1");
-  const strava = previewStrava
-    ? modelFromRuns(fixtureRuns(trainingDate), trainingDate)
-    : await getStravaSummary(trainingDate);
-  const workouts = previewStrava
-    ? modelFromActivities(fixtureActivities(trainingDate), trainingDate)
-    : await getStravaWorkouts(trainingDate);
   await connection();
-  const paper = await loadDocument(INVESTING_PAPER_SLUG);
+  const [diet, board, activity, paperBundle] = await Promise.all([
+    loadDiet(date, range),
+    getExerciseBoard(trainingDate),
+    loadExerciseActivities(trainingDate),
+    loadPaper(INVESTING_PAPER_SLUG),
+  ]);
+  const paper = paperBundle.paper;
 
   return (
     <Dashboard
       initialTab={parseDashboardTab(params.tab)}
-      initialRange={parseChartRange(params.range)}
-      updated={data.generated_label}
-      data={data}
-      foods={log.foods}
+      initialRange={range}
+      updated={diet.data.generated_label}
+      data={diet.data}
+      foods={diet.log.foods}
       board={board}
-      workouts={workouts}
-      strava={strava}
+      workouts={activity.workouts}
+      strava={activity.runs}
       today={todayIsoDate()}
       investing={
         <InvestingSections
@@ -66,6 +75,7 @@ async function DietDashboard({
                   version: paper.version,
                   updatedAt: paper.updated_at,
                   markdown: paper.markdown,
+                  images: paperBundle.images,
                 }
               : null
           }

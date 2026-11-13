@@ -2,23 +2,7 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import { DASHBOARD_TAB_EVENT } from "@/components/dashboard-tab";
-import {
-  Chart,
-  type ChartConfiguration,
-  type ChartDataset,
-  type Plugin,
-  type TooltipItem,
-  BarController,
-  BarElement,
-  CategoryScale,
-  Filler,
-  Legend,
-  LineController,
-  LineElement,
-  LinearScale,
-  PointElement,
-  Tooltip,
-} from "chart.js";
+import type { Chart, ChartConfiguration, ChartDataset, Plugin, TooltipItem } from "chart.js";
 import {
   formatKcalPerDay,
   formatProteinPerDay,
@@ -29,19 +13,6 @@ import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
 import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import { formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
-
-Chart.register(
-  BarController,
-  BarElement,
-  CategoryScale,
-  Filler,
-  Legend,
-  LineController,
-  LineElement,
-  LinearScale,
-  PointElement,
-  Tooltip,
-);
 
 function cssVar(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -251,373 +222,411 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
   const waterCanvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const ink = cssVar("--ink", "#1c1b19");
-    const muted = cssVar("--muted", "#6b6964");
-    const accent = cssVar("--accent", "#2c6e5a");
-    const food = cssVar("--food", "#3b6d9a");
-    const burn = cssVar("--burn", "#c16a2d");
-    const avgColor = cssVar("--avg", "#6b3fa0");
-    const labels = model.labels;
-    const series = (values: unknown[]) => values.map(chartPoint);
-    const count = labels.length;
-    const single = count < 2;
-    const kcalAverage = averageDataset(model.averages.kcalLine, count);
-    const proteinAverage = averageDataset(model.averages.proteinLine, count);
-    const waterAverage = averageDataset(model.averages.waterLine, count);
-    const kcalStat = formatKcalPerDay(model.averages.kcalPerDay);
-    const proteinStat = formatProteinPerDay(model.averages.proteinPerDay);
-    const waterStat = formatWaterPerDay(model.averages.waterPerDay);
-    const kcalMark = formatAverageLabel("kcal", model.averages.kcalPerDay ?? Number.NaN);
-    const proteinMark = formatAverageLabel("protein", model.averages.proteinPerDay ?? Number.NaN);
-    const waterMark = formatAverageLabel("water", model.averages.waterPerDay ?? Number.NaN);
-    const hideAverage = {
-      filter(item: { text: string }) {
-        return item.text !== "Average";
-      },
-    };
+    let disposed = false;
+    let release = () => {};
+    void import("chart.js").then((charts) => {
+      if (disposed) return;
+      const {
+        Chart,
+        BarController,
+        BarElement,
+        CategoryScale,
+        Filler,
+        Legend,
+        LineController,
+        LineElement,
+        LinearScale,
+        PointElement,
+        Tooltip,
+      } = charts;
+      Chart.register(
+        BarController,
+        BarElement,
+        CategoryScale,
+        Filler,
+        Legend,
+        LineController,
+        LineElement,
+        LinearScale,
+        PointElement,
+        Tooltip,
+      );
+      const ink = cssVar("--ink", "#1c1b19");
+      const muted = cssVar("--muted", "#6b6964");
+      const accent = cssVar("--accent", "#2c6e5a");
+      const food = cssVar("--food", "#3b6d9a");
+      const burn = cssVar("--burn", "#c16a2d");
+      const avgColor = cssVar("--avg", "#6b3fa0");
+      const labels = model.labels;
+      const series = (values: unknown[]) => values.map(chartPoint);
+      const count = labels.length;
+      const single = count < 2;
+      const kcalAverage = averageDataset(model.averages.kcalLine, count);
+      const proteinAverage = averageDataset(model.averages.proteinLine, count);
+      const waterAverage = averageDataset(model.averages.waterLine, count);
+      const kcalStat = formatKcalPerDay(model.averages.kcalPerDay);
+      const proteinStat = formatProteinPerDay(model.averages.proteinPerDay);
+      const waterStat = formatWaterPerDay(model.averages.waterPerDay);
+      const kcalMark = formatAverageLabel("kcal", model.averages.kcalPerDay ?? Number.NaN);
+      const proteinMark = formatAverageLabel("protein", model.averages.proteinPerDay ?? Number.NaN);
+      const waterMark = formatAverageLabel("water", model.averages.waterPerDay ?? Number.NaN);
+      const hideAverage = {
+        filter(item: { text: string }) {
+          return item.text !== "Average";
+        },
+      };
 
-    Chart.defaults.font.family =
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
-    Chart.defaults.font.size = 11;
-    Chart.defaults.color = muted;
-    Chart.defaults.borderColor = cssVar("--line", "#e4e0d8");
-    Chart.defaults.plugins.legend.labels.boxWidth = 10;
-    Chart.defaults.plugins.legend.labels.boxHeight = 10;
-    Chart.defaults.plugins.legend.labels.padding = 12;
-    Chart.defaults.elements.point.hitRadius = 8;
+      Chart.defaults.font.family =
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+      Chart.defaults.font.size = 11;
+      Chart.defaults.color = muted;
+      Chart.defaults.borderColor = cssVar("--line", "#e4e0d8");
+      Chart.defaults.plugins.legend.labels.boxWidth = 10;
+      Chart.defaults.plugins.legend.labels.boxHeight = 10;
+      Chart.defaults.plugins.legend.labels.padding = 12;
+      Chart.defaults.elements.point.hitRadius = 8;
 
-    const targetLine = (label: string, value: number) => ({
-      type: "line" as const,
-      label,
-      data: labels.map(() => value),
-      borderColor: muted,
-      borderWidth: 1.25,
-      borderDash: [5, 4],
-      pointRadius: 0,
-      order: 3,
-    });
-    const guidesFor = (
-      average: number | null,
-      averageLabel: string,
-      rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>,
-    ) => [
-      chartGuides({
-        average,
-        averageLabel: average == null ? null : averageLabel,
-        averageColor: avgColor,
-        rules: single ? rules : [],
-      }),
-    ];
+      const targetLine = (label: string, value: number) => ({
+        type: "line" as const,
+        label,
+        data: labels.map(() => value),
+        borderColor: muted,
+        borderWidth: 1.25,
+        borderDash: [5, 4],
+        pointRadius: 0,
+        order: 3,
+      });
+      const guidesFor = (
+        average: number | null,
+        averageLabel: string,
+        rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>,
+      ) => [
+        chartGuides({
+          average,
+          averageLabel: average == null ? null : averageLabel,
+          averageColor: avgColor,
+          rules: single ? rules : [],
+        }),
+      ];
 
-    const configs: ChartConfiguration[] = [
-      {
-          type: "line",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: model.weekly ? "Weekly avg" : "Daily",
-                data: series(model.weightKg),
-                borderColor: "transparent",
-                backgroundColor: hexAlpha(ink, 0.35),
-                pointRadius: 4,
-                pointHoverRadius: 5,
-                showLine: false,
-                order: 2,
-              },
-              {
-                label: "7-day avg",
-                data: series(model.weightAvg7),
-                borderColor: accent,
-                backgroundColor: accent,
-                borderWidth: 2.6,
-                pointRadius: 3,
-                pointHoverRadius: 4,
-                tension: 0.25,
-                spanGaps: true,
-                order: 1,
-              },
-              {
-                label: `Goal ${model.goalWeightKg} kg`,
-                data: labels.map(() => model.goalWeightKg),
-                borderColor: muted,
-                borderWidth: 1.25,
-                borderDash: [5, 4],
-                pointRadius: 0,
-                fill: false,
-                order: 3,
-              },
-            ],
-          },
-          options: baseOpts("kg"),
-          plugins: single
-            ? [
-                chartGuides({
-                  average: null,
-                  averageLabel: null,
-                  averageColor: avgColor,
-                  rules: [{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }],
-                }),
-              ]
-            : [],
-      },
-      {
-          type: "line",
-          data: {
-            labels,
-            datasets: [
-              equalDeficitLine("WHOOP burn", accent, series(model.deficitWhoop)),
-              equalDeficitLine(fixedTdeeSeriesLabel(), burn, series(model.deficitFixed)),
-            ],
-          },
-          options: {
-            ...baseOpts("kcal", true),
-            plugins: {
-              legend: {
-                display: true,
-                position: "bottom" as const,
-                labels: {
-                  color: ink,
-                  usePointStyle: true,
-                  pointStyle: "circle" as const,
-                  boxWidth: 7,
-                  boxHeight: 7,
-                  padding: 16,
-                  font: { size: 12 },
+      const configs: ChartConfiguration[] = [
+        {
+            type: "line",
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: model.weekly ? "Weekly avg" : "Daily",
+                  data: series(model.weightKg),
+                  borderColor: "transparent",
+                  backgroundColor: hexAlpha(ink, 0.35),
+                  pointRadius: 4,
+                  pointHoverRadius: 5,
+                  showLine: false,
+                  order: 2,
+                },
+                {
+                  label: "7-day avg",
+                  data: series(model.weightAvg7),
+                  borderColor: accent,
+                  backgroundColor: accent,
+                  borderWidth: 2.6,
+                  pointRadius: 3,
+                  pointHoverRadius: 4,
+                  tension: 0.25,
+                  spanGaps: true,
+                  order: 1,
+                },
+                {
+                  label: `Goal ${model.goalWeightKg} kg`,
+                  data: labels.map(() => model.goalWeightKg),
+                  borderColor: muted,
+                  borderWidth: 1.25,
+                  borderDash: [5, 4],
+                  pointRadius: 0,
+                  fill: false,
+                  order: 3,
+                },
+              ],
+            },
+            options: baseOpts("kg"),
+            plugins: single
+              ? [
+                  chartGuides({
+                    average: null,
+                    averageLabel: null,
+                    averageColor: avgColor,
+                    rules: [{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }],
+                  }),
+                ]
+              : [],
+        },
+        {
+            type: "line",
+            data: {
+              labels,
+              datasets: [
+                equalDeficitLine("WHOOP burn", accent, series(model.deficitWhoop)),
+                equalDeficitLine(fixedTdeeSeriesLabel(), burn, series(model.deficitFixed)),
+              ],
+            },
+            options: {
+              ...baseOpts("kcal", true),
+              plugins: {
+                legend: {
+                  display: true,
+                  position: "bottom" as const,
+                  labels: {
+                    color: ink,
+                    usePointStyle: true,
+                    pointStyle: "circle" as const,
+                    boxWidth: 7,
+                    boxHeight: 7,
+                    padding: 16,
+                    font: { size: 12 },
+                  },
                 },
               },
             },
-          },
-      },
-      {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                type: "bar",
-                label: "Food",
-                data: series(model.kcal),
-                backgroundColor: hexAlpha(food, 0.55),
-                borderColor: food,
-                borderWidth: 0,
-                borderRadius: 3,
-                order: 2,
-              } as ChartDataset,
-              {
-                type: "line",
-                label: "WHOOP burn",
-                data: series(model.whoopKcal),
-                borderColor: burn,
-                backgroundColor: burn,
-                borderWidth: 2.2,
-                pointRadius: 3,
-                tension: 0.2,
-                spanGaps: true,
-                order: 1,
-              },
-              targetLine(`${model.targets.calories_kcal.toLocaleString("en-AU")} target`, model.targets.calories_kcal),
-              ...(kcalAverage ? [kcalAverage] : []),
-            ],
-          },
-          options: {
-            ...targetScale(
-              "kcal",
-              model.targets.calories_kcal,
-              [...model.kcal, ...model.whoopKcal, model.averages.kcalLine],
-              model.averages.kcalLine != null,
-            ),
-            plugins: {
-              legend: { display: true, position: "bottom" as const, labels: hideAverage },
-              tooltip: averageTooltip(kcalStat),
+        },
+        {
+            type: "bar",
+            data: {
+              labels,
+              datasets: [
+                {
+                  type: "bar",
+                  label: "Food",
+                  data: series(model.kcal),
+                  backgroundColor: hexAlpha(food, 0.55),
+                  borderColor: food,
+                  borderWidth: 0,
+                  borderRadius: 3,
+                  order: 2,
+                } as ChartDataset,
+                {
+                  type: "line",
+                  label: "WHOOP burn",
+                  data: series(model.whoopKcal),
+                  borderColor: burn,
+                  backgroundColor: burn,
+                  borderWidth: 2.2,
+                  pointRadius: 3,
+                  tension: 0.2,
+                  spanGaps: true,
+                  order: 1,
+                },
+                targetLine(`${model.targets.calories_kcal.toLocaleString("en-AU")} target`, model.targets.calories_kcal),
+                ...(kcalAverage ? [kcalAverage] : []),
+              ],
             },
-          },
-          plugins: guidesFor(model.averages.kcalLine, kcalMark, [
-            { value: model.targets.calories_kcal, color: muted, dash: [5, 4], width: 1.25 },
-          ]),
-      },
-      {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                type: "bar",
-                label: "Protein",
-                data: series(model.proteinG),
-                backgroundColor: hexAlpha(accent, 0.55),
-                borderRadius: 3,
-              } as ChartDataset,
-              targetLine(
-                `${model.targets.protein_g.toLocaleString("en-AU")} g`,
-                model.targets.protein_g,
-              ),
-              ...(proteinAverage ? [proteinAverage] : []),
-            ],
-          },
-          options: {
-            ...targetScale(
-              "g",
-              model.targets.protein_g,
-              [...model.proteinG, model.averages.proteinLine],
-              model.averages.proteinLine != null,
-              proteinAxis,
-            ),
-            plugins: {
-              legend: { display: true, position: "bottom" as const, labels: hideAverage },
-              tooltip: averageTooltip(proteinStat),
-            },
-          },
-          plugins: guidesFor(model.averages.proteinLine, proteinMark, [
-            { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
-          ]),
-      },
-      {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                type: "bar",
-                label: "Water",
-                data: series(model.waterL),
-                backgroundColor: hexAlpha(food, 0.55),
-                borderRadius: 3,
-              } as ChartDataset,
-              targetLine(`${formatTarget(model.targets.water_l)} L`, model.targets.water_l),
-              ...(waterAverage ? [waterAverage] : []),
-            ],
-          },
-          options: {
-            ...targetScale(
-              "L",
-              model.targets.water_l,
-              [...model.waterL, model.averages.waterLine],
-              model.averages.waterLine != null,
-            ),
-            plugins: {
-              legend: { display: true, position: "bottom" as const, labels: hideAverage },
-              tooltip: averageTooltip(waterStat),
-            },
-          },
-          plugins: guidesFor(model.averages.waterLine, waterMark, [
-            { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
-          ]),
-      },
-    ];
-
-    const canvases = [weightCanvas, deficitCanvas, caloriesCanvas, proteinCanvas, waterCanvas].map(
-      (slot) => slot.current,
-    );
-    if (canvases.some((canvas) => canvas == null)) return;
-
-    // iOS Safari keeps several full-resolution canvases and then throws the
-    // bitmaps away. Cap the backing store so a phone is less likely to do that.
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    const created: Chart[] = [];
-    canvases.forEach((canvas, index) => {
-      const node = canvas as HTMLCanvasElement;
-      try {
-        // Chart.js otherwise forces border-box, and Safari then collapses the bitmap.
-        node.style.boxSizing = "content-box";
-        const config = configs[index];
-        created.push(
-          new Chart(node, {
-            ...config,
             options: {
-              ...config.options,
-              responsive: false,
-              animation: false,
-              devicePixelRatio: pixelRatio,
+              ...targetScale(
+                "kcal",
+                model.targets.calories_kcal,
+                [...model.kcal, ...model.whoopKcal, model.averages.kcalLine],
+                model.averages.kcalLine != null,
+              ),
+              plugins: {
+                legend: { display: true, position: "bottom" as const, labels: hideAverage },
+                tooltip: averageTooltip(kcalStat),
+              },
             },
-          }),
-        );
-      } catch (error) {
-        console.error("Chart failed to start:", node.getAttribute("aria-label"), error);
-      }
-    });
+            plugins: guidesFor(model.averages.kcalLine, kcalMark, [
+              { value: model.targets.calories_kcal, color: muted, dash: [5, 4], width: 1.25 },
+            ]),
+        },
+        {
+            type: "bar",
+            data: {
+              labels,
+              datasets: [
+                {
+                  type: "bar",
+                  label: "Protein",
+                  data: series(model.proteinG),
+                  backgroundColor: hexAlpha(accent, 0.55),
+                  borderRadius: 3,
+                } as ChartDataset,
+                targetLine(
+                  `${model.targets.protein_g.toLocaleString("en-AU")} g`,
+                  model.targets.protein_g,
+                ),
+                ...(proteinAverage ? [proteinAverage] : []),
+              ],
+            },
+            options: {
+              ...targetScale(
+                "g",
+                model.targets.protein_g,
+                [...model.proteinG, model.averages.proteinLine],
+                model.averages.proteinLine != null,
+                proteinAxis,
+              ),
+              plugins: {
+                legend: { display: true, position: "bottom" as const, labels: hideAverage },
+                tooltip: averageTooltip(proteinStat),
+              },
+            },
+            plugins: guidesFor(model.averages.proteinLine, proteinMark, [
+              { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
+            ]),
+        },
+        {
+            type: "bar",
+            data: {
+              labels,
+              datasets: [
+                {
+                  type: "bar",
+                  label: "Water",
+                  data: series(model.waterL),
+                  backgroundColor: hexAlpha(food, 0.55),
+                  borderRadius: 3,
+                } as ChartDataset,
+                targetLine(`${formatTarget(model.targets.water_l)} L`, model.targets.water_l),
+                ...(waterAverage ? [waterAverage] : []),
+              ],
+            },
+            options: {
+              ...targetScale(
+                "L",
+                model.targets.water_l,
+                [...model.waterL, model.averages.waterLine],
+                model.averages.waterLine != null,
+              ),
+              plugins: {
+                legend: { display: true, position: "bottom" as const, labels: hideAverage },
+                tooltip: averageTooltip(waterStat),
+              },
+            },
+            plugins: guidesFor(model.averages.waterLine, waterMark, [
+              { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
+            ]),
+        },
+      ];
 
-    // Resize only when the tile has a real size. A 0×0 pass locks in a blank canvas.
-    // force redraws even when the size is unchanged, which is what iOS needs after
-    // it discards the bitmap (background tab, bfcache) without changing layout.
-    const paint = (force = false) => {
-      let waiting = false;
-      for (const chart of created) {
+      const canvases = [weightCanvas, deficitCanvas, caloriesCanvas, proteinCanvas, waterCanvas].map(
+        (slot) => slot.current,
+      );
+      if (canvases.some((canvas) => canvas == null)) return;
+
+      // iOS Safari keeps several full-resolution canvases and then throws the
+      // bitmaps away. Cap the backing store so a phone is less likely to do that.
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const created: Chart[] = [];
+      canvases.forEach((canvas, index) => {
+        const node = canvas as HTMLCanvasElement;
         try {
-          const parent = chart.canvas.parentElement;
-          const width = Math.floor(parent?.clientWidth ?? 0);
-          const height = Math.floor(parent?.clientHeight ?? 0);
-          if (width < 2 || height < 2) {
-            waiting = true;
-            continue;
-          }
-          if (force || chart.width !== width || chart.height !== height) {
-            (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
-            chart.resize(width, height);
-          }
+          // Chart.js otherwise forces border-box, and Safari then collapses the bitmap.
+          node.style.boxSizing = "content-box";
+          const config = configs[index];
+          created.push(
+            new Chart(node, {
+              ...config,
+              options: {
+                ...config.options,
+                responsive: false,
+                animation: false,
+                devicePixelRatio: pixelRatio,
+              },
+            }),
+          );
         } catch (error) {
-          console.error("Chart redraw failed:", chart.canvas.getAttribute("aria-label"), error);
+          console.error("Chart failed to start:", node.getAttribute("aria-label"), error);
         }
+      });
+
+      // Resize only when the tile has a real size. A 0×0 pass locks in a blank canvas.
+      // force redraws even when the size is unchanged, which is what iOS needs after
+      // it discards the bitmap (background tab, bfcache) without changing layout.
+      const paint = (force = false) => {
+        let waiting = false;
+        for (const chart of created) {
+          try {
+            const parent = chart.canvas.parentElement;
+            const width = Math.floor(parent?.clientWidth ?? 0);
+            const height = Math.floor(parent?.clientHeight ?? 0);
+            if (width < 2 || height < 2) {
+              waiting = true;
+              continue;
+            }
+            if (force || chart.width !== width || chart.height !== height) {
+              (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
+              chart.resize(width, height);
+            }
+          } catch (error) {
+            console.error("Chart redraw failed:", chart.canvas.getAttribute("aria-label"), error);
+          }
+        }
+        return waiting;
+      };
+
+      let frames = 0;
+      let raf = 0;
+      const tick = () => {
+        if (!paint(false) || frames >= 20) return;
+        frames += 1;
+        raf = requestAnimationFrame(tick);
+      };
+      tick();
+
+      const redraw = () => {
+        paint(true);
+      };
+      const onVisible = () => {
+        if (document.visibilityState === "visible") redraw();
+      };
+      const observer = new ResizeObserver(() => {
+        paint(false);
+      });
+      const paintedOnScreen = new WeakSet<HTMLCanvasElement>();
+      const seen = new IntersectionObserver((entries) => {
+        let due = false;
+        for (const entry of entries) {
+          if (!entry.isIntersecting || !(entry.target instanceof HTMLCanvasElement)) continue;
+          if (paintedOnScreen.has(entry.target)) continue;
+          paintedOnScreen.add(entry.target);
+          due = true;
+        }
+        if (due) redraw();
+      });
+      for (const chart of created) {
+        if (chart.canvas.parentElement) observer.observe(chart.canvas.parentElement);
+        seen.observe(chart.canvas);
       }
-      return waiting;
-    };
+      // A hidden tab is display:none, so its canvas is 0×0 until the tab is shown.
+      // Reuse the same non-zero-size redraw; a second frame covers a late layout.
+      let tabFrame = 0;
+      const onTab = () => {
+        redraw();
+        cancelAnimationFrame(tabFrame);
+        tabFrame = requestAnimationFrame(() => redraw());
+      };
+      document.addEventListener("visibilitychange", onVisible);
+      window.addEventListener("pageshow", redraw);
+      window.addEventListener("orientationchange", redraw);
+      document.addEventListener(DASHBOARD_TAB_EVENT, onTab);
 
-    let frames = 0;
-    let raf = 0;
-    const tick = () => {
-      if (!paint(false) || frames >= 20) return;
-      frames += 1;
-      raf = requestAnimationFrame(tick);
-    };
-    tick();
-
-    const redraw = () => {
-      paint(true);
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") redraw();
-    };
-    const observer = new ResizeObserver(() => {
-      paint(false);
+      let stopped = false;
+      release = () => {
+        if (stopped) return;
+        stopped = true;
+        cancelAnimationFrame(raf);
+        cancelAnimationFrame(tabFrame);
+        observer.disconnect();
+        seen.disconnect();
+        document.removeEventListener("visibilitychange", onVisible);
+        window.removeEventListener("pageshow", redraw);
+        window.removeEventListener("orientationchange", redraw);
+        document.removeEventListener(DASHBOARD_TAB_EVENT, onTab);
+        for (const chart of created) chart.destroy();
+      };
+      if (disposed) release();
     });
-    const paintedOnScreen = new WeakSet<HTMLCanvasElement>();
-    const seen = new IntersectionObserver((entries) => {
-      let due = false;
-      for (const entry of entries) {
-        if (!entry.isIntersecting || !(entry.target instanceof HTMLCanvasElement)) continue;
-        if (paintedOnScreen.has(entry.target)) continue;
-        paintedOnScreen.add(entry.target);
-        due = true;
-      }
-      if (due) redraw();
-    });
-    for (const chart of created) {
-      if (chart.canvas.parentElement) observer.observe(chart.canvas.parentElement);
-      seen.observe(chart.canvas);
-    }
-    // A hidden tab is display:none, so its canvas is 0×0 until the tab is shown.
-    // Reuse the same non-zero-size redraw; a second frame covers a late layout.
-    let tabFrame = 0;
-    const onTab = () => {
-      redraw();
-      cancelAnimationFrame(tabFrame);
-      tabFrame = requestAnimationFrame(() => redraw());
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("pageshow", redraw);
-    window.addEventListener("orientationchange", redraw);
-    document.addEventListener(DASHBOARD_TAB_EVENT, onTab);
-
     return () => {
-      cancelAnimationFrame(raf);
-      cancelAnimationFrame(tabFrame);
-      observer.disconnect();
-      seen.disconnect();
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("pageshow", redraw);
-      window.removeEventListener("orientationchange", redraw);
-      document.removeEventListener(DASHBOARD_TAB_EVENT, onTab);
-      for (const chart of created) chart.destroy();
+      disposed = true;
+      release();
     };
   }, [model]);
 

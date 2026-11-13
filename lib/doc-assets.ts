@@ -50,6 +50,16 @@ export function resolveRenderedImageSrc(src: string, slug: string): string | nul
   return documentAssetUrl(slug, assetPath);
 }
 
+/** Width and height from a PNG IHDR. Accepts a full file or the first 24 bytes. */
+export function pngDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+  if (!isPng(bytes) || bytes.length < 24) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const width = view.getUint32(16);
+  const height = view.getUint32(20);
+  if (width < 1 || height < 1 || width > 20000 || height > 20000) return null;
+  return { width, height };
+}
+
 export function isPng(bytes: Uint8Array): boolean {
   if (bytes.length < PNG_MAGIC.length) return false;
   for (let i = 0; i < PNG_MAGIC.length; i++) {

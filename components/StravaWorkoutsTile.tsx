@@ -1,3 +1,4 @@
+import { formatUpdatedLabel } from "@/lib/format";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
 
 export function StravaWorkoutsTile({ model }: { model: StravaWorkoutsModel }) {
@@ -53,8 +54,17 @@ function Ready({ model }: { model: Extract<StravaWorkoutsModel, { status: "ready
           </ul>
         </>
       )}
+      <SyncedNote syncedAt={model.syncedAt} />
     </>
   );
+}
+
+function SyncedNote({ syncedAt }: { syncedAt?: string | null }) {
+  if (syncedAt === undefined) return null;
+  if (syncedAt === null) return <p className="note synced-note">Not synced yet</p>;
+  const date = new Date(syncedAt);
+  const label = Number.isNaN(date.getTime()) ? syncedAt : formatUpdatedLabel(date);
+  return <p className="note synced-note">last synced {label}</p>;
 }
 
 function ConnectLink() {

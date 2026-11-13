@@ -31,7 +31,7 @@ export type StravaWindow = {
 export type StravaTileModel =
   | { status: "disconnected"; canConnect: boolean }
   | { status: "error"; message: string; canConnect: boolean }
-  | ({ status: "ready"; stale: boolean } & StravaWindow);
+  | ({ status: "ready"; stale: boolean; syncedAt?: string | null } & StravaWindow);
 
 export function mondayOnOrBefore(iso: string): string {
   const day = parseIsoDate(iso).getUTCDay();

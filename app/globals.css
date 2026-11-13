@@ -397,6 +397,10 @@ body {
     grid-template-rows: auto;
     align-content: start;
   }
+
+  .dashboard[data-tab="investing"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .card h2 {
@@ -1076,6 +1080,14 @@ body {
   min-width: 0;
 }
 
+@media (min-width: 900px) {
+  .investing-sections {
+    width: min(1100px, 100%);
+    margin-inline: auto;
+    padding-inline: 0.85rem;
+  }
+}
+
 .investing-paper .tile-heading {
   align-items: flex-start;
   margin-bottom: 0.2rem;
@@ -1120,7 +1132,8 @@ body {
   .investing-doc h1,
   .investing-doc h2,
   .investing-doc h3,
-  .investing-doc h4 {
+  .investing-doc h4,
+  .investing-doc .doc-table-scroll {
     clear: both;
   }
 }
@@ -1221,29 +1234,44 @@ body {
 }
 
 .doc-table-scroll {
+  display: block;
+  width: 100%;
   max-width: 100%;
-  margin: 0.85rem 0;
+  margin: 0.7rem 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: transparent;
 }
 
 .investing-doc table {
-  width: 100%;
+  width: max-content;
+  max-width: none;
   border-collapse: collapse;
-  font-size: 0.82rem;
-  line-height: 1.4;
+  table-layout: auto;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ink);
 }
 
 .investing-doc th,
 .investing-doc td {
-  min-width: 5.5rem;
-  padding: 0.4rem 0.55rem;
+  width: auto;
+  min-width: 0;
+  padding: 0.2rem 0.42rem;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   text-align: left;
-  overflow-wrap: anywhere;
+  color: var(--ink);
+  background: transparent;
+}
+
+.investing-doc th.num,
+.investing-doc td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .investing-doc th {
@@ -1281,6 +1309,7 @@ body {
     float: right;
     clear: right;
     width: 45%;
+    max-width: 45%;
     margin: 0.15rem 0 0.9rem 1.15rem;
   }
 }

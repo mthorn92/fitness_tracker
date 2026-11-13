@@ -4,11 +4,12 @@ let batchDepth = 0;
 export async function refreshPages(): Promise<void> {
   if (batchDepth > 0) return;
   try {
-    const { revalidatePath } = await import("next/cache");
+    const { revalidatePath, revalidateTag } = await import("next/cache");
     revalidatePath("/");
     revalidatePath("/log");
     revalidatePath("/body");
     revalidatePath("/recovery");
+    revalidateTag("dashboard", "max");
   } catch {
     // Running outside Next (verify-import).
   }

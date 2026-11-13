@@ -34,10 +34,11 @@ export type TrainingTile = {
   feedback: string | null;
 };
 
-export async function getTrainingTile(date: string): Promise<TrainingTile> {
+export async function getTrainingTile(date: string, knownSessions?: TrainingSession[]): Promise<TrainingTile> {
   const prescribed = prescribeDay(date);
-  const completed = prescribed.in_block ? await completedSession(date) : null;
-  const weekLabel = prescribed.in_block ? await weekLabelFor(prescribed) : null;
+  const sessions = prescribed.in_block ? (knownSessions ?? (await sessionsFor(prescribed))) : [];
+  const completed = prescribed.in_block ? completedSession(date, sessions) : null;
+  const weekLabel = prescribed.in_block ? weekLabelFor(prescribed, sessions) : null;
   const heading = "Today's training";
   const dateLabel = formatShortDate(date);
 
@@ -90,18 +91,24 @@ export async function getTrainingTile(date: string): Promise<TrainingTile> {
   };
 }
 
-async function completedSession(date: string): Promise<TrainingSession | null> {
-  const sessions = await listSessions({ date });
-  const done = sessions.filter((session) => session.completed);
+async function sessionsFor(day: PrescribedDay): Promise<TrainingSession[]> {
+  if (day.week == null) return listSessions({ date: day.date });
+  const range = planWeekRange(day.week);
+  if (!range) return listSessions({ date: day.date });
+  return listSessions({ from: range.start, to: range.end });
+}
+
+function completedSession(date: string, sessions: TrainingSession[]): TrainingSession | null {
+  const done = sessions.filter((session) => session.completed && session.date === date);
   return done[done.length - 1] ?? null;
 }
 
-async function weekLabelFor(day: PrescribedDay): Promise<string | null> {
+function weekLabelFor(day: PrescribedDay, sessions: TrainingSession[]): string | null {
   if (day.week == null || day.week_type == null) return null;
   const range = planWeekRange(day.week);
   if (!range) return null;
-  const sessions = await listSessions({ from: range.start, to: range.end });
-  const doneDates = new Set(sessions.filter((session) => session.completed).map((session) => session.date));
+  const inWeek = sessions.filter((session) => session.date >= range.start && session.date <= range.end);
+  const doneDates = new Set(inWeek.filter((session) => session.completed).map((session) => session.date));
   let done = 0;
   for (const date of doneDates) {
     const prescribed = prescribeDay(date);

@@ -66,6 +66,8 @@ export type StravaWorkoutsModel =
       rows: StravaWorkoutRow[];
       /** Null when the week has no activities. */
       summary: string | null;
+      /** ISO time of the last ingest. Null when nothing has been synced. Omitted for in-memory fixtures. */
+      syncedAt?: string | null;
     };
 
 export function workoutWindowStart(endDate: string): string {
