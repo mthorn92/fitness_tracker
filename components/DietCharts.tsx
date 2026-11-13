@@ -6,6 +6,8 @@ import {
   Chart,
   type ChartConfiguration,
   type ChartDataset,
+  type Plugin,
+  type TooltipItem,
   BarController,
   BarElement,
   CategoryScale,
@@ -17,6 +19,12 @@ import {
   PointElement,
   Tooltip,
 } from "chart.js";
+import {
+  formatKcalPerDay,
+  formatProteinPerDay,
+  formatWaterPerDay,
+  type DietChartModel,
+} from "@/lib/chart-range";
 import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import { formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
@@ -47,6 +55,10 @@ function chartPoint(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function formatTarget(value: number): string {
+  return value.toLocaleString("en-AU", { maximumFractionDigits: 1 });
 }
 
 function hexAlpha(c: string, a: number): string {
@@ -109,7 +121,66 @@ export type DietChartRefs = {
   water: RefObject<HTMLCanvasElement | null>;
 };
 
-export function useDietCharts(data: DietDashboardView): DietChartRefs {
+function averageDataset(value: number | null, count: number, color: string): ChartDataset | null {
+  if (value == null || count === 0) return null;
+  return {
+    type: "line",
+    label: "Average",
+    data: Array.from({ length: count }, () => value),
+    borderColor: color,
+    backgroundColor: color,
+    borderWidth: 1.15,
+    borderDash: [2, 3],
+    pointRadius: 0,
+    pointHoverRadius: 0,
+    fill: false,
+    order: 0,
+    spanGaps: true,
+  } as ChartDataset;
+}
+
+function averageTooltip(stat: string | null) {
+  return {
+    callbacks: {
+      label(context: TooltipItem<"bar">) {
+        const name = context.dataset.label ?? "";
+        if (name === "Average" && stat) return stat;
+        return name ? `${name}: ${context.formattedValue}` : context.formattedValue;
+      },
+    },
+  };
+}
+
+/** Draws dashed reference lines when a range has a single bucket and Chart.js has no segment. */
+function referenceRules(
+  rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>,
+): Plugin {
+  const drawn = rules.flatMap((rule) => (rule.value == null ? [] : [rule]));
+  return {
+    id: "referenceRules",
+    afterDatasetsDraw(chart) {
+      const yScale = chart.scales.y;
+      const { ctx, chartArea } = chart;
+      if (!yScale || !chartArea) return;
+      for (const rule of drawn) {
+        if (rule.value == null) continue;
+        const y = yScale.getPixelForValue(rule.value);
+        if (!Number.isFinite(y) || y < chartArea.top || y > chartArea.bottom) continue;
+        ctx.save();
+        ctx.strokeStyle = rule.color;
+        ctx.lineWidth = rule.width;
+        ctx.setLineDash(rule.dash);
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    },
+  };
+}
+
+export function useDietCharts(model: DietChartModel): DietChartRefs {
   const weightCanvas = useRef<HTMLCanvasElement>(null);
   const deficitCanvas = useRef<HTMLCanvasElement>(null);
   const caloriesCanvas = useRef<HTMLCanvasElement>(null);
@@ -122,15 +193,17 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
     const accent = cssVar("--accent", "#2c6e5a");
     const food = cssVar("--food", "#3b6d9a");
     const burn = cssVar("--burn", "#c16a2d");
-    const labels = data.days.map((d) => d.label);
+    const faint = hexAlpha(muted, 0.55);
+    const labels = model.labels;
     const series = (values: unknown[]) => values.map(chartPoint);
-    const fixedTdee = fixedTdeeCumulativeForChartDays(
-      data.days.map((day) => ({
-        plotted: day.deficit_kcal != null,
-        foodKcal: day.kcal,
-        whoopKcal: day.whoop_burn_kcal,
-      })),
-    );
+    const count = labels.length;
+    const single = count < 2;
+    const kcalAverage = averageDataset(model.averages.kcalLine, count, faint);
+    const proteinAverage = averageDataset(model.averages.proteinLine, count, faint);
+    const waterAverage = averageDataset(model.averages.waterLine, count, faint);
+    const kcalStat = formatKcalPerDay(model.averages.kcalPerDay);
+    const proteinStat = formatProteinPerDay(model.averages.proteinPerDay);
+    const waterStat = formatWaterPerDay(model.averages.waterPerDay);
 
     Chart.defaults.font.family =
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
@@ -142,6 +215,19 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
     Chart.defaults.plugins.legend.labels.padding = 12;
     Chart.defaults.elements.point.hitRadius = 8;
 
+    const targetLine = (label: string, value: number) => ({
+      type: "line" as const,
+      label,
+      data: labels.map(() => value),
+      borderColor: muted,
+      borderWidth: 1.25,
+      borderDash: [5, 4],
+      pointRadius: 0,
+      order: 3,
+    });
+    const rulesFor = (rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>) =>
+      single ? [referenceRules(rules)] : [];
+
     const configs: ChartConfiguration[] = [
       {
           type: "line",
@@ -149,8 +235,8 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
             labels,
             datasets: [
               {
-                label: "Daily",
-                data: series(data.days.map((d) => d.weight_kg)),
+                label: model.weekly ? "Weekly avg" : "Daily",
+                data: series(model.weightKg),
                 borderColor: "transparent",
                 backgroundColor: hexAlpha(ink, 0.35),
                 pointRadius: 4,
@@ -160,7 +246,7 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
               },
               {
                 label: "7-day avg",
-                data: series(data.weight_rolling7),
+                data: series(model.weightAvg7),
                 borderColor: accent,
                 backgroundColor: accent,
                 borderWidth: 2.6,
@@ -171,8 +257,8 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
                 order: 1,
               },
               {
-                label: `Goal ${data.goal_weight_kg} kg`,
-                data: data.days.map(() => data.goal_weight_kg),
+                label: `Goal ${model.goalWeightKg} kg`,
+                data: labels.map(() => model.goalWeightKg),
                 borderColor: muted,
                 borderWidth: 1.25,
                 borderDash: [5, 4],
@@ -183,18 +269,15 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
             ],
           },
           options: baseOpts("kg"),
+          plugins: rulesFor([{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }]),
       },
       {
           type: "line",
           data: {
             labels,
             datasets: [
-              equalDeficitLine(
-                "WHOOP burn",
-                accent,
-                series(data.days.map((d) => (d.deficit_kcal == null ? null : d.cumulative_deficit_kcal))),
-              ),
-              equalDeficitLine(fixedTdeeSeriesLabel(), burn, series(fixedTdee.values)),
+              equalDeficitLine("WHOOP burn", accent, series(model.deficitWhoop)),
+              equalDeficitLine(fixedTdeeSeriesLabel(), burn, series(model.deficitFixed)),
             ],
           },
           options: {
@@ -224,7 +307,7 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
               {
                 type: "bar",
                 label: "Food",
-                data: series(data.days.map((d) => d.kcal)),
+                data: series(model.kcal),
                 backgroundColor: hexAlpha(food, 0.55),
                 borderColor: food,
                 borderWidth: 0,
@@ -234,7 +317,7 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
               {
                 type: "line",
                 label: "WHOOP burn",
-                data: series(data.days.map((d) => d.whoop_burn_kcal)),
+                data: series(model.whoopKcal),
                 borderColor: burn,
                 backgroundColor: burn,
                 borderWidth: 2.2,
@@ -243,19 +326,21 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
                 spanGaps: true,
                 order: 1,
               },
-              {
-                type: "line",
-                label: `${data.targets.calories_kcal.toLocaleString("en-AU")} target`,
-                data: data.days.map(() => data.targets.calories_kcal),
-                borderColor: muted,
-                borderWidth: 1.25,
-                borderDash: [5, 4],
-                pointRadius: 0,
-                order: 3,
-              },
+              targetLine(`${model.targets.calories_kcal.toLocaleString("en-AU")} target`, model.targets.calories_kcal),
+              ...(kcalAverage ? [kcalAverage] : []),
             ],
           },
-          options: baseOpts("kcal", true),
+          options: {
+            ...baseOpts("kcal", true),
+            plugins: {
+              legend: { display: true, position: "bottom" as const },
+              tooltip: averageTooltip(kcalStat),
+            },
+          },
+          plugins: rulesFor([
+            { value: model.targets.calories_kcal, color: muted, dash: [5, 4], width: 1.25 },
+            { value: model.averages.kcalLine, color: faint, dash: [2, 3], width: 1.15 },
+          ]),
       },
       {
           type: "bar",
@@ -265,22 +350,28 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
               {
                 type: "bar",
                 label: "Protein",
-                data: series(data.days.map((d) => d.protein_g)),
+                data: series(model.proteinG),
                 backgroundColor: hexAlpha(accent, 0.55),
                 borderRadius: 3,
               } as ChartDataset,
-              {
-                type: "line",
-                label: `${data.targets.protein_g} g`,
-                data: data.days.map(() => data.targets.protein_g),
-                borderColor: muted,
-                borderWidth: 1.25,
-                borderDash: [5, 4],
-                pointRadius: 0,
-              },
+              targetLine(
+                `${model.targets.protein_g.toLocaleString("en-AU")} g`,
+                model.targets.protein_g,
+              ),
+              ...(proteinAverage ? [proteinAverage] : []),
             ],
           },
-          options: baseOpts("g", true),
+          options: {
+            ...baseOpts("g", true),
+            plugins: {
+              legend: { display: true, position: "bottom" as const },
+              tooltip: averageTooltip(proteinStat),
+            },
+          },
+          plugins: rulesFor([
+            { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
+            { value: model.averages.proteinLine, color: faint, dash: [2, 3], width: 1.15 },
+          ]),
       },
       {
           type: "bar",
@@ -290,22 +381,25 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
               {
                 type: "bar",
                 label: "Water",
-                data: series(data.days.map((d) => d.water_l)),
+                data: series(model.waterL),
                 backgroundColor: hexAlpha(food, 0.55),
                 borderRadius: 3,
               } as ChartDataset,
-              {
-                type: "line",
-                label: `${data.targets.water_l} L`,
-                data: data.days.map(() => data.targets.water_l),
-                borderColor: muted,
-                borderWidth: 1.25,
-                borderDash: [5, 4],
-                pointRadius: 0,
-              },
+              targetLine(`${formatTarget(model.targets.water_l)} L`, model.targets.water_l),
+              ...(waterAverage ? [waterAverage] : []),
             ],
           },
-          options: baseOpts("L", true),
+          options: {
+            ...baseOpts("L", true),
+            plugins: {
+              legend: { display: true, position: "bottom" as const },
+              tooltip: averageTooltip(waterStat),
+            },
+          },
+          plugins: rulesFor([
+            { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
+            { value: model.averages.waterLine, color: faint, dash: [2, 3], width: 1.15 },
+          ]),
       },
     ];
 
@@ -422,7 +516,7 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
       document.removeEventListener(DASHBOARD_TAB_EVENT, onTab);
       for (const chart of created) chart.destroy();
     };
-  }, [data]);
+  }, [model]);
 
   return {
     weight: weightCanvas,
@@ -433,12 +527,17 @@ export function useDietCharts(data: DietDashboardView): DietChartRefs {
   };
 }
 
+function PeriodAverage({ text }: { text: string | null }) {
+  if (!text) return null;
+  return <p className="chart-stat">{text}</p>;
+}
+
 export function WeightChartTile({
   canvasRef,
-  data,
+  model,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  data: DietDashboardView;
+  model: DietChartModel;
 }) {
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="weight">
@@ -447,8 +546,10 @@ export function WeightChartTile({
         <canvas ref={canvasRef} aria-label="Weight chart" />
       </div>
       <p className="note">
-        Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the{" "}
-        {data.goal_weight_kg} kg goal.
+        {model.weekly
+          ? "Faint dots are weekly average weigh-ins. The bold line is a 7-day rolling average. Dashed line is the "
+          : "Faint dots are daily weigh-ins. The bold line is a 7-day rolling average. Dashed line is the "}
+        {model.goalWeightKg} kg goal.
       </p>
     </section>
   );
@@ -457,19 +558,25 @@ export function WeightChartTile({
 export function CaloriesChartTile({
   canvasRef,
   data,
+  model,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
+  model: DietChartModel;
 }) {
+  const daily = data.targets.calories_kcal.toLocaleString("en-AU");
+  const weeklyTarget = model.targets.calories_kcal.toLocaleString("en-AU");
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="burn">
       <h2>Calories vs WHOOP burn</h2>
+      <PeriodAverage text={formatKcalPerDay(model.averages.kcalPerDay)} />
       <div className="chart-wrap">
         <canvas ref={canvasRef} aria-label="Calories versus WHOOP burn chart" />
       </div>
       <p className="note">
-        Bars are food. The solid line is WHOOP cycle burn. Dashed line is the{" "}
-        {data.targets.calories_kcal.toLocaleString("en-AU")} kcal food budget.
+        {model.weekly
+          ? `Bars are weekly food totals. The solid line is weekly WHOOP burn. Dashed line is ${weeklyTarget} kcal (7 × ${daily}). The faint line is the daily average, drawn ×7 so it lines up.`
+          : `Bars are food. The solid line is WHOOP cycle burn. Dashed line is the ${daily} kcal food budget. The faint line is the average of logged days.`}
       </p>
     </section>
   );
@@ -478,9 +585,11 @@ export function CaloriesChartTile({
 export function DeficitChartTile({
   canvasRef,
   data,
+  model,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
+  model: DietChartModel;
 }) {
   const fixed = fixedTdeeCumulativeForChartDays(
     data.days.map((day) => ({
@@ -525,6 +634,7 @@ export function DeficitChartTile({
         same days. The kilograms under each total are the expected weight lost at {kcalPerKg} kcal
         per kg. Counted days only: a past day counts even if WHOOP still shows an open cycle.
         Comparison only. Neither figure is added to the food budget.
+        {model.weekly ? " Each point is the cumulative total at the end of that week." : null}
         {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
       </p>
     </section>
@@ -534,17 +644,26 @@ export function DeficitChartTile({
 export function ProteinChartTile({
   canvasRef,
   data,
+  model,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
+  model: DietChartModel;
 }) {
+  const daily = data.targets.protein_g.toLocaleString("en-AU");
+  const weeklyTarget = model.targets.protein_g.toLocaleString("en-AU");
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="protein">
       <h2>Protein</h2>
+      <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
       <div className="chart-wrap">
         <canvas ref={canvasRef} aria-label="Protein chart" />
       </div>
-      <p className="note">Daily protein vs {data.targets.protein_g} g target.</p>
+      <p className="note">
+        {model.weekly
+          ? `Weekly protein totals. Dashed line is ${weeklyTarget} g (7 × ${daily} g). The faint line is the daily average, drawn ×7.`
+          : `Daily protein vs ${daily} g target. The faint line is the average of logged days.`}
+      </p>
     </section>
   );
 }
@@ -552,17 +671,26 @@ export function ProteinChartTile({
 export function WaterChartTile({
   canvasRef,
   data,
+  model,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
+  model: DietChartModel;
 }) {
+  const daily = formatTarget(data.targets.water_l);
+  const weeklyTarget = formatTarget(model.targets.water_l);
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="water">
       <h2>Water</h2>
+      <PeriodAverage text={formatWaterPerDay(model.averages.waterPerDay)} />
       <div className="chart-wrap">
         <canvas ref={canvasRef} aria-label="Water chart" />
       </div>
-      <p className="note">Daily water vs {data.targets.water_l} L target.</p>
+      <p className="note">
+        {model.weekly
+          ? `Weekly water totals. Dashed line is ${weeklyTarget} L (7 × ${daily} L). The faint line is the daily average, drawn ×7.`
+          : `Daily water vs ${daily} L target. The faint line is the average of logged days.`}
+      </p>
     </section>
   );
 }
