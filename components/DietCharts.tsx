@@ -25,6 +25,7 @@ import {
   formatWaterPerDay,
   type DietChartModel,
 } from "@/lib/chart-range";
+import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
 import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import { formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
@@ -121,22 +122,66 @@ export type DietChartRefs = {
   water: RefObject<HTMLCanvasElement | null>;
 };
 
-function averageDataset(value: number | null, count: number, color: string): ChartDataset | null {
+function averageDataset(value: number | null, count: number): ChartDataset | null {
   if (value == null || count === 0) return null;
   return {
     type: "line",
     label: "Average",
     data: Array.from({ length: count }, () => value),
-    borderColor: color,
-    backgroundColor: color,
-    borderWidth: 1.15,
-    borderDash: [2, 3],
+    borderWidth: 0,
     pointRadius: 0,
     pointHoverRadius: 0,
     fill: false,
     order: 0,
     spanGaps: true,
   } as ChartDataset;
+}
+
+function finiteMax(values: Array<number | null | undefined>): number {
+  let max = 0;
+  for (const value of values) {
+    if (value != null && Number.isFinite(value)) max = Math.max(max, value);
+  }
+  return max;
+}
+
+function targetScale(
+  yTitle: string,
+  target: number,
+  values: Array<number | null | undefined>,
+  reserveLabel: boolean,
+  axisFor: (target: number, dataMax: number) => { step: number; max: number } = targetAxis,
+) {
+  const axis = axisFor(target, finiteMax(values));
+  const base = baseOpts(yTitle, true);
+  return {
+    ...base,
+    layout: {
+      padding: { top: 8, right: reserveLabel ? 68 : 4, bottom: 0, left: 0 },
+    },
+    scales: {
+      ...base.scales,
+      y: {
+        ...base.scales.y,
+        min: 0,
+        max: axis.max,
+        ticks: {
+          ...base.scales.y.ticks,
+          stepSize: axis.step,
+          autoSkip: false,
+          maxTicksLimit: 24,
+          callback(value: string | number) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) return "";
+            if (Math.abs(number - Math.round(number)) < 1e-6) {
+              return Math.round(number).toLocaleString("en-AU");
+            }
+            return number.toLocaleString("en-AU", { maximumFractionDigits: 1 });
+          },
+        },
+      },
+    },
+  };
 }
 
 function averageTooltip(stat: string | null) {
@@ -151,31 +196,49 @@ function averageTooltip(stat: string | null) {
   };
 }
 
-/** Draws dashed reference lines when a range has a single bucket and Chart.js has no segment. */
-function referenceRules(
-  rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>,
-): Plugin {
-  const drawn = rules.flatMap((rule) => (rule.value == null ? [] : [rule]));
+/** Solid average line with a short label at the right end, plus dashed rules for a one-point chart. */
+function chartGuides(input: {
+  average: number | null;
+  averageLabel: string | null;
+  averageColor: string;
+  rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>;
+}): Plugin {
+  const rules = input.rules.flatMap((rule) => (rule.value == null ? [] : [rule]));
   return {
-    id: "referenceRules",
+    id: "chartGuides",
     afterDatasetsDraw(chart) {
       const yScale = chart.scales.y;
       const { ctx, chartArea } = chart;
       if (!yScale || !chartArea) return;
-      for (const rule of drawn) {
-        if (rule.value == null) continue;
-        const y = yScale.getPixelForValue(rule.value);
-        if (!Number.isFinite(y) || y < chartArea.top || y > chartArea.bottom) continue;
+      const drawRule = (value: number, color: string, dash: number[], width: number, x2: number) => {
+        const y = yScale.getPixelForValue(value);
+        if (!Number.isFinite(y) || y < chartArea.top - 1 || y > chartArea.bottom + 1) return;
         ctx.save();
-        ctx.strokeStyle = rule.color;
-        ctx.lineWidth = rule.width;
-        ctx.setLineDash(rule.dash);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.setLineDash(dash);
         ctx.beginPath();
         ctx.moveTo(chartArea.left, y);
-        ctx.lineTo(chartArea.right, y);
+        ctx.lineTo(x2, y);
         ctx.stroke();
         ctx.restore();
+      };
+      for (const rule of rules) {
+        if (rule.value == null) continue;
+        drawRule(rule.value, rule.color, rule.dash, rule.width, chartArea.right);
       }
+      if (input.average == null || !input.averageLabel) return;
+      const y = yScale.getPixelForValue(input.average);
+      if (!Number.isFinite(y)) return;
+      ctx.save();
+      ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+      ctx.fillStyle = input.averageColor;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const textY = Math.min(Math.max(y, chartArea.top + 6), chartArea.bottom - 6);
+      drawRule(input.average, input.averageColor, [], 1.5, chartArea.right);
+      ctx.fillText(input.averageLabel, chartArea.right + 6, textY);
+      ctx.restore();
     },
   };
 }
@@ -193,17 +256,25 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
     const accent = cssVar("--accent", "#2c6e5a");
     const food = cssVar("--food", "#3b6d9a");
     const burn = cssVar("--burn", "#c16a2d");
-    const faint = hexAlpha(muted, 0.55);
+    const avgColor = cssVar("--avg", "#6b3fa0");
     const labels = model.labels;
     const series = (values: unknown[]) => values.map(chartPoint);
     const count = labels.length;
     const single = count < 2;
-    const kcalAverage = averageDataset(model.averages.kcalLine, count, faint);
-    const proteinAverage = averageDataset(model.averages.proteinLine, count, faint);
-    const waterAverage = averageDataset(model.averages.waterLine, count, faint);
+    const kcalAverage = averageDataset(model.averages.kcalLine, count);
+    const proteinAverage = averageDataset(model.averages.proteinLine, count);
+    const waterAverage = averageDataset(model.averages.waterLine, count);
     const kcalStat = formatKcalPerDay(model.averages.kcalPerDay);
     const proteinStat = formatProteinPerDay(model.averages.proteinPerDay);
     const waterStat = formatWaterPerDay(model.averages.waterPerDay);
+    const kcalMark = formatAverageLabel("kcal", model.averages.kcalPerDay ?? Number.NaN);
+    const proteinMark = formatAverageLabel("protein", model.averages.proteinPerDay ?? Number.NaN);
+    const waterMark = formatAverageLabel("water", model.averages.waterPerDay ?? Number.NaN);
+    const hideAverage = {
+      filter(item: { text: string }) {
+        return item.text !== "Average";
+      },
+    };
 
     Chart.defaults.font.family =
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
@@ -225,8 +296,18 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
       pointRadius: 0,
       order: 3,
     });
-    const rulesFor = (rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>) =>
-      single ? [referenceRules(rules)] : [];
+    const guidesFor = (
+      average: number | null,
+      averageLabel: string,
+      rules: Array<{ value: number | null; color: string; dash: number[]; width: number }>,
+    ) => [
+      chartGuides({
+        average,
+        averageLabel: average == null ? null : averageLabel,
+        averageColor: avgColor,
+        rules: single ? rules : [],
+      }),
+    ];
 
     const configs: ChartConfiguration[] = [
       {
@@ -269,7 +350,16 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
             ],
           },
           options: baseOpts("kg"),
-          plugins: rulesFor([{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }]),
+          plugins: single
+            ? [
+                chartGuides({
+                  average: null,
+                  averageLabel: null,
+                  averageColor: avgColor,
+                  rules: [{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }],
+                }),
+              ]
+            : [],
       },
       {
           type: "line",
@@ -331,15 +421,19 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
             ],
           },
           options: {
-            ...baseOpts("kcal", true),
+            ...targetScale(
+              "kcal",
+              model.targets.calories_kcal,
+              [...model.kcal, ...model.whoopKcal, model.averages.kcalLine],
+              model.averages.kcalLine != null,
+            ),
             plugins: {
-              legend: { display: true, position: "bottom" as const },
+              legend: { display: true, position: "bottom" as const, labels: hideAverage },
               tooltip: averageTooltip(kcalStat),
             },
           },
-          plugins: rulesFor([
+          plugins: guidesFor(model.averages.kcalLine, kcalMark, [
             { value: model.targets.calories_kcal, color: muted, dash: [5, 4], width: 1.25 },
-            { value: model.averages.kcalLine, color: faint, dash: [2, 3], width: 1.15 },
           ]),
       },
       {
@@ -362,15 +456,20 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
             ],
           },
           options: {
-            ...baseOpts("g", true),
+            ...targetScale(
+              "g",
+              model.targets.protein_g,
+              [...model.proteinG, model.averages.proteinLine],
+              model.averages.proteinLine != null,
+              proteinAxis,
+            ),
             plugins: {
-              legend: { display: true, position: "bottom" as const },
+              legend: { display: true, position: "bottom" as const, labels: hideAverage },
               tooltip: averageTooltip(proteinStat),
             },
           },
-          plugins: rulesFor([
+          plugins: guidesFor(model.averages.proteinLine, proteinMark, [
             { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
-            { value: model.averages.proteinLine, color: faint, dash: [2, 3], width: 1.15 },
           ]),
       },
       {
@@ -390,15 +489,19 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
             ],
           },
           options: {
-            ...baseOpts("L", true),
+            ...targetScale(
+              "L",
+              model.targets.water_l,
+              [...model.waterL, model.averages.waterLine],
+              model.averages.waterLine != null,
+            ),
             plugins: {
-              legend: { display: true, position: "bottom" as const },
+              legend: { display: true, position: "bottom" as const, labels: hideAverage },
               tooltip: averageTooltip(waterStat),
             },
           },
-          plugins: rulesFor([
+          plugins: guidesFor(model.averages.waterLine, waterMark, [
             { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
-            { value: model.averages.waterLine, color: faint, dash: [2, 3], width: 1.15 },
           ]),
       },
     ];
@@ -575,8 +678,8 @@ export function CaloriesChartTile({
       </div>
       <p className="note">
         {model.weekly
-          ? `Bars are weekly food totals. The solid line is weekly WHOOP burn. Dashed line is ${weeklyTarget} kcal (7 × ${daily}). The faint line is the daily average, drawn ×7 so it lines up.`
-          : `Bars are food. The solid line is WHOOP cycle burn. Dashed line is the ${daily} kcal food budget. The faint line is the average of logged days.`}
+          ? `Bars are weekly food totals. The solid orange line is weekly WHOOP burn. The dashed line is ${weeklyTarget} kcal (7 × ${daily}). The violet line is the daily average, drawn ×7 so it lines up.`
+          : `Bars are food. The solid orange line is WHOOP cycle burn. The dashed line is the ${daily} kcal food budget. The violet line is the average of logged days.`}
       </p>
     </section>
   );
@@ -661,8 +764,8 @@ export function ProteinChartTile({
       </div>
       <p className="note">
         {model.weekly
-          ? `Weekly protein totals. Dashed line is ${weeklyTarget} g (7 × ${daily} g). The faint line is the daily average, drawn ×7.`
-          : `Daily protein vs ${daily} g target. The faint line is the average of logged days.`}
+          ? `Weekly protein totals. The dashed line is ${weeklyTarget} g (7 × ${daily} g). The violet line is the daily average, drawn ×7.`
+          : `Daily protein vs the ${daily} g target. The violet line is the average of logged days.`}
       </p>
     </section>
   );
@@ -688,8 +791,8 @@ export function WaterChartTile({
       </div>
       <p className="note">
         {model.weekly
-          ? `Weekly water totals. Dashed line is ${weeklyTarget} L (7 × ${daily} L). The faint line is the daily average, drawn ×7.`
-          : `Daily water vs ${daily} L target. The faint line is the average of logged days.`}
+          ? `Weekly water totals. The dashed line is ${weeklyTarget} L (7 × ${daily} L). The violet line is the daily average, drawn ×7.`
+          : `Daily water vs the ${daily} L target. The violet line is the average of logged days.`}
       </p>
     </section>
   );
