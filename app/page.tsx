@@ -4,9 +4,9 @@ import { parseDashboardTab } from "@/components/dashboard-tab";
 import { getDietDashboardView, getLogView } from "@/lib/data";
 import { getExerciseBoard } from "@/lib/exercise-board";
 import { todayIsoDate } from "@/lib/format";
-import { getStravaSummary } from "@/lib/strava";
-import { getWhoopWorkouts } from "@/lib/whoop-workouts";
+import { getStravaSummary, getStravaWorkouts } from "@/lib/strava";
 import { fixtureRuns, modelFromRuns } from "@/lib/strava-summary";
+import { fixtureActivities, modelFromActivities } from "@/lib/strava-workouts";
 
 export default function HomePage({ searchParams }: PageProps<"/">) {
   return (
@@ -27,14 +27,16 @@ async function DietDashboard({
   const log = await getLogView(data.today.date);
   const trainingDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIsoDate();
   const board = await getExerciseBoard(trainingDate);
-  const whoop = await getWhoopWorkouts(trainingDate);
-  // Sample runs for local screenshots. A production build ignores this.
+  // Sample activities for local screenshots. A production build ignores this.
   const previewStrava =
     process.env.NODE_ENV !== "production" &&
     (params.strava === "preview" || process.env.STRAVA_FIXTURE === "1");
   const strava = previewStrava
     ? modelFromRuns(fixtureRuns(trainingDate), trainingDate)
     : await getStravaSummary(trainingDate);
+  const workouts = previewStrava
+    ? modelFromActivities(fixtureActivities(trainingDate), trainingDate)
+    : await getStravaWorkouts(trainingDate);
 
   return (
     <Dashboard
@@ -43,7 +45,7 @@ async function DietDashboard({
       data={data}
       foods={log.foods}
       board={board}
-      whoop={whoop}
+      workouts={workouts}
       strava={strava}
       today={todayIsoDate()}
     />

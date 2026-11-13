@@ -14,13 +14,13 @@ import { DietTodayCard } from "@/components/DietTodayCard";
 import { MonthRings } from "@/components/MonthRings";
 import { StravaRunsTile } from "@/components/StravaRunsTile";
 import { StrengthDayTile } from "@/components/StrengthDayTile";
-import { WhoopWorkoutsTile } from "@/components/WhoopWorkoutsTile";
+import { StravaWorkoutsTile } from "@/components/StravaWorkoutsTile";
 import { TodayFood } from "@/components/TodayFood";
 import { TrainingTodayCard } from "@/components/TrainingTodayCard";
 import { DASHBOARD_TAB_EVENT, type DashboardTab } from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
 import type { StravaTileModel } from "@/lib/strava-summary";
-import type { WhoopWorkoutsModel } from "@/lib/whoop-workouts";
+import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
 import type { DietDashboardView, FoodItem } from "@/lib/types";
 
 const STORAGE_KEY = "dashboard-tab";
@@ -79,7 +79,7 @@ export function Dashboard({
   data,
   foods,
   board,
-  whoop,
+  workouts,
   strava,
   today,
 }: {
@@ -88,7 +88,7 @@ export function Dashboard({
   data: DietDashboardView;
   foods: FoodItem[];
   board: ExerciseBoard;
-  whoop: WhoopWorkoutsModel;
+  workouts: StravaWorkoutsModel;
   strava: StravaTileModel;
   today: string;
 }) {
@@ -189,7 +189,7 @@ export function Dashboard({
       <TrainingTodayCard view={board.today} mode={board.todayMode} />
       {board.days[0] ? <StrengthDayTile day={board.days[0]} /> : null}
       {board.days[1] ? <StrengthDayTile day={board.days[1]} /> : null}
-      <WhoopWorkoutsTile model={whoop} />
+      <StravaWorkoutsTile model={workouts} />
       {board.days[2] ? <StrengthDayTile day={board.days[2]} /> : null}
       {board.days[3] ? <StrengthDayTile day={board.days[3]} /> : null}
       <StravaRunsTile model={strava} />
