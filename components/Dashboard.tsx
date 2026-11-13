@@ -16,17 +16,23 @@ import { StravaRunsTile } from "@/components/StravaRunsTile";
 import { StrengthDayTile } from "@/components/StrengthDayTile";
 import { TodayFood } from "@/components/TodayFood";
 import { TrainingTodayCard } from "@/components/TrainingTodayCard";
-import { DASHBOARD_TAB_EVENT, type DashboardTab } from "@/components/dashboard-tab";
+import { DASHBOARD_TAB_EVENT, DASHBOARD_TABS, isDashboardTab, type DashboardTab } from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
 import type { StravaTileModel } from "@/lib/strava-summary";
 import type { DietDashboardView, FoodItem } from "@/lib/types";
 
 const STORAGE_KEY = "dashboard-tab";
 
+const TAB_LABELS: Record<DashboardTab, string> = {
+  diet: "Diet",
+  exercise: "Exercise",
+  investing: "Investing",
+};
+
 function readStoredTab(): DashboardTab | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "diet" || stored === "exercise" ? stored : null;
+    return isDashboardTab(stored) ? stored : null;
   } catch {
     return null;
   }
@@ -67,7 +73,7 @@ function emitTab() {
 
 function currentTab(fallback: DashboardTab): DashboardTab {
   const fromUrl = new URLSearchParams(window.location.search).get("tab");
-  if (fromUrl === "diet" || fromUrl === "exercise") return fromUrl;
+  if (isDashboardTab(fromUrl)) return fromUrl;
   return readStoredTab() ?? fallback;
 }
 
@@ -79,6 +85,7 @@ export function Dashboard({
   board,
   strava,
   today,
+  investing,
 }: {
   initialTab: DashboardTab;
   updated: string;
@@ -87,6 +94,7 @@ export function Dashboard({
   board: ExerciseBoard;
   strava: StravaTileModel;
   today: string;
+  investing: React.ReactNode;
 }) {
   const tab = useSyncExternalStore(
     subscribeTab,
@@ -98,7 +106,7 @@ export function Dashboard({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("tab");
-    if (fromUrl === "diet" || fromUrl === "exercise") {
+    if (isDashboardTab(fromUrl)) {
       writeStoredTab(fromUrl);
       return;
     }
@@ -128,7 +136,7 @@ export function Dashboard({
       return;
     }
     event.preventDefault();
-    const order: DashboardTab[] = ["diet", "exercise"];
+    const order: DashboardTab[] = [...DASHBOARD_TABS];
     const index = order.indexOf(tab);
     const nextIndex =
       event.key === "ArrowRight"
@@ -140,7 +148,7 @@ export function Dashboard({
             : order.length - 1;
     const next = order[nextIndex];
     select(next);
-    document.getElementById(next === "diet" ? "tab-diet" : "tab-exercise")?.focus();
+    document.getElementById(`tab-${next}`)?.focus();
   }
 
   return (
@@ -151,26 +159,19 @@ export function Dashboard({
           <p className="updated">Updated {updated}</p>
         </div>
         <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
-          <button
-            type="button"
-            role="tab"
-            id="tab-diet"
-            aria-selected={tab === "diet"}
-            tabIndex={tab === "diet" ? 0 : -1}
-            onClick={() => select("diet")}
-          >
-            Diet
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-exercise"
-            aria-selected={tab === "exercise"}
-            tabIndex={tab === "exercise" ? 0 : -1}
-            onClick={() => select("exercise")}
-          >
-            Exercise
-          </button>
+          {DASHBOARD_TABS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              id={`tab-${name}`}
+              aria-selected={tab === name}
+              tabIndex={tab === name ? 0 : -1}
+              onClick={() => select(name)}
+            >
+              {TAB_LABELS[name]}
+            </button>
+          ))}
         </div>
       </header>
       <DietTodayCard data={data} />
@@ -191,6 +192,7 @@ export function Dashboard({
       {board.days[2] ? <StrengthDayTile day={board.days[2]} /> : null}
       {board.days[3] ? <StrengthDayTile day={board.days[3]} /> : null}
       <StravaRunsTile model={strava} />
+      {investing}
     </main>
   );
 }

@@ -136,6 +136,23 @@ The easy path, once the client id and secret are saved and the app has been publ
 
 A manual path, if you would rather paste `STRAVA_REFRESH_TOKEN` yourself, is written up in the pull request that added this tile.
 
+## Investing tab
+
+The third tab is for research notes. Diet is still the default. The choice is remembered the same way as Exercise (`?tab=investing` and the `dashboard-tab` value in the browser).
+
+The paper is not stored in this repository. Upload a markdown file when it changes. You do not need a new deploy.
+
+```bash
+DOCS_BASE_URL=https://training-log.apps.grok.bot \
+CURSOR_API_KEY=... \
+LOG_API_TOKEN=... \
+node scripts/push-doc.mjs quad-strategy paper.md
+```
+
+The script prints the new version and the time it was saved. It does not print the tokens. On your computer, with the app running at `http://localhost:3000`, you can leave the tokens unset.
+
+The first document slug is `quad-strategy`.
+
 ## Not included yet
 
 - Wiring the Grok Bot’s connection to the published URL + token (test one meal first)
