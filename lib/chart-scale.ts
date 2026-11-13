@@ -1,7 +1,9 @@
 /**
- * Y-axis for a target line that must sit on a gridline.
- * The top of the axis is one step above the target, and only moves higher,
- * still in whole steps, when a plotted value exceeds that.
+ * Y-axis for a calorie or water target that sits on a gridline.
+ * The top is one step above the target, and only moves higher, still in
+ * whole steps, when a plotted value exceeds that.
+ *
+ * Protein uses round steps instead, so 170 g falls between the lines.
  */
 export type TargetAxis = {
   step: number;
@@ -65,6 +67,32 @@ export function targetAxis(target: number, dataMax = 0): TargetAxis {
   const peak = Number.isFinite(dataMax) ? Math.max(0, dataMax) : 0;
   const stepsAbove = Math.max(1, Math.ceil((peak - safeTarget) / step - 1e-9));
   return { step, max: safeTarget + stepsAbove * step };
+}
+
+/** Round protein steps. 170 g uses 50s and a top of 200. The goal sits between lines. */
+const PROTEIN_STEPS = [50, 100, 200, 250, 500, 1000];
+
+export function proteinAxis(target: number, dataMax = 0): TargetAxis {
+  const safeTarget = Number.isFinite(target) && target > 0 ? target : 170;
+  const peak = Number.isFinite(dataMax) ? Math.max(0, dataMax) : 0;
+  let step = 50;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const candidate of PROTEIN_STEPS) {
+    const onLine = Math.abs(safeTarget / candidate - Math.round(safeTarget / candidate)) < 1e-6;
+    if (onLine) continue;
+    const top = Math.ceil((safeTarget - 1e-9) / candidate) * candidate;
+    const ticks = top / candidate + 1;
+    if (ticks < 4 || ticks > 6) continue;
+    const headroom = (top - safeTarget) / candidate;
+    const score = (headroom < 0.2 ? 10 : 0) + Math.abs(ticks - 5);
+    if (score < bestScore || (score === bestScore && candidate > step)) {
+      bestScore = score;
+      step = candidate;
+    }
+  }
+  const needed = Math.max(safeTarget, peak);
+  const max = Math.ceil((needed - 1e-9) / step) * step;
+  return { step, max };
 }
 
 export function formatAverageLabel(kind: "kcal" | "protein" | "water", perDay: number): string {

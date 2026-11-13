@@ -25,7 +25,7 @@ import {
   formatWaterPerDay,
   type DietChartModel,
 } from "@/lib/chart-range";
-import { formatAverageLabel, targetAxis } from "@/lib/chart-scale";
+import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
 import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import { formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
@@ -145,8 +145,14 @@ function finiteMax(values: Array<number | null | undefined>): number {
   return max;
 }
 
-function targetScale(yTitle: string, target: number, values: Array<number | null | undefined>, reserveLabel: boolean) {
-  const axis = targetAxis(target, finiteMax(values));
+function targetScale(
+  yTitle: string,
+  target: number,
+  values: Array<number | null | undefined>,
+  reserveLabel: boolean,
+  axisFor: (target: number, dataMax: number) => { step: number; max: number } = targetAxis,
+) {
+  const axis = axisFor(target, finiteMax(values));
   const base = baseOpts(yTitle, true);
   return {
     ...base,
@@ -455,6 +461,7 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
               model.targets.protein_g,
               [...model.proteinG, model.averages.proteinLine],
               model.averages.proteinLine != null,
+              proteinAxis,
             ),
             plugins: {
               legend: { display: true, position: "bottom" as const, labels: hideAverage },

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatAverageLabel, targetAxis } from "./chart-scale";
+import { formatAverageLabel, proteinAxis, targetAxis } from "./chart-scale";
 
 function onGrid(axis: { step: number; max: number }, target: number) {
   assert.ok(Math.abs(target / axis.step - Math.round(target / axis.step)) < 1e-6);
@@ -14,11 +14,6 @@ test("daily targets sit one step under the top", () => {
   assert.equal(kcal.max, 2500);
   onGrid(kcal, 2000);
 
-  const protein = targetAxis(170, 168);
-  assert.equal(protein.step, 34);
-  assert.equal(protein.max, 204);
-  onGrid(protein, 170);
-
   const water = targetAxis(3, 2.9);
   assert.equal(water.step, 1);
   assert.equal(water.max, 4);
@@ -30,11 +25,6 @@ test("weekly targets use the same headroom rule", () => {
   assert.equal(kcal.step, 3500);
   assert.equal(kcal.max, 17500);
   onGrid(kcal, 14000);
-
-  const protein = targetAxis(1190, 900);
-  assert.equal(protein.step, 238);
-  assert.equal(protein.max, 1428);
-  onGrid(protein, 1190);
 
   const water = targetAxis(21, 12);
   assert.equal(water.step, 7);
@@ -52,6 +42,26 @@ test("the top moves up in whole steps when the data exceeds the target", () => {
   assert.equal(water.step, 1);
   assert.equal(water.max, 6);
   onGrid(water, 3);
+});
+
+test("protein uses round steps and leaves the goal between the lines", () => {
+  const daily = proteinAxis(170, 168);
+  assert.equal(daily.step, 50);
+  assert.equal(daily.max, 200);
+  assert.notEqual(170 % daily.step, 0);
+
+  const over = proteinAxis(170, 230);
+  assert.equal(over.step, 50);
+  assert.equal(over.max, 250);
+
+  const weekly = proteinAxis(1190, 900);
+  assert.equal(weekly.step, 500);
+  assert.equal(weekly.max, 1500);
+  assert.notEqual(1190 % weekly.step, 0);
+
+  const weeklyOver = proteinAxis(1190, 1600);
+  assert.equal(weeklyOver.step, 500);
+  assert.equal(weeklyOver.max, 2000);
 });
 
 test("average labels stay short and per day", () => {
