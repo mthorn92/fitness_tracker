@@ -59,6 +59,7 @@ async function DietDashboard({
           paper={
             paper
               ? {
+                  slug: paper.slug,
                   title: paper.title,
                   version: paper.version,
                   updatedAt: paper.updated_at,

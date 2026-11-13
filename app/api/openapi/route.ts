@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     openapi: "3.1.0",
     info: {
       title: "Training log",
-      version: "1.3.0",
+      version: "1.4.0",
       description:
         "Personal food, water, weight, exercise, WHOOP and saved-meal log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row. Saved meals upsert by name. Optional flat day fields whoop_burn_kcal, cycle_closed, strain, recovery_pct are additive aliases. Strength and run sessions are a separate additive API at /api/sessions and do not change /api/log or the food budget.",
     },
@@ -380,6 +380,55 @@ export async function GET(request: Request) {
         post: {
           summary: "Create or replace one markdown document",
           description: "Same as PUT.",
+        },
+      },
+      "/api/docs/{slug}/assets": {
+        get: {
+          summary: "List stored PNG assets for one document",
+          description:
+            "Same auth as /api/log. Returns an array of {path, sha256}, sorted by path, so an uploader can skip unchanged files. An unknown slug returns an empty array.",
+          parameters: [
+            { name: "slug", in: "path", required: true, schema: { type: "string", example: "quad-strategy" } },
+          ],
+        },
+      },
+      "/api/docs/{slug}/assets/{path}": {
+        get: {
+          summary: "Read one stored PNG",
+          description:
+            "Same access as the Investing page: a signed-in browser may load it, and Authorization: Bearer LOG_API_TOKEN also works. Body is image/png. Cache-Control is private, no-cache, with an ETag of the sha256.",
+          parameters: [
+            { name: "slug", in: "path", required: true, schema: { type: "string", example: "quad-strategy" } },
+            {
+              name: "path",
+              in: "path",
+              required: true,
+              schema: { type: "string", example: "reports/foo-bar_1.png" },
+              description: "Relative path. May include slashes.",
+            },
+          ],
+        },
+        put: {
+          summary: "Create or replace one PNG asset",
+          description:
+            "Same auth as /api/log. Raw image/png body, at most 5242880 bytes. Each path segment starts with a letter or digit; the rest may include dot, underscore and hyphen. The file must end in .png. No '..'. Returns {slug, path, sha256, bytes} where bytes is the stored length. 201 when created, 200 when replaced.",
+          parameters: [
+            { name: "slug", in: "path", required: true, schema: { type: "string", example: "quad-strategy" } },
+            {
+              name: "path",
+              in: "path",
+              required: true,
+              schema: { type: "string", example: "reports/foo-bar_1.png" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "image/png": {
+                schema: { type: "string", format: "binary" },
+              },
+            },
+          },
         },
       },
     },

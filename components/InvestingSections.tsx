@@ -3,6 +3,7 @@ import { markdownBody } from "@/lib/doc-text";
 import { formatUpdatedLabel } from "@/lib/format";
 
 export type InvestingPaper = {
+  slug: string;
   title: string;
   version: number;
   updatedAt: string;
@@ -41,7 +42,7 @@ function PaperBody({ paper }: { paper: InvestingPaper }) {
       <p className="doc-meta">
         Version {paper.version} · Last updated {updatedLabel}
       </p>
-      <MarkdownDocument markdown={markdownBody(paper.markdown, paper.title)} />
+      <MarkdownDocument slug={paper.slug} markdown={markdownBody(paper.markdown, paper.title)} />
     </>
   );
 }

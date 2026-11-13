@@ -153,6 +153,24 @@ The script prints the new version and the time it was saved. It does not print t
 
 The first document slug is `quad-strategy`.
 
+Figures in that paper use paths like `reports/foo-bar_1.png`, relative to the paper. Each segment starts with a letter or digit and may include `.`, `_` and `-`. The name ends in lowercase `.png`. `..` is rejected. Upload each PNG separately. On a wide window the figure sits to the right of the text; on a phone it stacks under the paragraph.
+
+```bash
+# skip files whose sha256 is already stored
+curl -sS "$DOCS_BASE_URL/api/docs/quad-strategy/assets" \
+  -H "Authorization: Bearer $LOG_API_TOKEN" \
+  -H "x-cursor-app-token: $CURSOR_API_KEY"
+
+# raw PNG, at most 5 MB. 201 created, 200 replaced.
+curl -sS -X PUT "$DOCS_BASE_URL/api/docs/quad-strategy/assets/reports/foo-bar_1.png" \
+  -H "Authorization: Bearer $LOG_API_TOKEN" \
+  -H "x-cursor-app-token: $CURSOR_API_KEY" \
+  -H "content-type: image/png" \
+  --data-binary @reports/foo-bar_1.png
+```
+
+The list is `[{"path":"reports/foo-bar_1.png","sha256":"<64 hex chars>"}]`. The put response is `{"slug":"quad-strategy","path":"reports/foo-bar_1.png","sha256":"<64 hex chars>","bytes":48211}`. The page loads the file from `GET /api/docs/quad-strategy/assets/reports/foo-bar_1.png`.
+
 ## Not included yet
 
 - Wiring the Grok Bot’s connection to the published URL + token (test one meal first)
