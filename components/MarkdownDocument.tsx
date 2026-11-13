@@ -6,53 +6,56 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { resolveRenderedImageSrc } from "@/lib/doc-assets";
 import { protectCurrencyDollars } from "@/lib/doc-text";
 
 const schema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), "figure", "figcaption"],
+  tagNames: [...new Set([...(defaultSchema.tagNames ?? []), "figure", "figcaption", "img"])],
   attributes: {
     ...defaultSchema.attributes,
     figure: ["className"],
     figcaption: ["className"],
+    img: [...(defaultSchema.attributes?.img ?? []), "alt", "src"],
   },
 };
 
-const components: Components = {
-  table({ children }) {
-    return (
-      <div className="doc-table-scroll">
-        <table>{children}</table>
-      </div>
-    );
-  },
-  img({ src, alt }) {
-    if (typeof src === "string" && /^https?:\/\//i.test(src)) {
-      // Document images are arbitrary remote URLs, so they are not passed through next/image.
-      // eslint-disable-next-line @next/next/no-img-element
-      return <img src={src} alt={alt ?? ""} className="doc-image" />;
-    }
-    return null;
-  },
-  a({ href, children }) {
-    if (href && /^https?:\/\//i.test(href)) {
+function componentsFor(slug: string): Components {
+  return {
+    table({ children }) {
       return (
-        <a href={href} rel="noreferrer" target="_blank">
-          {children}
-        </a>
+        <div className="doc-table-scroll">
+          <table>{children}</table>
+        </div>
       );
-    }
-    return <a href={href}>{children}</a>;
-  },
-};
+    },
+    img({ src, alt }) {
+      const resolved = typeof src === "string" ? resolveRenderedImageSrc(src, slug) : null;
+      if (!resolved) return null;
+      // Document images are stored files or arbitrary remote URLs, so they are not passed through next/image.
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img src={resolved} alt={alt ?? ""} className="doc-image" />;
+    },
+    a({ href, children }) {
+      if (href && /^https?:\/\//i.test(href)) {
+        return (
+          <a href={href} rel="noreferrer" target="_blank">
+            {children}
+          </a>
+        );
+      }
+      return <a href={href}>{children}</a>;
+    },
+  };
+}
 
-export function MarkdownDocument({ markdown }: { markdown: string }) {
+export function MarkdownDocument({ markdown, slug }: { markdown: string; slug: string }) {
   return (
     <div className="investing-doc">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeRaw, [rehypeSanitize, schema], rehypeSlug, rehypeKatex]}
-        components={components}
+        components={componentsFor(slug)}
       >
         {protectCurrencyDollars(markdown)}
       </ReactMarkdown>
