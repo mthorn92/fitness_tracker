@@ -36,6 +36,7 @@ export function ChartRangeBar({
           role="radio"
           id={`range-${item.id}`}
           aria-checked={range === item.id}
+          aria-label={item.name}
           tabIndex={range === item.id ? 0 : -1}
           onClick={() => onChange(item.id)}
         >

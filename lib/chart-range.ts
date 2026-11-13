@@ -2,10 +2,10 @@ import { fixedTdeeCumulativeForChartDays } from "@/lib/deficit";
 import { formatNumber, parseIsoDate, shiftIsoDate } from "@/lib/format";
 
 export const CHART_RANGES = [
-  { id: "14d", label: "14 days" },
-  { id: "1m", label: "1 month" },
-  { id: "6m", label: "6 months" },
-  { id: "all", label: "All time" },
+  { id: "14d", label: "14d", name: "14 days" },
+  { id: "1m", label: "1m", name: "1 month" },
+  { id: "6m", label: "6m", name: "6 months" },
+  { id: "all", label: "All", name: "All time" },
 ] as const;
 
 export type ChartRangeId = (typeof CHART_RANGES)[number]["id"];

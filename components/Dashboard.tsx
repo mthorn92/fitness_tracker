@@ -259,22 +259,24 @@ export function Dashboard({
           <h1>Max&apos;s Dashboard</h1>
           <p className="updated">Updated {updated}</p>
         </div>
-        <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
-          {DASHBOARD_TABS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              role="tab"
-              id={`tab-${name}`}
-              aria-selected={tab === name}
-              tabIndex={tab === name ? 0 : -1}
-              onClick={() => select(name)}
-            >
-              {TAB_LABELS[name]}
-            </button>
-          ))}
+        <div className="dashboard-controls">
+          <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
+            {DASHBOARD_TABS.map((name) => (
+              <button
+                key={name}
+                type="button"
+                role="tab"
+                id={`tab-${name}`}
+                aria-selected={tab === name}
+                tabIndex={tab === name ? 0 : -1}
+                onClick={() => select(name)}
+              >
+                {TAB_LABELS[name]}
+              </button>
+            ))}
+          </div>
+          <ChartRangeBar range={range} onChange={selectRange} />
         </div>
-        <ChartRangeBar range={range} onChange={selectRange} />
       </header>
       <DietTodayCard data={data} />
       <TodayFood foods={foods} dateLabel={data.today.label} />
