@@ -110,7 +110,7 @@ test("asset endpoints require auth, reject bad paths, and list sha256", async ()
       new Request("http://localhost/api/docs/asset", {
         method: "PUT",
         headers,
-        body: new Blob([body]),
+        body: new Blob([new Uint8Array(body).buffer]),
       }),
       { params: Promise.resolve({ slug, path: assetPath.split("/") }) },
     );
