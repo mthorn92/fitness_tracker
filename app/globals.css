@@ -10,6 +10,7 @@
   --accent: #2c6e5a;
   --food: #3b6d9a;
   --burn: #c16a2d;
+  --avg: #6b3fa0;
   --good: #2c6e5a;
   --warn: #a15c2a;
   --background: var(--bg);
@@ -35,6 +36,7 @@
     --accent: #7dbaa6;
     --food: #7eadd4;
     --burn: #e0a06a;
+    --avg: #d7b0f0;
     --good: #7dbaa6;
     --warn: #d4a06a;
     --surface-2: #222326;
