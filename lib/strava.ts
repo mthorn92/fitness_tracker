@@ -1,14 +1,20 @@
 import { shiftIsoDate } from "@/lib/format";
-import { readRunCache, readStravaToken, writeRunCache, writeStravaToken } from "@/lib/strava-store";
+import { readActivityCache, readRunCache, readStravaToken, writeActivityCache, writeRunCache, writeStravaToken } from "@/lib/strava-store";
 import {
   cacheIsFresh,
   mondayOnOrBefore,
   modelFromRuns,
-  parseActivities,
   parseTokenResponse,
   type RawRun,
   type StravaTileModel,
 } from "@/lib/strava-summary";
+import {
+  activitiesToRuns,
+  modelFromActivities,
+  parseAllActivities,
+  type CachedActivity,
+  type StravaWorkoutsModel,
+} from "@/lib/strava-workouts";
 
 const TOKEN_URL = "https://www.strava.com/oauth/token";
 const ACTIVITIES_URL = "https://www.strava.com/api/v3/athlete/activities";
@@ -20,6 +26,9 @@ type Creds = {
 };
 
 let chain: Promise<unknown> = Promise.resolve();
+/** After a failed Strava call, skip the network until this time. */
+let backoffUntilMs = 0;
+let backoffCode = "strava_429";
 
 /**
  * Runs for the exercise tile.
@@ -27,7 +36,16 @@ let chain: Promise<unknown> = Promise.resolve();
  * Tokens stay on the server. Failures are generic status codes, never response bodies.
  */
 export function getStravaSummary(today: string): Promise<StravaTileModel> {
-  const run = chain.then(() => loadSummary(today), () => loadSummary(today));
+  return enqueue(() => loadFeed(today).then((feed) => summaryFromFeed(feed, today)));
+}
+
+/** Every Strava sport for the last-7-days tile. Shares the run tile's fetch and cache. */
+export function getStravaWorkouts(today: string): Promise<StravaWorkoutsModel> {
+  return enqueue(() => loadFeed(today).then((feed) => workoutsFromFeed(feed, today)));
+}
+
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = chain.then(task, task);
   chain = run.then(
     () => undefined,
     () => undefined,
@@ -40,7 +58,13 @@ export function stravaClientConfigured(): boolean {
   return creds.clientId !== "" && creds.clientSecret !== "";
 }
 
-async function loadSummary(today: string): Promise<StravaTileModel> {
+type StravaFeed =
+  | { status: "disconnected"; canConnect: boolean }
+  | { status: "error"; code: string; canConnect: boolean }
+  | { status: "ready"; stale: boolean; activities: CachedActivity[] }
+  | { status: "runs-only"; runs: RawRun[] };
+
+async function loadFeed(today: string): Promise<StravaFeed> {
   const creds = readCreds();
   const canConnect = creds.clientId !== "" && creds.clientSecret !== "";
   if (!canConnect) return { status: "disconnected", canConnect: false };
@@ -51,26 +75,29 @@ async function loadSummary(today: string): Promise<StravaTileModel> {
     if (!stored?.refreshToken && creds.refreshToken === "") {
       return { status: "disconnected", canConnect: true };
     }
-    const cached = await readRunCache();
-    if (
-      cached &&
-      cacheIsFresh(cached.fetchedAtMs, Date.now()) &&
-      cached.sinceDate <= since
-    ) {
-      return modelFromRuns(cached.runs, today, false);
+    const cached = await readActivityCache();
+    if (cached && cacheIsFresh(cached.fetchedAtMs, Date.now()) && cached.sinceDate <= since) {
+      return { status: "ready", stale: false, activities: cached.activities };
+    }
+    if (Date.now() < backoffUntilMs) {
+      const paused = await fallbackFeed();
+      if (paused.status !== "error") return paused;
+      return { status: "error", code: backoffCode, canConnect };
     }
 
     let accessToken = await accessTokenFor(creds);
-    let runs: RawRun[];
+    let activities: CachedActivity[];
     try {
-      runs = await fetchRuns(accessToken, since);
+      activities = await fetchActivities(accessToken, since);
     } catch (error) {
       if (!(error instanceof Error) || error.message !== "strava_token_401") throw error;
       accessToken = await accessTokenFor(creds, true);
-      runs = await fetchRuns(accessToken, since);
+      activities = await fetchActivities(accessToken, since);
     }
-    await writeRunCache(since, runs);
-    return modelFromRuns(runs, today, false);
+    await writeActivityCache(since, activities);
+    await writeRunCache(since, activitiesToRuns(activities));
+    backoffUntilMs = 0;
+    return { status: "ready", stale: false, activities };
   } catch (error) {
     const code = error instanceof Error ? error.message : "strava_unknown";
     if (code === "strava_429" || code.startsWith("strava_activities_") || code.startsWith("strava_token_")) {
@@ -78,16 +105,46 @@ async function loadSummary(today: string): Promise<StravaTileModel> {
     } else {
       console.error("strava_summary_failed");
     }
-    const cached = await readRunCache().catch(() => null);
-    if (cached) return modelFromRuns(cached.runs, today, true);
-    if (code === "strava_token_401" || code === "strava_token_400" || code === "strava_token_invalid") {
-      return { status: "error", message: "Strava needs connecting again.", canConnect };
-    }
-    if (code === "strava_429") {
-      return { status: "error", message: "Strava is busy. Try again in a few minutes.", canConnect: false };
-    }
-    return { status: "error", message: "Couldn't load runs just now.", canConnect: false };
+    backoffCode = code;
+    backoffUntilMs = Date.now() + (code === "strava_429" ? 15 * 60 * 1000 : 60 * 1000);
+    const fallback = await fallbackFeed();
+    if (fallback.status !== "error") return fallback;
+    return { status: "error", code, canConnect };
   }
+}
+
+async function fallbackFeed(): Promise<StravaFeed> {
+  const activities = await readActivityCache().catch(() => null);
+  if (activities) return { status: "ready", stale: true, activities: activities.activities };
+  const runs = await readRunCache().catch(() => null);
+  if (runs) return { status: "runs-only", runs: runs.runs };
+  return { status: "error", code: "strava_429", canConnect: false };
+}
+
+function summaryFromFeed(feed: StravaFeed, today: string): StravaTileModel {
+  if (feed.status === "ready") return modelFromRuns(activitiesToRuns(feed.activities), today, feed.stale);
+  if (feed.status === "runs-only") return modelFromRuns(feed.runs, today, true);
+  if (feed.status === "disconnected") return feed;
+  return errorModel(feed.code, feed.canConnect, "Couldn't load runs just now.");
+}
+
+function workoutsFromFeed(feed: StravaFeed, today: string): StravaWorkoutsModel {
+  if (feed.status === "ready") return modelFromActivities(feed.activities, today, feed.stale);
+  if (feed.status === "disconnected") return feed;
+  if (feed.status === "runs-only") {
+    return { status: "error", message: "Couldn't load workouts just now.", canConnect: false };
+  }
+  return errorModel(feed.code, feed.canConnect, "Couldn't load workouts just now.");
+}
+
+function errorModel(code: string, canConnect: boolean, fallback: string): { status: "error"; message: string; canConnect: boolean } {
+  if (code === "strava_token_401" || code === "strava_token_400" || code === "strava_token_invalid") {
+    return { status: "error", message: "Strava needs connecting again.", canConnect };
+  }
+  if (code === "strava_429") {
+    return { status: "error", message: "Strava is busy. Try again in a few minutes.", canConnect: false };
+  }
+  return { status: "error", message: fallback, canConnect: false };
 }
 
 function readCreds(): Creds {
@@ -168,9 +225,13 @@ export async function exchangeStravaCode(code: string): Promise<"saved" | "inval
   return "saved";
 }
 
-async function fetchRuns(accessToken: string, since: string): Promise<RawRun[]> {
+/**
+ * One list request covers every sport. Stops after three pages, and does not
+ * open each activity, so a refresh stays inside Strava's rate limit.
+ */
+async function fetchActivities(accessToken: string, since: string): Promise<CachedActivity[]> {
   const after = Math.floor(Date.parse(`${shiftIsoDate(since, -1)}T00:00:00Z`) / 1000);
-  const runs: RawRun[] = [];
+  const activities: CachedActivity[] = [];
   for (let page = 1; page <= 3; page += 1) {
     const url = new URL(ACTIVITIES_URL);
     url.searchParams.set("after", String(after));
@@ -185,10 +246,10 @@ async function fetchRuns(accessToken: string, since: string): Promise<RawRun[]> 
     if (!res.ok) throw new Error(`strava_activities_${res.status}`);
     const body = await readJson(res);
     if (!Array.isArray(body)) throw new Error("strava_activities_invalid");
-    runs.push(...parseActivities(body));
+    activities.push(...parseAllActivities(body));
     if (body.length < 100) break;
   }
-  return runs;
+  return activities;
 }
 
 async function readJson(res: Response): Promise<unknown> {

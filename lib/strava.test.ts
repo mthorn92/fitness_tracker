@@ -7,8 +7,8 @@ import {
   statesMatch,
   stravaAuthorizeUrl,
 } from "./strava-oauth";
-import { readRunCache, readStravaToken, writeRunCache, writeStravaToken } from "./strava-store";
-import { getStravaSummary } from "./strava";
+import { readActivityCache, readRunCache, readStravaToken, writeActivityCache, writeRunCache, writeStravaToken } from "./strava-store";
+import { getStravaSummary, getStravaWorkouts } from "./strava";
 import {
   cacheIsFresh,
   fixtureRuns,
@@ -102,6 +102,8 @@ test("missing Strava env vars leave the tile disconnected", async () => {
   try {
     const summary = await getStravaSummary("2026-11-12");
     assert.deepEqual(summary, { status: "disconnected", canConnect: false });
+    const workouts = await getStravaWorkouts("2026-11-12");
+    assert.deepEqual(workouts, { status: "disconnected", canConnect: false });
     const response = await connect(new Request("http://localhost/api/strava/connect"));
     assert.equal(response.status, 400);
     const text = await response.text();
@@ -141,6 +143,31 @@ test("a rotated refresh token is stored and read back without the activities pay
   assert.equal(cached?.sinceDate, "2026-10-17");
   assert.equal(cached?.runs.length, runs.length);
   assert.equal(modelFromRuns(cached?.runs ?? [], "2026-11-12").status, "ready");
+
+  await writeActivityCache("2026-11-07", [
+    {
+      id: 9,
+      name: "Park loop",
+      type: "Ride",
+      sportType: "Ride",
+      date: "2026-11-12",
+      startLocal: "2026-11-12T07:05:00",
+      movingTimeS: 3300,
+      distanceM: 22000,
+      avgHr: 136,
+      calories: null,
+      kilojoules: 1799.12,
+      sufferScore: 58,
+    },
+  ]);
+  const activities = await readActivityCache();
+  assert.equal(activities?.sinceDate, "2026-11-07");
+  assert.equal(activities?.activities[0]?.name, "Park loop");
+  assert.equal(activities?.activities[0]?.kilojoules, 1799.12);
+  assert.equal(activities?.activities[0]?.sufferScore, 58);
+  const runsAfter = await readRunCache();
+  assert.equal(runsAfter?.runs.length, runs.length);
+  assert.equal(runsAfter?.runs.some((run) => run.name === "Park loop"), false);
 });
 
 function restore(name: string, value: string | undefined) {
