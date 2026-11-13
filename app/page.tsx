@@ -1,7 +1,11 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Dashboard } from "@/components/Dashboard";
+import { InvestingSections } from "@/components/InvestingSections";
 import { parseDashboardTab } from "@/components/dashboard-tab";
 import { getDietDashboardView, getLogView } from "@/lib/data";
+import { INVESTING_PAPER_SLUG } from "@/lib/doc-text";
+import { loadDocument } from "@/lib/documents";
 import { getExerciseBoard } from "@/lib/exercise-board";
 import { todayIsoDate } from "@/lib/format";
 import { getStravaSummary, getStravaWorkouts } from "@/lib/strava";
@@ -37,6 +41,8 @@ async function DietDashboard({
   const workouts = previewStrava
     ? modelFromActivities(fixtureActivities(trainingDate), trainingDate)
     : await getStravaWorkouts(trainingDate);
+  await connection();
+  const paper = await loadDocument(INVESTING_PAPER_SLUG);
 
   return (
     <Dashboard
@@ -48,6 +54,20 @@ async function DietDashboard({
       workouts={workouts}
       strava={strava}
       today={todayIsoDate()}
+      investing={
+        <InvestingSections
+          paper={
+            paper
+              ? {
+                  title: paper.title,
+                  version: paper.version,
+                  updatedAt: paper.updated_at,
+                  markdown: paper.markdown,
+                }
+              : null
+          }
+        />
+      }
     />
   );
 }

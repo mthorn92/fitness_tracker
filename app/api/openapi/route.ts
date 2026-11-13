@@ -344,6 +344,44 @@ export async function GET(request: Request) {
             "Strava redirects here with a code. The server exchanges it and stores the refresh token. The response never includes the code or the token.",
         },
       },
+      "/api/docs/{slug}": {
+        get: {
+          summary: "Read one stored markdown document",
+          description:
+            "Same auth as /api/log. Used by the Investing tab's upload script. The website reads the database directly.",
+          parameters: [
+            { name: "slug", in: "path", required: true, schema: { type: "string", example: "quad-strategy" } },
+          ],
+        },
+        put: {
+          summary: "Create or replace one markdown document",
+          description:
+            "Same auth as /api/log. Body may be up to about 2 MB. version is a whole number; omit it to store one higher than the current version. Returns the stored version and updated_at.",
+          parameters: [
+            { name: "slug", in: "path", required: true, schema: { type: "string", example: "quad-strategy" } },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["markdown"],
+                  properties: {
+                    title: { type: "string" },
+                    markdown: { type: "string" },
+                    version: { type: "integer", minimum: 1 },
+                  },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          summary: "Create or replace one markdown document",
+          description: "Same as PUT.",
+        },
+      },
     },
   });
 }
