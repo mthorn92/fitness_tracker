@@ -9,7 +9,7 @@
     "lint": "eslint",
     "verify-import": "FITNESS_PGLITE_MEMORY=1 npx tsx scripts/verify-import.ts",
     "verify-sessions": "FITNESS_PGLITE_MEMORY=1 npx tsx scripts/verify-sessions.ts",
-    "test": "node --import tsx --test lib/budget.test.ts lib/charts.test.ts lib/deficit.test.ts lib/diet-window.test.ts lib/plan.test.ts lib/rings.test.ts lib/whoop-burn.test.ts lib/strava.test.ts lib/exercise-board.test.ts"
+    "test": "node --import tsx --test lib/budget.test.ts lib/charts.test.ts lib/deficit.test.ts lib/diet-window.test.ts lib/plan.test.ts lib/rings.test.ts lib/whoop-burn.test.ts lib/strava.test.ts lib/exercise-board.test.ts lib/whoop-workouts.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.15",
