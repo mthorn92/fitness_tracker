@@ -63,6 +63,12 @@ export async function saveDocument(input: {
   );
   const row = rows[0];
   if (!row) throw new Error("document was not saved");
+  try {
+    const { revalidateTag } = await import("next/cache");
+    revalidateTag(`document:${input.slug}`, "max");
+  } catch {
+    // Running outside Next (tests and upload scripts).
+  }
   return { ok: true, created: existing == null, document: mapRow(row) };
 }
 

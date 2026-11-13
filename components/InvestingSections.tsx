@@ -8,6 +8,7 @@ export type InvestingPaper = {
   version: number;
   updatedAt: string;
   markdown: string;
+  images?: Record<string, { width: number; height: number }>;
 };
 
 /**
@@ -42,7 +43,11 @@ function PaperBody({ paper }: { paper: InvestingPaper }) {
       <p className="doc-meta">
         Version {paper.version} · Last updated {updatedLabel}
       </p>
-      <MarkdownDocument slug={paper.slug} markdown={markdownBody(paper.markdown, paper.title)} />
+      <MarkdownDocument
+        slug={paper.slug}
+        markdown={markdownBody(paper.markdown, paper.title)}
+        images={paper.images}
+      />
     </>
   );
 }

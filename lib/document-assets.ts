@@ -1,4 +1,4 @@
-import { sha256Hex } from "@/lib/doc-assets";
+import { documentAssetUrl, pngDimensions, sha256Hex } from "@/lib/doc-assets";
 import { sql } from "@/lib/db";
 
 export type AssetListing = {
@@ -14,6 +14,29 @@ type ListingRow = {
 type AssetRow = ListingRow & {
   bytes: unknown;
 };
+
+export async function listDocumentImageSizes(
+  slug: string,
+): Promise<Record<string, { width: number; height: number }>> {
+  const rows = await sql<{ path: string; head: unknown }>(
+    "select path, substring(bytes from 1 for 24) as head from document_assets where slug = $1",
+    [slug],
+  );
+  const sizes: Record<string, { width: number; height: number }> = {};
+  for (const row of rows) {
+    let head: Uint8Array;
+    try {
+      head = asBytes(row.head);
+    } catch {
+      continue;
+    }
+    const size = pngDimensions(head);
+    if (!size) continue;
+    sizes[row.path] = size;
+    sizes[documentAssetUrl(slug, row.path)] = size;
+  }
+  return sizes;
+}
 
 export async function listDocumentAssets(slug: string): Promise<AssetListing[]> {
   const rows = await sql<ListingRow>(

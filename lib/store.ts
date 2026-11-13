@@ -117,26 +117,141 @@ export type DayWhoopInput = {
   step_count?: number | null;
 };
 
-export async function loadSnapshot(): Promise<FitnessSnapshot> {
+export type SnapshotWindow = {
+  /**
+   * Inclusive start. Food and water before this day are summed per day so the
+   * deficit and rings stay correct without loading every line item.
+   */
+  from?: string;
+  /** Inclusive end. Days after this are left out of the line-item tables. */
+  to?: string;
+};
+
+function whereClause(column: string, window?: SnapshotWindow): { clause: string; params: unknown[] } {
+  const params: unknown[] = [];
+  const parts: string[] = [];
+  if (window?.from) {
+    params.push(window.from);
+    parts.push(`${column} >= $${params.length}`);
+  }
+  if (window?.to) {
+    params.push(window.to);
+    parts.push(`${column} <= $${params.length}`);
+  }
+  return { clause: parts.length ? ` where ${parts.join(" and ")}` : "", params };
+}
+
+/** Earliest profile date and the latest logged or WHOOP day. */
+export async function dashboardDateBounds(): Promise<{ start: string; latest: string }> {
+  await ready();
+  const rows = await sql<{ start_date: string | null; latest: string | null }>(
+    `select
+       (select start_date from profile where id = 'default') as start_date,
+       (select max(d) from (
+          select date as d from foods
+          union select date from water_entries
+          union select date from weights
+          union select date from day_notes
+          union select date from day_flags
+          union select date from day_whoop
+          union select date from exercises
+          union select waking_date from whoop_cycles
+          union select waking_date from whoop_recovery
+          union select waking_date from whoop_sleep
+          union select date from whoop_workouts
+        ) days) as latest`,
+  );
+  const start = rows[0]?.start_date;
+  if (!start) throw new Error("Fitness profile is missing.");
+  const latest = rows[0]?.latest;
+  return { start, latest: latest && latest > start ? latest : start };
+}
+
+export async function loadSnapshot(window?: SnapshotWindow): Promise<FitnessSnapshot> {
   await ready();
 
-  const [profile] = await sql<Record<string, unknown>>("select * from profile where id = $1", ["default"]);
+  const foodsWhere = whereClause("date", window);
+  const waterWhere = whereClause("date", window);
+  const exerciseWhere = whereClause("date", window);
+  const workoutWhere = whereClause("date", window);
+  const recoveryWhere = whereClause("waking_date", window);
+  const sleepWhere = whereClause("waking_date", window);
+  const prefix = window?.from;
+  const [profileRows, foods, foodTotals, water, waterTotals, weights, notes, flags, dayWhoop, meals, cycles, recovery, sleep, workouts, exercises] =
+    await Promise.all([
+      sql<Record<string, unknown>>("select * from profile where id = $1", ["default"]),
+      sql<Record<string, unknown>>(
+        `select * from foods${foodsWhere.clause} order by date, time, id`,
+        foodsWhere.params,
+      ),
+      prefix
+        ? sql<Record<string, unknown>>(
+            `select date, sum(kcal) as kcal, sum(protein_g) as protein_g, sum(carbs_g) as carbs_g, sum(fat_g) as fat_g
+             from foods where date < $1 group by date`,
+            [prefix],
+          )
+        : Promise.resolve([] as Record<string, unknown>[]),
+      sql<Record<string, unknown>>(
+        `select * from water_entries${waterWhere.clause} order by date, time, id`,
+        waterWhere.params,
+      ),
+      prefix
+        ? sql<Record<string, unknown>>(
+            "select date, sum(litres) as litres from water_entries where date < $1 group by date",
+            [prefix],
+          )
+        : Promise.resolve([] as Record<string, unknown>[]),
+      sql<Record<string, unknown>>("select * from weights order by date"),
+      sql<Record<string, unknown>>("select * from day_notes"),
+      sql<Record<string, unknown>>("select * from day_flags"),
+      sql<Record<string, unknown>>("select * from day_whoop"),
+      sql<Record<string, unknown>>("select * from saved_meals order by name"),
+      sql<Record<string, unknown>>("select * from whoop_cycles order by waking_date"),
+      sql<Record<string, unknown>>(
+        `select * from whoop_recovery${recoveryWhere.clause} order by waking_date`,
+        recoveryWhere.params,
+      ),
+      sql<Record<string, unknown>>(
+        `select * from whoop_sleep${sleepWhere.clause} order by waking_date`,
+        sleepWhere.params,
+      ),
+      sql<Record<string, unknown>>(
+        `select * from whoop_workouts${workoutWhere.clause} order by start_at`,
+        workoutWhere.params,
+      ),
+      sql<Record<string, unknown>>(
+        `select * from exercises${exerciseWhere.clause} order by date, id`,
+        exerciseWhere.params,
+      ),
+    ]);
+  const profile = profileRows[0];
   if (!profile) {
     throw new Error("Fitness profile is missing.");
   }
-
-  const foods = await sql<Record<string, unknown>>("select * from foods order by date, time, id");
-  const water = await sql<Record<string, unknown>>("select * from water_entries order by date, time, id");
-  const weights = await sql<Record<string, unknown>>("select * from weights order by date");
-  const notes = await sql<Record<string, unknown>>("select * from day_notes");
-  const flags = await sql<Record<string, unknown>>("select * from day_flags");
-  const dayWhoop = await sql<Record<string, unknown>>("select * from day_whoop");
-  const meals = await sql<Record<string, unknown>>("select * from saved_meals order by name");
-  const cycles = await sql<Record<string, unknown>>("select * from whoop_cycles order by waking_date");
-  const recovery = await sql<Record<string, unknown>>("select * from whoop_recovery order by waking_date");
-  const sleep = await sql<Record<string, unknown>>("select * from whoop_sleep order by waking_date");
-  const workouts = await sql<Record<string, unknown>>("select * from whoop_workouts order by start_at");
-  const exercises = await sql<Record<string, unknown>>("select * from exercises order by date, id");
+  for (const row of foodTotals) {
+    foods.push({
+      id: `agg:${text(row.date)}`,
+      date: row.date,
+      time: "00:00",
+      item: "",
+      kcal: row.kcal,
+      protein_g: row.protein_g,
+      carbs_g: row.carbs_g,
+      fat_g: row.fat_g,
+      meal: null,
+      saved_meal: null,
+    });
+  }
+  for (const row of waterTotals) {
+    water.push({
+      id: `agg-water:${text(row.date)}`,
+      date: row.date,
+      time: "00:00",
+      item: "",
+      litres: row.litres,
+      estimated: false,
+    });
+  }
 
   const days: Record<string, DayLog> = {};
   const ensureDay = (date: string): DayLog => {

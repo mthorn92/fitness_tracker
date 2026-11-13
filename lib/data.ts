@@ -27,7 +27,8 @@ import {
   shiftIsoDate,
   todayIsoDate,
 } from "@/lib/format";
-import { loadSnapshot } from "@/lib/store";
+import { chartRangeStart, type ChartRangeId } from "@/lib/chart-range";
+import { dashboardDateBounds, loadSnapshot, type SnapshotWindow } from "@/lib/store";
 import type {
   BodyView,
   ChartsView,
@@ -208,10 +209,13 @@ function recoveryForDate(data: FitnessSnapshot, date: string, day?: DayLog) {
 }
 
 export async function getTodayView(date?: string): Promise<TodayView> {
-  const data = await getFitnessData();
+  return buildTodayView(await getFitnessData(), date);
+}
+
+export function buildTodayView(data: FitnessSnapshot, date?: string): TodayView {
   const selected = resolveDate(data, date);
   const day = data.days[selected];
-  const foods = day?.foods ?? [];
+  const foods = (day?.foods ?? []).filter((food) => !food.id?.startsWith("agg:"));
   const eaten = sumFoods(foods);
   const foodKcal = eaten.kcal || day?.calories_kcal || 0;
   const { exerciseKcal, remainingKcal, underBudget } = dayBudget(
@@ -247,7 +251,7 @@ export async function getTodayView(date?: string): Promise<TodayView> {
     water: metric(waterLitres, data.targets.water_l),
     fasting: data.targets.fasting,
     foods,
-    waterEntries: day?.water_entries ?? [],
+    waterEntries: (day?.water_entries ?? []).filter((entry) => !entry.id?.startsWith("agg-water:")),
     meals: groupMeals(foods),
     dateNav: dateNavFor(data, selected),
     foodKcal,
@@ -366,7 +370,31 @@ function dayMacros(day: DayLog | undefined) {
 }
 
 export async function getDietDashboardView(date?: string): Promise<DietDashboardView> {
-  const data = await getFitnessData();
+  return buildDietDashboardView(await getFitnessData(), date);
+}
+
+/**
+ * One snapshot for the page. Line items are limited to the selected chart
+ * window; older days stay as daily totals so deficit, rings and a client-side
+ * range change still see the running history.
+ */
+export async function getDashboardPageData(requested: string | undefined, range: ChartRangeId) {
+  const bounds = await dashboardDateBounds();
+  const latest = bounds.latest;
+  const end =
+    requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) && requested >= bounds.start && requested <= latest
+      ? requested
+      : latest;
+  const from = chartRangeStart(range, end) ?? undefined;
+  const window: SnapshotWindow = { to: end };
+  if (from) window.from = from;
+  const snapshot = await loadSnapshot(window);
+  const data = buildDietDashboardView(snapshot, requested);
+  const log = buildTodayView(snapshot, data.today.date);
+  return { data, log };
+}
+
+export function buildDietDashboardView(data: FitnessSnapshot, date?: string): DietDashboardView {
   const today = todayIsoDate();
   const selected = resolveDate(data, date);
   const targets = {

@@ -85,17 +85,17 @@ export function sessionForStrengthDay(
 
 export async function getExerciseBoard(date: string): Promise<ExerciseBoard> {
   const schedule = strengthSchedule(date);
-  const today = await getTrainingTile(date);
-  const todayMode = schedule.anchor.in_block && schedule.anchor.kind === "lift" ? "lift" : "full";
   const sessions =
     schedule.mode === "upcoming" || !schedule.range
-      ? []
+      ? undefined
       : await listSessions({ from: schedule.range.start, to: schedule.range.end });
+  const today = await getTrainingTile(date, sessions);
+  const todayMode = schedule.anchor.in_block && schedule.anchor.kind === "lift" ? "lift" : "full";
   const positions = [1, 2, 4, 5] as const;
   const days = schedule.days.map((day, index) => {
     const position = positions[index];
     if (position == null) throw new Error("Expected four strength days.");
-    const session = schedule.mode === "upcoming" ? null : sessionForStrengthDay(sessions, day);
+    const session = schedule.mode === "upcoming" || !sessions ? null : sessionForStrengthDay(sessions, day);
     const completed = session != null;
     return {
       position,

@@ -201,6 +201,37 @@ export async function GET(request: Request) {
             avg_hr: { type: "number", nullable: true, description: "Average heart rate for a run", example: 138 },
           },
         },
+        WorkoutActivity: {
+          type: "object",
+          required: [
+            "strava_id",
+            "start_time",
+            "type",
+            "sport_type",
+            "name",
+            "distance_m",
+            "moving_time_s",
+            "elapsed_time_s",
+          ],
+          properties: {
+            strava_id: { type: "integer", minimum: 1, example: 12345678901 },
+            start_time: {
+              type: "string",
+              description: "ISO-8601 with a timezone offset, for example 2026-11-12T06:30:00+11:00",
+              example: "2026-11-12T06:30:00+11:00",
+            },
+            type: { type: "string", example: "Run" },
+            sport_type: { type: "string", example: "Run" },
+            name: { type: "string", example: "Easy run" },
+            distance_m: { type: "number", minimum: 0, example: 6100 },
+            moving_time_s: { type: "integer", minimum: 0, example: 1920 },
+            elapsed_time_s: { type: "integer", minimum: 0, example: 2000 },
+            avg_hr: { type: "number", nullable: true, example: 151 },
+            max_hr: { type: "number", nullable: true, example: 168 },
+            kcal: { type: "number", nullable: true, example: 310 },
+            elevation_m: { type: "number", nullable: true, example: 42 },
+          },
+        },
       },
     },
     paths: {
@@ -324,6 +355,33 @@ export async function GET(request: Request) {
                       done: true,
                     },
                   ],
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/workouts": {
+        get: {
+          summary: "Read ingested workouts",
+          description:
+            "Same auth as /api/log. from and to are inclusive YYYY-MM-DD local dates, or omit both to read every activity. Returns {from, to, last_synced_at, activities}.",
+          parameters: [
+            { name: "from", in: "query", schema: { type: "string", example: "2026-11-07" } },
+            { name: "to", in: "query", schema: { type: "string", example: "2026-11-13" } },
+          ],
+        },
+        post: {
+          summary: "Upsert workouts by strava_id",
+          description:
+            "Same auth as /api/log. Body is a JSON array of activities. Idempotent: the same strava_id updates the existing row. A repeated id in one batch keeps the last copy. Does not call Strava.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/WorkoutActivity" },
                 },
               },
             },

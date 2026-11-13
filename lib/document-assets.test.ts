@@ -5,7 +5,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MarkdownDocument } from "../components/MarkdownDocument";
-import { documentAssetUrl, MAX_ASSET_BYTES, normalizeAssetPath, resolveRenderedImageSrc, sha256Hex } from "./doc-assets";
+import { documentAssetUrl, MAX_ASSET_BYTES, normalizeAssetPath, pngDimensions, resolveRenderedImageSrc, sha256Hex } from "./doc-assets";
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -62,6 +62,7 @@ test("paper html keeps figures and rewrites relative images", () => {
   const html = renderToStaticMarkup(
     createElement(MarkdownDocument, {
       slug: "quad-strategy",
+      images: { "reports/foo-bar_1.png": { width: 640, height: 360 } },
       markdown: [
         "The nowcast turned up.",
         "",
@@ -81,6 +82,11 @@ test("paper html keeps figures and rewrites relative images", () => {
   assert.match(html, /src="\/api\/docs\/quad-strategy\/assets\/reports\/other_2.png"/);
   assert.match(html, /src="https:\/\/example.com\/remote.png"/);
   assert.match(html, /class="doc-image"/);
+  assert.match(html, /loading="lazy"/);
+  assert.match(html, /decoding="async"/);
+  assert.match(html, /width="640"/);
+  assert.match(html, /height="360"/);
+  assert.deepEqual(pngDimensions(PNG), { width: 1, height: 1 });
   assert.doesNotMatch(html, /javascript:/);
   assert.doesNotMatch(html, /secret\.png/);
 });

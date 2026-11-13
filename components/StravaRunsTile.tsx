@@ -1,4 +1,4 @@
-import { formatShortDate } from "@/lib/format";
+import { formatShortDate, formatUpdatedLabel } from "@/lib/format";
 import {
   formatDuration,
   formatKm,
@@ -74,8 +74,17 @@ function Ready({ model }: { model: Extract<StravaTileModel, { status: "ready" }>
           ))}
         </ul>
       ) : null}
+      <SyncedNote syncedAt={model.syncedAt} />
     </>
   );
+}
+
+function SyncedNote({ syncedAt }: { syncedAt?: string | null }) {
+  if (syncedAt === undefined) return null;
+  if (syncedAt === null) return <p className="note synced-note">Not synced yet</p>;
+  const date = new Date(syncedAt);
+  const label = Number.isNaN(date.getTime()) ? syncedAt : formatUpdatedLabel(date);
+  return <p className="note synced-note">last synced {label}</p>;
 }
 
 function Stat({
