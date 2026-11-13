@@ -255,27 +255,23 @@ export function Dashboard({
   return (
     <main className="dashboard" data-tab={tab}>
       <header className="dashboard-head">
-        <div className="dashboard-heading">
-          <h1>Max&apos;s Dashboard</h1>
-          <p className="updated">Updated {updated}</p>
-        </div>
-        <div className="dashboard-controls">
-          <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
-            {DASHBOARD_TABS.map((name) => (
-              <button
-                key={name}
-                type="button"
-                role="tab"
-                id={`tab-${name}`}
-                aria-selected={tab === name}
-                tabIndex={tab === name ? 0 : -1}
-                onClick={() => select(name)}
-              >
-                {TAB_LABELS[name]}
-              </button>
-            ))}
-          </div>
-          <ChartRangeBar range={range} onChange={selectRange} />
+        <h1>Max&apos;s Dashboard</h1>
+        <p className="updated">Updated {updated}</p>
+        <ChartRangeBar range={range} onChange={selectRange} />
+        <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
+          {DASHBOARD_TABS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              id={`tab-${name}`}
+              aria-selected={tab === name}
+              tabIndex={tab === name ? 0 : -1}
+              onClick={() => select(name)}
+            >
+              {TAB_LABELS[name]}
+            </button>
+          ))}
         </div>
       </header>
       <DietTodayCard data={data} />
