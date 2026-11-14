@@ -6,12 +6,12 @@ import {
   CaloriesChartTile,
   DeficitChartTile,
   PersonalKcalTile,
-  ProteinChartTile,
+  ProteinWaterChartTile,
   useDietCharts,
-  WaterChartTile,
   WeightChartTile,
 } from "@/components/DietCharts";
 import { DietTodayCard } from "@/components/DietTodayCard";
+import { PhaseTile } from "@/components/PhaseTile";
 import { MonthRings } from "@/components/MonthRings";
 import { StravaRunsTile } from "@/components/StravaRunsTile";
 import { StrengthDayTile } from "@/components/StrengthDayTile";
@@ -280,8 +280,13 @@ export function Dashboard({
       <WeightChartTile canvasRef={charts.weight} model={model} />
       <CaloriesChartTile canvasRef={charts.calories} data={data} model={model} />
       <DeficitChartTile canvasRef={charts.deficit} data={data} model={model} />
-      <ProteinChartTile canvasRef={charts.protein} data={data} model={model} />
-      <WaterChartTile canvasRef={charts.water} data={data} model={model} />
+      <ProteinWaterChartTile
+        proteinRef={charts.protein}
+        waterRef={charts.water}
+        data={data}
+        model={model}
+      />
+      <PhaseTile data={data} today={today} />
       <PersonalKcalTile data={data} />
       <TrainingTodayCard view={board.today} mode={board.todayMode} />
       {board.days[0] ? <StrengthDayTile day={board.days[0]} /> : null}
