@@ -388,6 +388,20 @@ body {
     flex: 1 1 220px;
   }
 
+  .chart-tile .chart-wrap.chart-wrap-mini {
+    flex: 0 0 auto;
+    height: 150px;
+    min-height: 150px;
+  }
+
+  .dashboard[data-tab="diet"] > [data-tab-group="diet"] > h2,
+  .dashboard[data-tab="diet"] .tile-heading h2,
+  .dashboard[data-tab="diet"] .rings-nav h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
   /* The 1fr rows are for the diet grid. One training tile should stay content-sized. */
   .dashboard[data-tab="exercise"] {
     min-height: 0;
@@ -445,160 +459,395 @@ body {
   margin-top: 0.1rem;
 }
 
-.roll {
-  margin: 0.42rem 0 0;
-  color: var(--ink);
-  font-size: 0.92rem;
-  font-weight: 600;
-  line-height: 1.35;
-  font-variant-numeric: tabular-nums;
+.daily-tile h2 {
+  margin-bottom: 0.45rem;
 }
 
-.metric.macro .label {
-  font-size: 0.68rem;
-}
-
-.metric.macro .value {
-  font-size: 1.02rem;
-}
-
-.metric.macro .bar {
-  margin-top: 0.28rem;
-}
-
-.calorie-head {
+.daily-rings {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(7.4rem, 0.85fr);
-  grid-template-areas:
-    "label ."
-    "figure count"
-    "kcalbar phasebar"
-    "remain .";
-  column-gap: 0.75rem;
-  row-gap: 0.28rem;
-  align-items: baseline;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 0.35rem 0.85rem;
 }
 
-.calorie-head > .label {
-  grid-area: label;
+.daily-ring {
+  position: relative;
+  width: 100%;
+  max-width: 12.5rem;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  container-type: inline-size;
 }
 
-.calorie-head > .value {
-  grid-area: figure;
-  align-self: baseline;
-  margin-top: 0;
-  font-size: 1.15rem;
-  line-height: 1;
+.daily-ring.is-compact {
+  width: 7.25rem;
+  max-width: 100%;
 }
 
-.calorie-head > .phase-count {
-  grid-area: count;
-  align-self: baseline;
+.daily-ring.is-compact .daily-ring-copy {
+  top: 50%;
+  transform: translateY(-52%);
 }
 
-.calorie-head > .bar {
-  grid-area: kcalbar;
-  align-self: center;
-  height: 5px;
-  margin: 0;
+.daily-ring-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
 }
 
-.calorie-head > .phase-track {
-  grid-area: phasebar;
-  align-self: center;
-  height: 5px;
-  margin: 0 1.15rem 0 0;
+.daily-ring-track {
+  stroke: color-mix(in srgb, var(--accent) 16%, var(--line));
 }
 
-.calorie-head > .sub {
-  grid-area: remain;
-  margin-top: 0;
+.daily-ring-fill {
+  stroke: var(--accent);
 }
 
-.phase-count {
+.daily-ring.tone-over .daily-ring-track {
+  stroke: color-mix(in srgb, var(--warn) 22%, var(--line));
+}
+
+.daily-ring.tone-over .daily-ring-fill {
+  stroke: var(--warn);
+}
+
+.daily-ring-copy {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  top: 33%;
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
-.phase-num {
+.daily-ring-num {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
-  font-size: 1.65rem;
+  font-size: clamp(1.35rem, 22cqi, 1.75rem);
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
 }
 
-.phase-count-label {
+.daily-ring-sub {
+  margin-top: 0.28rem;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: clamp(0.68rem, 10cqi, 0.78rem);
   font-weight: 650;
-  line-height: 1;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
-.phase-count-label.is-last {
+.daily-ring-sub.is-last {
   color: var(--accent);
 }
 
-.phase-track {
-  position: relative;
-  height: 5px;
-  background: var(--line);
-  border-radius: 99px;
-}
-
-.phase-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
-.phase-flag {
-  position: absolute;
-  right: -1.2rem;
-  top: 50%;
-  transform: translateY(-58%);
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.roll + .roll {
-  margin-top: 0.12rem;
-}
-
-.roll-keep {
+.daily-ring-status {
+  margin-top: 0.18rem;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(0.64rem, 9.5cqi, 0.74rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
-.roll-coverage {
-  margin: 0.08rem 0 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.3;
+.daily-ring-status.is-under {
+  color: var(--accent);
 }
 
-.roll-delta {
-  font-weight: 650;
-}
-
-.roll-delta.under {
-  color: var(--good);
-}
-
-.roll-delta.over {
+.daily-ring-status.is-over {
   color: var(--warn);
 }
 
-.roll-delta.even,
-.roll-note {
+.daily-ring-flag {
+  position: absolute;
+  left: 50%;
+  top: 9%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.daily-avgs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.daily-chip {
+  min-width: 0;
+  padding: 0.55rem 0.65rem 0.5rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.daily-chip-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.daily-chip-figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.12rem 0.32rem;
+  margin: 0.16rem 0 0;
+}
+
+.daily-chip-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.32rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.daily-chip-of {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.daily-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.38rem;
+  padding: 0.08rem 0.45rem 0.1rem;
+  border-radius: 99px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.daily-pill.under {
+  background: var(--pill);
+  color: var(--pill-ink);
+}
+
+.daily-pill.over {
+  background: color-mix(in srgb, var(--warn) 18%, var(--card));
+  color: var(--warn);
+}
+
+.daily-pill.even {
+  background: color-mix(in srgb, var(--muted) 14%, var(--card));
   color: var(--muted);
 }
 
-.span2 {
-  grid-column: 1 / -1;
+.daily-chip-note {
+  margin: 0.28rem 0 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.daily-macros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem 0.9rem;
+  margin-top: 0.95rem;
+}
+
+.daily-macro .label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.daily-macro .value {
+  margin-top: 0.12rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.daily-macro.is-over .value {
+  color: var(--warn);
+}
+
+.daily-macro .bar {
+  height: 5px;
+  margin-top: 0.36rem;
+}
+
+.daily-weight {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.8rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.daily-weight-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.daily-weight-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.phase-dates {
+  margin: -0.35rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.phase-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.85rem;
+  align-items: center;
+}
+
+.phase-avg {
+  min-width: 0;
+}
+
+.phase-logged {
+  margin: 0.4rem 0 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.phase-deficit {
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--line);
+}
+
+.phase-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.phase-deficit-kcal {
+  margin: 0.16rem 0 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.phase-deficit-kcal.is-under {
+  color: var(--accent);
+}
+
+.phase-deficit-kcal.is-over {
+  color: var(--warn);
+}
+
+.phase-deficit-kcal.is-even {
+  color: var(--muted);
+}
+
+.phase-deficit-kg {
+  margin: 0.12rem 0 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.phase-deficit .note {
+  margin-top: 0.28rem;
+}
+
+.protein-water-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.chart-tile.protein-water-tile h2 {
+  margin-bottom: 0.45rem;
+}
+
+.mini-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.mini-chart-head h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.mini-chart-head .chart-stat {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.chart-wrap.chart-wrap-mini {
+  height: 150px;
+  min-height: 150px;
+}
+
+.personal-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem 0.9rem;
+  align-items: center;
+}
+
+.personal-copy {
+  min-width: 0;
+}
+
+.personal-copy .big {
+  font-size: clamp(1.15rem, 5.4vw, 1.45rem);
+  line-height: 1.15;
+}
+
+.personal-copy .note {
+  margin-top: 0.35rem;
 }
 
 .bar {
@@ -886,7 +1135,8 @@ body {
   margin: 0.2rem 0 0;
   text-align: center;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .food-empty {

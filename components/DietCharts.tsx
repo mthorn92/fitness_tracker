@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
+import { DailyRing } from "@/components/DailyRing";
 import { DASHBOARD_TAB_EVENT } from "@/components/dashboard-tab";
 import type { Chart, ChartConfiguration, ChartDataset, Plugin, TooltipItem } from "chart.js";
 import {
@@ -124,13 +125,14 @@ function targetScale(
   values: Array<number | null | undefined>,
   reserveLabel: boolean,
   axisFor: (target: number, dataMax: number) => { step: number; max: number } = targetAxis,
+  left = 0,
 ) {
   const axis = axisFor(target, finiteMax(values));
   const base = baseOpts(yTitle, true);
   return {
     ...base,
     layout: {
-      padding: { top: 8, right: reserveLabel ? 68 : 4, bottom: 0, left: 0 },
+      padding: { top: 8, right: reserveLabel ? 68 : 4, bottom: 0, left },
     },
     scales: {
       ...base.scales,
@@ -464,6 +466,7 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                 [...model.proteinG, model.averages.proteinLine],
                 model.averages.proteinLine != null,
                 proteinAxis,
+                10,
               ),
               plugins: {
                 legend: { display: true, position: "bottom" as const, labels: hideAverage },
@@ -496,6 +499,8 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                 model.targets.water_l,
                 [...model.waterL, model.averages.waterLine],
                 model.averages.waterLine != null,
+                targetAxis,
+                10,
               ),
               plugins: {
                 legend: { display: true, position: "bottom" as const, labels: hideAverage },
@@ -756,74 +761,89 @@ export function DeficitChartTile({
   );
 }
 
-export function ProteinChartTile({
-  canvasRef,
+export function ProteinWaterChartTile({
+  proteinRef,
+  waterRef,
   data,
   model,
 }: {
-  canvasRef: RefObject<HTMLCanvasElement | null>;
+  proteinRef: RefObject<HTMLCanvasElement | null>;
+  waterRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
   model: DietChartModel;
 }) {
-  const daily = data.targets.protein_g.toLocaleString("en-AU");
-  const weeklyTarget = model.targets.protein_g.toLocaleString("en-AU");
+  const proteinDaily = data.targets.protein_g.toLocaleString("en-AU");
+  const proteinWeekly = model.targets.protein_g.toLocaleString("en-AU");
+  const waterDaily = formatTarget(data.targets.water_l);
+  const waterWeekly = formatTarget(model.targets.water_l);
   return (
-    <section className="card chart-tile" data-tab-group="diet" data-tile="protein">
-      <h2>Protein</h2>
-      <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
-      <div className="chart-wrap">
-        <canvas ref={canvasRef} aria-label="Protein chart" />
+    <section className="card chart-tile protein-water-tile" data-tab-group="diet" data-tile="protein-water">
+      <h2>Protein and water</h2>
+      <div className="mini-chart">
+        <div className="mini-chart-head">
+          <h3>Protein</h3>
+          <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
+        </div>
+        <div className="chart-wrap chart-wrap-mini">
+          <canvas ref={proteinRef} aria-label="Protein chart" />
+        </div>
+        <p className="note">
+          {model.weekly
+            ? `Weekly protein totals. The dashed line is ${proteinWeekly} g (7 × ${proteinDaily} g). The violet line is the daily average, drawn ×7.`
+            : `Daily protein vs the ${proteinDaily} g target. The violet line is the average of logged days.`}
+        </p>
       </div>
-      <p className="note">
-        {model.weekly
-          ? `Weekly protein totals. The dashed line is ${weeklyTarget} g (7 × ${daily} g). The violet line is the daily average, drawn ×7.`
-          : `Daily protein vs the ${daily} g target. The violet line is the average of logged days.`}
-      </p>
-    </section>
-  );
-}
-
-export function WaterChartTile({
-  canvasRef,
-  data,
-  model,
-}: {
-  canvasRef: RefObject<HTMLCanvasElement | null>;
-  data: DietDashboardView;
-  model: DietChartModel;
-}) {
-  const daily = formatTarget(data.targets.water_l);
-  const weeklyTarget = formatTarget(model.targets.water_l);
-  return (
-    <section className="card chart-tile" data-tab-group="diet" data-tile="water">
-      <h2>Water</h2>
-      <PeriodAverage text={formatWaterPerDay(model.averages.waterPerDay)} />
-      <div className="chart-wrap">
-        <canvas ref={canvasRef} aria-label="Water chart" />
+      <div className="mini-chart">
+        <div className="mini-chart-head">
+          <h3>Water</h3>
+          <PeriodAverage text={formatWaterPerDay(model.averages.waterPerDay)} />
+        </div>
+        <div className="chart-wrap chart-wrap-mini">
+          <canvas ref={waterRef} aria-label="Water chart" />
+        </div>
+        <p className="note">
+          {model.weekly
+            ? `Weekly water totals. The dashed line is ${waterWeekly} L (7 × ${waterDaily} L). The violet line is the daily average, drawn ×7.`
+            : `Daily water vs the ${waterDaily} L target. The violet line is the average of logged days.`}
+        </p>
       </div>
-      <p className="note">
-        {model.weekly
-          ? `Weekly water totals. The dashed line is ${weeklyTarget} L (7 × ${daily} L). The violet line is the daily average, drawn ×7.`
-          : `Daily water vs the ${daily} L target. The violet line is the average of logged days.`}
-      </p>
     </section>
   );
 }
 
 export function PersonalKcalTile({ data }: { data: DietDashboardView }) {
   const personal = data.personal;
+  const needed = personal.needed_days;
+  const done = personal.completed_days;
+  const progress = needed <= 0 ? 0 : done / needed;
   return (
-    <section className="card" data-tab-group="diet" data-tile="personal">
+    <section className="card personal-tile" data-tab-group="diet" data-tile="personal">
       <h2>Personal kcal/kg</h2>
-      <div className="big">
-        {personal.ready && personal.kcal_per_kg != null
-          ? `${Math.round(personal.kcal_per_kg).toLocaleString("en-AU")} kcal/kg`
-          : `Needs ~2 weeks of data (${personal.completed_days}/${personal.needed_days})`}
+      <div className="personal-body">
+        <DailyRing
+          compact
+          progress={progress}
+          tone="good"
+          label="Days toward a personal kcal per kg"
+          valueNow={done}
+          valueMax={needed}
+          valueText={`${done} of ${needed} days`}
+        >
+          <span className="daily-ring-num">{done}</span>
+          <span className="daily-ring-sub">/ {needed}</span>
+        </DailyRing>
+        <div className="personal-copy">
+          <div className="big">
+            {personal.ready && personal.kcal_per_kg != null
+              ? `${Math.round(personal.kcal_per_kg).toLocaleString("en-AU")} kcal/kg`
+              : `Needs ~2 weeks of data (${done}/${needed})`}
+          </div>
+          <p className="note">
+            WHOOP burn estimates and water weight mean this figure settles over a few weeks. Comparing it
+            with {data.kcal_per_kg.toLocaleString("en-AU")} shows how accurate WHOOP burn is for you.
+          </p>
+        </div>
       </div>
-      <p className="note">
-        WHOOP burn estimates and water weight mean this figure settles over a few weeks. Comparing it
-        with {data.kcal_per_kg.toLocaleString("en-AU")} shows how accurate WHOOP burn is for you.
-      </p>
     </section>
   );
 }
