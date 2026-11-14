@@ -87,27 +87,18 @@ export function DietTodayCard({
       <h2>{today.label}</h2>
       <div className="grid">
         <div className="metric span2">
-          <div className="label">Calories</div>
-          <div className="value">
-            {formatNumber(kcal, kcal % 1 === 0 ? 0 : 1)} / {formatNumber(targets.calories_kcal)}
-          </div>
-          <div className="sub">{formatNumber(remaining)} kcal remaining</div>
-          <div className={`bar${kcalPct > 100 ? " over" : ""}`}>
-            <span style={{ width: `${Math.min(100, kcalPct)}%` }} />
-          </div>
-          {phase ? (
-            <>
-              <p className="roll">
-                <span className="roll-keep">
-                  {phase.phase.name}: avg{" "}
-                  {phase.average
-                    ? `${formatNumber(phase.average.averageKcal)} / ${formatNumber(phase.average.targetKcal)}`
-                    : `— / ${formatNumber(phase.phase.kcal_target)}`}
-                </span>
-                {phase.average ? (
-                  <span className={`roll-keep roll-delta ${phase.average.status}`}> · {deltaText(phase.average)}</span>
-                ) : null}
-              </p>
+          <div className="calorie-head">
+            <div>
+              <div className="label">Calories</div>
+              <div className="value">
+                {formatNumber(kcal, kcal % 1 === 0 ? 0 : 1)} / {formatNumber(targets.calories_kcal)}
+              </div>
+              <div className="sub">{formatNumber(remaining)} kcal remaining</div>
+              <div className={`bar${kcalPct > 100 ? " over" : ""}`}>
+                <span style={{ width: `${Math.min(100, kcalPct)}%` }} />
+              </div>
+            </div>
+            {phase ? (
               <PhaseCountdown
                 daysLeft={phase.daysLeft}
                 done={phaseLengthDays(phase.phase) - phase.daysLeft}
@@ -115,8 +106,8 @@ export function DietTodayCard({
                 progress={phaseProgress(calendarToday, phase.phase)}
                 name={phase.phase.name}
               />
-            </>
-          ) : null}
+            ) : null}
+          </div>
           <p className="roll">
             <span className="roll-keep">
               7-day avg:{" "}
@@ -129,6 +120,19 @@ export function DietTodayCard({
             ) : null}
           </p>
           {rollingCoverage ? <p className="roll-coverage">{rollingCoverage}</p> : null}
+          {phase ? (
+            <p className="roll">
+              <span className="roll-keep">
+                {phase.phase.name}: avg{" "}
+                {phase.average
+                  ? `${formatNumber(phase.average.averageKcal)} / ${formatNumber(phase.average.targetKcal)}`
+                  : `— / ${formatNumber(phase.phase.kcal_target)}`}
+              </span>
+              {phase.average ? (
+                <span className={`roll-keep roll-delta ${phase.average.status}`}> · {deltaText(phase.average)}</span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
         <div className="metric macro">
           <div className="label">Protein</div>
