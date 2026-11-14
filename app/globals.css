@@ -452,6 +452,35 @@ body {
   margin-top: 0.1rem;
 }
 
+.roll {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.roll + .roll {
+  margin-top: 0.12rem;
+}
+
+.roll-delta {
+  font-weight: 650;
+}
+
+.roll-delta.under {
+  color: var(--good);
+}
+
+.roll-delta.over {
+  color: var(--warn);
+}
+
+.roll-delta.even,
+.roll-note {
+  color: var(--muted);
+}
+
 .span2 {
   grid-column: 1 / -1;
 }

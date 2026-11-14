@@ -1,16 +1,46 @@
-import type { DietDashboardView } from "@/lib/types";
+import {
+  phaseCalorieSummary,
+  rollingCalorieAverage,
+  type CalorieAverage,
+} from "@/lib/calorie-average";
 import { formatNumber } from "@/lib/format";
+import type { DietDashboardView } from "@/lib/types";
 
 function barWidth(current: number, target: number): number {
   if (target <= 0) return 0;
   return Math.max(0, Math.min(100, (current / target) * 100));
 }
 
-export function DietTodayCard({ data }: { data: DietDashboardView }) {
+function deltaText(average: CalorieAverage): string {
+  if (average.status === "even") return "on target";
+  const amount = formatNumber(Math.abs(average.deltaKcal));
+  return average.status === "under" ? `${amount} under` : `${amount} over`;
+}
+
+function coverageText(days: number): string | null {
+  if (days <= 0 || days >= 7) return null;
+  return days === 1 ? "avg of 1 day" : `avg of ${days} days`;
+}
+
+function daysLeftText(days: number): string {
+  return days === 1 ? "1 day left" : `${formatNumber(days)} days left`;
+}
+
+export function DietTodayCard({
+  data,
+  today: calendarToday,
+}: {
+  data: DietDashboardView;
+  today: string;
+}) {
   const { today, targets } = data;
   const kcal = today.kcal ?? 0;
   const remaining = Math.max(0, targets.calories_kcal - kcal);
   const kcalPct = barWidth(kcal, targets.calories_kcal);
+  const loggedDays = data.days.map((day) => ({ date: day.date, kcal: day.kcal }));
+  const rolling = rollingCalorieAverage(loggedDays, calendarToday, targets.calories_kcal);
+  const phase = phaseCalorieSummary(loggedDays, calendarToday);
+  const rollingCoverage = rolling ? coverageText(rolling.days) : null;
   const proteinPct = barWidth(today.protein_g, targets.protein_g);
   const carbsPct = barWidth(today.carbs_g, targets.carbs_g);
   const fatPct = barWidth(today.fat_g, targets.fat_g);
@@ -31,6 +61,28 @@ export function DietTodayCard({ data }: { data: DietDashboardView }) {
           <div className={`bar${kcalPct > 100 ? " over" : ""}`}>
             <span style={{ width: `${Math.min(100, kcalPct)}%` }} />
           </div>
+          {phase ? (
+            <p className="roll">
+              {phase.phase.name}: avg{" "}
+              {phase.average
+                ? `${formatNumber(phase.average.averageKcal)} / ${formatNumber(phase.average.targetKcal)}`
+                : `— / ${formatNumber(phase.phase.kcal_target)}`}
+              {phase.average ? (
+                <span className={`roll-delta ${phase.average.status}`}> · {deltaText(phase.average)}</span>
+              ) : null}
+              <span className="roll-note"> · {daysLeftText(phase.daysLeft)}</span>
+            </p>
+          ) : null}
+          <p className="roll">
+            7-day avg:{" "}
+            {rolling
+              ? `${formatNumber(rolling.averageKcal)} / ${formatNumber(rolling.targetKcal)}`
+              : `— / ${formatNumber(targets.calories_kcal)}`}
+            {rolling ? (
+              <span className={`roll-delta ${rolling.status}`}> · {deltaText(rolling)}</span>
+            ) : null}
+            {rollingCoverage ? <span className="roll-note"> · {rollingCoverage}</span> : null}
+          </p>
         </div>
         <div className="metric">
           <div className="label">Protein</div>

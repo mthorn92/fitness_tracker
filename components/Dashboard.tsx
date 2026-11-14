@@ -274,7 +274,7 @@ export function Dashboard({
           ))}
         </div>
       </header>
-      <DietTodayCard data={data} />
+      <DietTodayCard data={data} today={today} />
       <TodayFood foods={foods} dateLabel={data.today.label} />
       <MonthRings days={data.days} today={today} />
       <WeightChartTile canvasRef={charts.weight} model={model} />
