@@ -1,4 +1,4 @@
-import { formatNumber, formatShortDate, shiftIsoDate } from "@/lib/format";
+import { formatNumber, formatShortDate, parseIsoDate, shiftIsoDate } from "@/lib/format";
 import { formatDuration, isRunActivity, type RawRun } from "@/lib/strava-summary";
 
 /** Seven calendar days ending on the Exercise tab's date, including that day. */
@@ -51,10 +51,34 @@ export type CachedActivity = {
   sufferScore: number | null;
 };
 
+export type ActivityKind = "run" | "walk" | "other";
+
 export type StravaWorkoutRow = {
   id: number;
   name: string;
   detail: string;
+  kind: ActivityKind;
+};
+
+/** One column in the 7-day strip. */
+export type WorkoutDayColumn = {
+  date: string;
+  /** Short weekday, e.g. "Fri". */
+  label: string;
+  /** Full date plus what happened, for the column tooltip. */
+  title: string;
+  count: number;
+  /** Unique kinds that day, run then walk then other. */
+  kinds: ActivityKind[];
+};
+
+export type WorkoutStatChips = {
+  /** "6" or "1". */
+  countLabel: string;
+  countUnit: string;
+  duration: string;
+  /** Formatted total, or an em dash when no activity had calories. */
+  kcal: string;
 };
 
 export type StravaWorkoutsModel =
@@ -66,6 +90,12 @@ export type StravaWorkoutsModel =
       rows: StravaWorkoutRow[];
       /** Null when the week has no activities. */
       summary: string | null;
+      /** Always seven days, oldest first, ending on the tile date. */
+      days: WorkoutDayColumn[];
+      /** Null when the week has no activities. */
+      chips: WorkoutStatChips | null;
+      /** "3-day streak", "Most active: Fri", or both. Null when nothing was logged. */
+      highlight: string | null;
       /** ISO time of the last ingest. Null when nothing has been synced. Omitted for in-memory fixtures. */
       syncedAt?: string | null;
     };
@@ -148,6 +178,13 @@ export function activityKcal(activity: Pick<CachedActivity, "calories" | "kilojo
   return null;
 }
 
+export function activityKind(activity: Pick<CachedActivity, "type" | "sportType">): ActivityKind {
+  if (isRunActivity({ type: activity.type, sport_type: activity.sportType })) return "run";
+  const sport = activity.sportType.trim() || activity.type.trim();
+  if (sport === "Walk" || sport === "Hike") return "walk";
+  return "other";
+}
+
 export function modelFromActivities(
   activities: CachedActivity[],
   endDate: string,
@@ -157,14 +194,18 @@ export function modelFromActivities(
   const picked = activities
     .filter((activity) => activity.date >= start && activity.date <= endDate)
     .sort(newestFirst);
+  const days = weekColumns(picked, endDate);
   if (picked.length === 0) {
-    return { status: "ready", stale, rows: [], summary: null };
+    return { status: "ready", stale, rows: [], summary: null, days, chips: null, highlight: null };
   }
   return {
     status: "ready",
     stale,
     rows: picked.map(toRow),
     summary: summarize(picked),
+    days,
+    chips: chipsFor(picked),
+    highlight: highlightFor(days),
   };
 }
 
@@ -258,15 +299,88 @@ function toRow(activity: CachedActivity): StravaWorkoutRow {
   if (activity.avgHr != null) parts.push(`${Math.round(activity.avgHr)} bpm`);
   if (kcal != null) parts.push(`${formatNumber(Math.round(kcal))} kcal`);
   if (activity.sufferScore != null) parts.push(`effort ${activity.sufferScore}`);
-  return { id: activity.id, name: activity.name, detail: parts.join(" · ") };
+  return { id: activity.id, name: activity.name, detail: parts.join(" · "), kind: activityKind(activity) };
+}
+
+function weekColumns(activities: CachedActivity[], endDate: string): WorkoutDayColumn[] {
+  const start = workoutWindowStart(endDate);
+  const byDate = new Map<string, CachedActivity[]>();
+  for (const activity of activities) {
+    const list = byDate.get(activity.date) ?? [];
+    list.push(activity);
+    byDate.set(activity.date, list);
+  }
+  const order: ActivityKind[] = ["run", "walk", "other"];
+  const days: WorkoutDayColumn[] = [];
+  for (let index = 0; index < STRAVA_WORKOUT_DAYS; index += 1) {
+    const date = shiftIsoDate(start, index);
+    const list = byDate.get(date) ?? [];
+    const kinds: ActivityKind[] = [];
+    for (const activity of list) {
+      const kind = activityKind(activity);
+      if (!kinds.includes(kind)) kinds.push(kind);
+    }
+    kinds.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const label = weekdayShort(date);
+    const count = list.length;
+    const what = count === 0 ? "no activity" : count === 1 ? "1 workout" : `${count} workouts`;
+    days.push({
+      date,
+      label,
+      title: `${formatShortDate(date)} · ${what}`,
+      count,
+      kinds,
+    });
+  }
+  return days;
+}
+
+function chipsFor(activities: CachedActivity[]): WorkoutStatChips {
+  const count = activities.length;
+  const seconds = activities.reduce((sum, activity) => sum + activity.movingTimeS, 0);
+  return {
+    countLabel: String(count),
+    countUnit: count === 1 ? "workout" : "workouts",
+    duration: formatDuration(seconds),
+    kcal: kcalFigure(activities) ?? "—",
+  };
+}
+
+function highlightFor(days: WorkoutDayColumn[]): string | null {
+  if (days.every((day) => day.count === 0)) return null;
+  const flags = days.map((day) => day.count > 0);
+  let end = flags.length - 1;
+  while (end >= 0 && !flags[end]) end -= 1;
+  let streak = 0;
+  if (end >= flags.length - 2) {
+    for (let index = end; index >= 0 && flags[index]; index -= 1) streak += 1;
+  }
+  const max = days.reduce((best, day) => Math.max(best, day.count), 0);
+  const winners = days.filter((day) => day.count === max);
+  const busiest = winners[winners.length - 1];
+  if (streak >= 2 && winners.length === 1 && busiest) {
+    return `${streak}-day streak · Most active: ${busiest.label}`;
+  }
+  if (streak >= 2) return `${streak}-day streak`;
+  return busiest ? `Most active: ${busiest.label}` : null;
+}
+
+function weekdayShort(iso: string): string {
+  return new Intl.DateTimeFormat("en-AU", { weekday: "short", timeZone: "UTC" }).format(parseIsoDate(iso));
+}
+
+function kcalFigure(activities: CachedActivity[]): string | null {
+  const kcals = activities.map(activityKcal).filter((value): value is number => value != null && value > 0);
+  if (kcals.length === 0) return null;
+  return formatNumber(Math.round(kcals.reduce((sum, value) => sum + value, 0)));
 }
 
 function summarize(activities: CachedActivity[]): string {
   const count = activities.length;
   const workouts = count === 1 ? "1 workout" : `${count} workouts`;
   const seconds = activities.reduce((sum, activity) => sum + activity.movingTimeS, 0);
-  const kcals = activities.map(activityKcal).filter((value): value is number => value != null && value > 0);
-  const kcalLabel = kcals.length === 0 ? "— kcal" : `${formatNumber(Math.round(kcals.reduce((sum, value) => sum + value, 0)))} kcal`;
+  const figure = kcalFigure(activities);
+  const kcalLabel = figure == null ? "— kcal" : `${figure} kcal`;
   return `${workouts} · ${formatDuration(seconds)} · ${kcalLabel}`;
 }
 

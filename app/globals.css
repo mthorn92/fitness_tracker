@@ -342,6 +342,10 @@ body {
   .dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .dashboard[data-tab="exercise"] {
+    align-items: start;
+  }
 }
 
 @media (min-width: 1100px) {
@@ -402,11 +406,18 @@ body {
     line-height: 1.25;
   }
 
-  /* The 1fr rows are for the diet grid. One training tile should stay content-sized. */
+  /* The 1fr rows are for the diet grid. Exercise stays content-sized: four strength days, then the two Strava tiles. */
   .dashboard[data-tab="exercise"] {
     min-height: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: auto;
     align-content: start;
+    align-items: start;
+  }
+
+  .dashboard[data-tab="exercise"] .workouts-tile,
+  .dashboard[data-tab="exercise"] .strava-tile {
+    grid-column: span 2;
   }
 }
 
@@ -1334,14 +1345,157 @@ body {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-/* Phone: the workouts card follows the four strength days and sits ahead of Strava.
-   The wide grid clears this so the tile returns to desktop position 3. */
-.workouts-tile {
-  order: 1;
+.strength-tile {
+  padding: 0.7rem 0.72rem 0.75rem;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
+.strength-tile .tile-heading {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.28rem;
+}
+
+.strength-titles {
+  min-width: 0;
+}
+
+.strength-tile h2 {
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.strength-tile .tile-meta {
+  font-size: 0.72rem;
+}
+
+.strength-week {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.strength-week.is-today {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.strength-done {
+  margin-left: 0.4rem;
+  color: var(--good);
+  font-weight: 650;
+}
+
+.strength-tile .train-groups {
+  margin-top: 0.4rem;
+}
+
+.strength-tile .train-block + .train-block {
+  margin-top: 0.4rem;
+}
+
+.strength-tile .train-kicker {
+  margin-bottom: 0.04rem;
+}
+
+.strength-tile .train-list li {
+  padding: 0.16rem 0 0.18rem;
+}
+
+.strength-tile .train-name {
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.strength-tile .train-dose,
+.strength-tile .train-log {
+  margin-top: 0.02rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.strength-tile .train-result {
+  margin-top: 0.4rem;
+}
+
+.exercise-today .tile-heading {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.exercise-today-titles {
+  min-width: 0;
+}
+
+.exercise-today-titles h2,
+.exercise-today-titles .tile-meta {
+  margin: 0;
+}
+
+.copy-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  min-height: 1.7rem;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.copy-btn[data-label="Copy"] {
+  min-width: 4.4rem;
+}
+
+.copy-btn[data-label="Copy week"] {
+  min-width: 5.7rem;
+}
+
+.copy-btn.is-copied {
+  border-color: transparent;
+  background: var(--pill);
+  color: var(--pill-ink);
+}
+
+.copy-btn.is-failed {
+  border-color: transparent;
+  color: var(--low);
+}
+
+.copy-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .copy-btn:hover {
+    color: var(--ink);
+  }
+
+  .copy-btn.is-copied:hover {
+    color: var(--pill-ink);
+  }
+}
+
+.workouts-tile,
 .strava-tile {
-  order: 2;
+  min-width: 0;
 }
 
 .strava-link,
@@ -1403,14 +1557,153 @@ body {
   line-height: 1.35;
 }
 
+.wo-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.28rem;
+  margin: 0.15rem 0 0;
+}
+
+.wo-day {
+  display: grid;
+  grid-template-rows: auto 1.55rem;
+  justify-items: center;
+  align-items: end;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.wo-letter {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.wo-day.is-active .wo-letter,
+.wo-letter.is-end {
+  color: var(--ink);
+}
+
+.wo-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 1.55rem;
+}
+
+.wo-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0;
+  width: 0.85rem;
+  height: 0.32rem;
+  overflow: hidden;
+  border-radius: 99px;
+}
+
+.wo-seg {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0.34rem;
+  border-radius: 0;
+}
+
+.wo-seg.is-empty {
+  flex: none;
+  height: 0.28rem;
+  min-height: 0;
+  background: var(--line);
+}
+
+.wo-seg[data-kind="run"],
+.wo-dot[data-kind="run"],
+.wo-legend i[data-kind="run"] {
+  background: var(--accent);
+}
+
+.wo-seg[data-kind="walk"],
+.wo-dot[data-kind="walk"],
+.wo-legend i[data-kind="walk"] {
+  background: var(--food);
+}
+
+.wo-seg[data-kind="other"],
+.wo-dot[data-kind="other"],
+.wo-legend i[data-kind="other"] {
+  background: var(--burn);
+}
+
+.wo-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.wo-legend i {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.28rem;
+  border-radius: 99px;
+  vertical-align: 0.05em;
+}
+
+.wo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.wo-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wo-chip strong {
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.wo-highlight {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
 .workouts-list {
   list-style: none;
-  margin: 0.55rem 0 0;
+  margin: 0.45rem 0 0;
   padding: 0;
 }
 
 .workouts-list li {
-  padding: 0.45rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
   border-top: 1px solid var(--line);
 }
 
@@ -1419,12 +1712,19 @@ body {
   padding-top: 0.15rem;
 }
 
-@media (min-width: 1100px) {
-  .workouts-tile,
-  .strava-tile {
-    order: 0;
-  }
+.wo-dot {
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-top: 0.38rem;
+  border-radius: 99px;
+}
 
+.wo-row-text {
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
   .dashboard[data-tab="diet"] {
     counter-reset: diet-pos;
   }

@@ -309,12 +309,11 @@ export function Dashboard({
       />
       <PhaseTile data={data} today={today} />
       <PersonalKcalTile data={data} />
-      <TrainingTodayCard view={board.today} mode={board.todayMode} />
-      {board.days[0] ? <StrengthDayTile day={board.days[0]} /> : null}
-      {board.days[1] ? <StrengthDayTile day={board.days[1]} /> : null}
+      <TrainingTodayCard view={board.today} mode={board.todayMode} weekCopy={board.weekCopyText} />
+      {board.days.map((day) => (
+        <StrengthDayTile key={day.planDay} day={day} />
+      ))}
       <StravaWorkoutsTile model={workouts} />
-      {board.days[2] ? <StrengthDayTile day={board.days[2]} /> : null}
-      {board.days[3] ? <StrengthDayTile day={board.days[3]} /> : null}
       <StravaRunsTile model={strava} />
     </main>
   );

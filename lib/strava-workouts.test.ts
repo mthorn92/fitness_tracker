@@ -24,6 +24,29 @@ test("the workout window is the last 7 days and includes the end date", () => {
     ["Evening swim", "Lunchtime weights", "Park loop", "Easy run", "Evening walk"],
   );
   assert.equal(model.summary, "5 workouts · 3h 33m · 1,260 kcal");
+  assert.deepEqual(model.chips, {
+    countLabel: "5",
+    countUnit: "workouts",
+    duration: "3h 33m",
+    kcal: "1,260",
+  });
+  assert.equal(model.highlight, "3-day streak · Most active: Fri");
+  assert.deepEqual(
+    model.days.map((day) => [day.label, day.count, day.kinds.join("+")]),
+    [
+      ["Sat", 0, ""],
+      ["Sun", 0, ""],
+      ["Mon", 1, "walk"],
+      ["Tue", 0, ""],
+      ["Wed", 1, "run"],
+      ["Thu", 1, "other"],
+      ["Fri", 2, "other"],
+    ],
+  );
+  assert.equal(model.rows.find((row) => row.name === "Easy run")?.kind, "run");
+  assert.equal(model.rows.find((row) => row.name === "Evening walk")?.kind, "walk");
+  assert.equal(model.rows.find((row) => row.name === "Park loop")?.kind, "other");
+  assert.equal(model.rows.find((row) => row.name === "Lunchtime weights")?.kind, "other");
 });
 
 test("a ride stays off the runs tile and on the workouts tile", () => {
@@ -113,5 +136,16 @@ test("a blank week stays ready with no summary", () => {
     ],
     END,
   );
-  assert.deepEqual(model, { status: "ready", stale: false, rows: [], summary: null });
+  assert.equal(model.status, "ready");
+  if (model.status !== "ready") return;
+  assert.equal(model.stale, false);
+  assert.deepEqual(model.rows, []);
+  assert.equal(model.summary, null);
+  assert.equal(model.chips, null);
+  assert.equal(model.highlight, null);
+  assert.equal(model.days.length, 7);
+  assert.equal(
+    model.days.every((day) => day.count === 0),
+    true,
+  );
 });

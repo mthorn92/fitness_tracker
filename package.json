@@ -9,7 +9,7 @@
     "lint": "eslint",
     "verify-import": "FITNESS_PGLITE_MEMORY=1 npx tsx scripts/verify-import.ts",
     "verify-sessions": "FITNESS_PGLITE_MEMORY=1 npx tsx scripts/verify-sessions.ts",
-    "test": "node --import tsx --test lib/budget.test.ts lib/charts.test.ts lib/chart-range.test.ts lib/chart-scale.test.ts lib/deficit.test.ts lib/diet-window.test.ts lib/plan.test.ts lib/rings.test.ts lib/whoop-burn.test.ts lib/strava.test.ts lib/exercise-board.test.ts lib/strava-workouts.test.ts lib/workouts.test.ts lib/dashboard-window.test.ts lib/calorie-average.test.ts lib/phases.test.ts lib/phase-balance.test.ts lib/remove-quad-strategy.test.ts components/dashboard-tab.test.ts"
+    "test": "node --import tsx --test lib/budget.test.ts lib/charts.test.ts lib/chart-range.test.ts lib/chart-scale.test.ts lib/deficit.test.ts lib/diet-window.test.ts lib/plan.test.ts lib/rings.test.ts lib/whoop-burn.test.ts lib/strava.test.ts lib/exercise-board.test.ts lib/strength-copy.test.ts lib/strava-workouts.test.ts lib/workouts.test.ts lib/dashboard-window.test.ts lib/calorie-average.test.ts lib/phases.test.ts lib/phase-balance.test.ts lib/remove-quad-strategy.test.ts components/dashboard-tab.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.15",
