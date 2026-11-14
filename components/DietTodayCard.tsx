@@ -38,7 +38,7 @@ function PhaseCountdown({
 }) {
   const lastDay = daysLeft === 1;
   return (
-    <div className="phase-left">
+    <>
       <div className="phase-count">
         <span className="phase-num">{formatNumber(daysLeft)}</span>
         <span className={`phase-count-label${lastDay ? " is-last" : ""}`}>
@@ -58,7 +58,7 @@ function PhaseCountdown({
           🎄
         </span>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -88,15 +88,9 @@ export function DietTodayCard({
       <div className="grid">
         <div className="metric span2">
           <div className="calorie-head">
-            <div>
-              <div className="label">Calories</div>
-              <div className="value">
-                {formatNumber(kcal, kcal % 1 === 0 ? 0 : 1)} / {formatNumber(targets.calories_kcal)}
-              </div>
-              <div className="sub">{formatNumber(remaining)} kcal remaining</div>
-              <div className={`bar${kcalPct > 100 ? " over" : ""}`}>
-                <span style={{ width: `${Math.min(100, kcalPct)}%` }} />
-              </div>
+            <div className="label">Calories</div>
+            <div className="value">
+              {formatNumber(kcal, kcal % 1 === 0 ? 0 : 1)} / {formatNumber(targets.calories_kcal)}
             </div>
             {phase ? (
               <PhaseCountdown
@@ -107,6 +101,10 @@ export function DietTodayCard({
                 name={phase.phase.name}
               />
             ) : null}
+            <div className={`bar${kcalPct > 100 ? " over" : ""}`}>
+              <span style={{ width: `${Math.min(100, kcalPct)}%` }} />
+            </div>
+            <div className="sub">{formatNumber(remaining)} kcal remaining</div>
           </div>
           <p className="roll">
             <span className="roll-keep">

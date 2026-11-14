@@ -476,22 +476,50 @@ body {
 .calorie-head {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(7.4rem, 0.85fr);
+  grid-template-areas:
+    "label ."
+    "figure count"
+    "kcalbar phasebar"
+    "remain .";
   column-gap: 0.75rem;
-  align-items: start;
+  row-gap: 0.28rem;
+  align-items: baseline;
 }
 
-.calorie-head .value {
-  font-size: 1.15rem;
+.calorie-head > .label {
+  grid-area: label;
 }
 
-.calorie-head .bar {
-  margin-top: 0.4rem;
-}
-
-.phase-left {
+.calorie-head > .value {
+  grid-area: figure;
+  align-self: baseline;
   margin-top: 0;
-  min-width: 0;
-  padding-top: 1.05rem;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.calorie-head > .phase-count {
+  grid-area: count;
+  align-self: baseline;
+}
+
+.calorie-head > .bar {
+  grid-area: kcalbar;
+  align-self: center;
+  height: 5px;
+  margin: 0;
+}
+
+.calorie-head > .phase-track {
+  grid-area: phasebar;
+  align-self: center;
+  height: 5px;
+  margin: 0 1.15rem 0 0;
+}
+
+.calorie-head > .sub {
+  grid-area: remain;
+  margin-top: 0;
 }
 
 .phase-count {
@@ -513,6 +541,7 @@ body {
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 650;
+  line-height: 1;
 }
 
 .phase-count-label.is-last {
@@ -522,7 +551,6 @@ body {
 .phase-track {
   position: relative;
   height: 5px;
-  margin: 0.38rem 1.25rem 0.05rem 0;
   background: var(--line);
   border-radius: 99px;
 }
