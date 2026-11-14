@@ -635,8 +635,11 @@ body {
 }
 
 .chart-wrap canvas {
+  position: absolute;
+  inset: 0;
   display: block;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 .big {

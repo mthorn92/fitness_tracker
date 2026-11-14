@@ -18,10 +18,16 @@ export type TrendSeriesPoint = SeriesPoint & {
  */
 export function withSevenDayAverage(points: SeriesPoint[]): Array<SeriesPoint & { avg7d: number }> {
   const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
-  return sorted.map((point) => {
+  let start = 0;
+  let sum = 0;
+  return sorted.map((point, index) => {
+    sum += point.value;
     const windowStart = shiftIsoDate(point.date, -6);
-    const inWindow = sorted.filter((candidate) => candidate.date >= windowStart && candidate.date <= point.date);
-    const avg7d = inWindow.reduce((sum, candidate) => sum + candidate.value, 0) / inWindow.length;
-    return { ...point, avg7d };
+    while (start < index && sorted[start].date < windowStart) {
+      sum -= sorted[start].value;
+      start += 1;
+    }
+    const count = index - start + 1;
+    return { ...point, avg7d: sum / count };
   });
 }
