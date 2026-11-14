@@ -14,6 +14,8 @@ import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabe
 import { formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
 
+const chartLibrary = typeof window === "undefined" ? null : import("chart.js");
+
 function cssVar(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
@@ -224,7 +226,7 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
   useEffect(() => {
     let disposed = false;
     let release = () => {};
-    void import("chart.js").then((charts) => {
+    void (chartLibrary ?? import("chart.js")).then((charts) => {
       if (disposed) return;
       const {
         Chart,
@@ -551,10 +553,11 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
               waiting = true;
               continue;
             }
-            if (force || chart.width !== width || chart.height !== height) {
-              (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
-              chart.resize(width, height);
-            }
+            const sameSize =
+              Math.abs(chart.width - width) < 1 && Math.abs(chart.height - height) < 1;
+            if (!force && sameSize) continue;
+            (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
+            chart.resize(width, height);
           } catch (error) {
             console.error("Chart redraw failed:", chart.canvas.getAttribute("aria-label"), error);
           }

@@ -23,6 +23,20 @@ test("calendar window averages only days inside the last 7", () => {
   assert.equal(series[3].avg7d, 30);
 });
 
+test("a long weight history stays linear", () => {
+  const points = Array.from({ length: 4000 }, (_, index) => {
+    const date = new Date(Date.UTC(2016, 0, 1 + index));
+    return { date: date.toISOString().slice(0, 10), value: 100 + (index % 7) };
+  });
+  const started = performance.now();
+  const series = withSevenDayAverage(points);
+  const elapsed = performance.now() - started;
+  assert.equal(series.length, 4000);
+  assert.ok(elapsed < 250, `7-day average took ${elapsed.toFixed(0)}ms`);
+  const last = series[series.length - 1];
+  assert.equal(last.avg7d, (100 + 101 + 102 + 103 + 104 + 105 + 106) / 7);
+});
+
 test("sorts unsorted input before averaging", () => {
   const series = withSevenDayAverage([
     { date: "2026-11-10", value: 3 },
