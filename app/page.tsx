@@ -44,7 +44,8 @@ async function DietDashboard({
   const params = await searchParams;
   const date = typeof params.date === "string" ? params.date : undefined;
   const range = parseChartRange(params.range);
-  const trainingDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIsoDate();
+  const calendarToday = todayIsoDate("Australia/Melbourne");
+  const trainingDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : calendarToday;
   await connection();
   const [diet, board, activity, paperBundle] = await Promise.all([
     loadDiet(date, range),
@@ -64,7 +65,7 @@ async function DietDashboard({
       board={board}
       workouts={activity.workouts}
       strava={activity.runs}
-      today={todayIsoDate()}
+      today={calendarToday}
       investing={
         <InvestingSections
           paper={
