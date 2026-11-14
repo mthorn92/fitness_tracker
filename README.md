@@ -136,41 +136,6 @@ The easy path, once the client id and secret are saved and the app has been publ
 
 A manual path, if you would rather paste `STRAVA_REFRESH_TOKEN` yourself, is written up in the pull request that added this tile.
 
-## Investing tab
-
-The third tab is for research notes. Diet is still the default. The choice is remembered the same way as Exercise (`?tab=investing` and the `dashboard-tab` value in the browser).
-
-The paper is not stored in this repository. Upload a markdown file when it changes. You do not need a new deploy.
-
-```bash
-DOCS_BASE_URL=https://training-log.apps.grok.bot \
-CURSOR_API_KEY=... \
-LOG_API_TOKEN=... \
-node scripts/push-doc.mjs quad-strategy paper.md
-```
-
-The script prints the new version and the time it was saved. It does not print the tokens. On your computer, with the app running at `http://localhost:3000`, you can leave the tokens unset.
-
-The first document slug is `quad-strategy`.
-
-Figures in that paper use paths like `reports/foo-bar_1.png`, relative to the paper. Each segment starts with a letter or digit and may include `.`, `_` and `-`. The name ends in lowercase `.png`. `..` is rejected. Upload each PNG separately. On a wide window the figure sits to the right of the text; on a phone it stacks under the paragraph.
-
-```bash
-# skip files whose sha256 is already stored
-curl -sS "$DOCS_BASE_URL/api/docs/quad-strategy/assets" \
-  -H "Authorization: Bearer $LOG_API_TOKEN" \
-  -H "x-cursor-app-token: $CURSOR_API_KEY"
-
-# raw PNG, at most 5 MB. 201 created, 200 replaced.
-curl -sS -X PUT "$DOCS_BASE_URL/api/docs/quad-strategy/assets/reports/foo-bar_1.png" \
-  -H "Authorization: Bearer $LOG_API_TOKEN" \
-  -H "x-cursor-app-token: $CURSOR_API_KEY" \
-  -H "content-type: image/png" \
-  --data-binary @reports/foo-bar_1.png
-```
-
-The list is `[{"path":"reports/foo-bar_1.png","sha256":"<64 hex chars>"}]`. The put response is `{"slug":"quad-strategy","path":"reports/foo-bar_1.png","sha256":"<64 hex chars>","bytes":48211}`. The page loads the file from `GET /api/docs/quad-strategy/assets/reports/foo-bar_1.png`.
-
 ## Not included yet
 
 - Wiring the Grok Bot’s connection to the published URL + token (test one meal first)

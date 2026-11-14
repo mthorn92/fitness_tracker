@@ -2,7 +2,6 @@ import { cacheLife, cacheTag } from "next/cache";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Dashboard } from "@/components/Dashboard";
-import { InvestingSections } from "@/components/InvestingSections";
 import { parseDashboardTab } from "@/components/dashboard-tab";
 import { parseChartRange, type ChartRangeId } from "@/lib/chart-range";
 import { getDashboardPageData } from "@/lib/data";
@@ -53,7 +52,6 @@ async function DietDashboard({
       workouts={activity.workouts}
       strava={activity.runs}
       today={calendarToday}
-      investing={<InvestingSections />}
     />
   );
 }

@@ -18,7 +18,14 @@ import { StrengthDayTile } from "@/components/StrengthDayTile";
 import { StravaWorkoutsTile } from "@/components/StravaWorkoutsTile";
 import { TodayFood } from "@/components/TodayFood";
 import { TrainingTodayCard } from "@/components/TrainingTodayCard";
-import { DASHBOARD_TAB_EVENT, DASHBOARD_TABS, isDashboardTab, type DashboardTab } from "@/components/dashboard-tab";
+import {
+  DASHBOARD_TAB_EVENT,
+  DASHBOARD_TABS,
+  isDashboardTab,
+  resolveDashboardTab,
+  RETIRED_DASHBOARD_TAB,
+  type DashboardTab,
+} from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
 import type { StravaTileModel } from "@/lib/strava-summary";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
@@ -35,7 +42,6 @@ const RANGE_STORAGE_KEY = "dashboard-range";
 const TAB_LABELS: Record<DashboardTab, string> = {
   diet: "Diet",
   exercise: "Exercise",
-  investing: "Investing",
 };
 
 function readStoredTab(): DashboardTab | null {
@@ -130,8 +136,7 @@ function currentRange(fallback: ChartRangeId): ChartRangeId {
 
 function currentTab(fallback: DashboardTab): DashboardTab {
   const fromUrl = new URLSearchParams(window.location.search).get("tab");
-  if (isDashboardTab(fromUrl)) return fromUrl;
-  return readStoredTab() ?? fallback;
+  return resolveDashboardTab(fromUrl, readStoredTab(), fallback);
 }
 
 export function Dashboard({
@@ -144,7 +149,6 @@ export function Dashboard({
   workouts,
   strava,
   today,
-  investing,
 }: {
   initialTab: DashboardTab;
   initialRange: ChartRangeId;
@@ -155,7 +159,6 @@ export function Dashboard({
   workouts: StravaWorkoutsModel;
   strava: StravaTileModel;
   today: string;
-  investing: React.ReactNode;
 }) {
   const tab = useSyncExternalStore(
     subscribeTab,
@@ -183,9 +186,27 @@ export function Dashboard({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("tab");
+    if (fromUrl === RETIRED_DASHBOARD_TAB) {
+      writeStoredTab("diet");
+      params.set("tab", "diet");
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}?${params.toString()}${window.location.hash}`,
+      );
+      emitTab();
+      return;
+    }
     if (isDashboardTab(fromUrl)) {
       writeStoredTab(fromUrl);
       return;
+    }
+    try {
+      if (localStorage.getItem(STORAGE_KEY) === RETIRED_DASHBOARD_TAB) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {
+      // Private mode can reject storage. Diet is still the fallback.
     }
     const stored = readStoredTab();
     if (!stored) return;
@@ -295,7 +316,6 @@ export function Dashboard({
       {board.days[2] ? <StrengthDayTile day={board.days[2]} /> : null}
       {board.days[3] ? <StrengthDayTile day={board.days[3]} /> : null}
       <StravaRunsTile model={strava} />
-      {investing}
     </main>
   );
 }
