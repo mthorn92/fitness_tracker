@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { phaseCalorieAverage, phaseCalorieSummary } from "./calorie-average";
-import { PHASES, activePhase, phaseDaysLeft, type CaloriePhase } from "./phases";
+import { PHASES, activePhase, phaseDaysLeft, phaseLengthDays, phaseProgress, type CaloriePhase } from "./phases";
 
 const phase1 = PHASES[0];
 
@@ -19,6 +19,10 @@ test("days left counts today through 22 Dec, including both", () => {
   assert.equal(activePhase("2026-11-14")?.name, "Phase 1");
   assert.equal(phaseDaysLeft("2026-11-14", phase1), 39);
   assert.equal(phaseDaysLeft("2026-11-09", phase1), 44);
+  assert.equal(phaseLengthDays(phase1), 44);
+  assert.equal(phaseProgress("2026-11-09", phase1), 0);
+  assert.equal(phaseProgress("2026-11-14", phase1), 5 / 44);
+  assert.equal(phaseProgress("2026-12-22", phase1), 43 / 44);
 });
 
 test("the last day of Phase 1 is still one day left and today is not averaged", () => {

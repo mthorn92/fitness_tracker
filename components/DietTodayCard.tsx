@@ -4,6 +4,7 @@ import {
   type CalorieAverage,
 } from "@/lib/calorie-average";
 import { formatNumber } from "@/lib/format";
+import { phaseLengthDays, phaseProgress } from "@/lib/phases";
 import type { DietDashboardView } from "@/lib/types";
 
 function barWidth(current: number, target: number): number {
@@ -22,8 +23,43 @@ function coverageText(days: number): string | null {
   return days === 1 ? "avg of 1 day" : `avg of ${days} days`;
 }
 
-function daysLeftText(days: number): string {
-  return days === 1 ? "1 day left" : `${formatNumber(days)} days left`;
+function PhaseCountdown({
+  daysLeft,
+  done,
+  total,
+  progress,
+  name,
+}: {
+  daysLeft: number;
+  done: number;
+  total: number;
+  progress: number;
+  name: string;
+}) {
+  const lastDay = daysLeft === 1;
+  return (
+    <div className="phase-left">
+      <div className="phase-count">
+        <span className="phase-num">{formatNumber(daysLeft)}</span>
+        <span className={`phase-count-label${lastDay ? " is-last" : ""}`}>
+          {lastDay ? "last day!" : "days to go"}
+        </span>
+      </div>
+      <div
+        className="phase-track"
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={Math.max(0, done)}
+        aria-label={lastDay ? `Last day of ${name}` : `${formatNumber(daysLeft)} days to go in ${name}`}
+      >
+        <span className="phase-fill" style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }} />
+        <span className="phase-flag" aria-hidden="true">
+          🎄
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function DietTodayCard({
@@ -45,8 +81,6 @@ export function DietTodayCard({
   const carbsPct = barWidth(today.carbs_g, targets.carbs_g);
   const fatPct = barWidth(today.fat_g, targets.fat_g);
   const waterPct = barWidth(today.water_l, targets.water_l);
-  const cycleLabel =
-    today.cycle_closed === true ? "cycle closed" : today.cycle_closed === false ? "cycle open" : null;
 
   return (
     <section className="card" data-tab-group="diet" data-tile="daily">
@@ -62,29 +96,41 @@ export function DietTodayCard({
             <span style={{ width: `${Math.min(100, kcalPct)}%` }} />
           </div>
           {phase ? (
-            <p className="roll">
-              {phase.phase.name}: avg{" "}
-              {phase.average
-                ? `${formatNumber(phase.average.averageKcal)} / ${formatNumber(phase.average.targetKcal)}`
-                : `— / ${formatNumber(phase.phase.kcal_target)}`}
-              {phase.average ? (
-                <span className={`roll-delta ${phase.average.status}`}> · {deltaText(phase.average)}</span>
-              ) : null}
-              <span className="roll-note"> · {daysLeftText(phase.daysLeft)}</span>
-            </p>
+            <>
+              <p className="roll">
+                <span className="roll-keep">
+                  {phase.phase.name}: avg{" "}
+                  {phase.average
+                    ? `${formatNumber(phase.average.averageKcal)} / ${formatNumber(phase.average.targetKcal)}`
+                    : `— / ${formatNumber(phase.phase.kcal_target)}`}
+                </span>
+                {phase.average ? (
+                  <span className={`roll-keep roll-delta ${phase.average.status}`}> · {deltaText(phase.average)}</span>
+                ) : null}
+              </p>
+              <PhaseCountdown
+                daysLeft={phase.daysLeft}
+                done={phaseLengthDays(phase.phase) - phase.daysLeft}
+                total={phaseLengthDays(phase.phase)}
+                progress={phaseProgress(calendarToday, phase.phase)}
+                name={phase.phase.name}
+              />
+            </>
           ) : null}
           <p className="roll">
-            7-day avg:{" "}
-            {rolling
-              ? `${formatNumber(rolling.averageKcal)} / ${formatNumber(rolling.targetKcal)}`
-              : `— / ${formatNumber(targets.calories_kcal)}`}
+            <span className="roll-keep">
+              7-day avg:{" "}
+              {rolling
+                ? `${formatNumber(rolling.averageKcal)} / ${formatNumber(rolling.targetKcal)}`
+                : `— / ${formatNumber(targets.calories_kcal)}`}
+            </span>
             {rolling ? (
-              <span className={`roll-delta ${rolling.status}`}> · {deltaText(rolling)}</span>
+              <span className={`roll-keep roll-delta ${rolling.status}`}> · {deltaText(rolling)}</span>
             ) : null}
-            {rollingCoverage ? <span className="roll-note"> · {rollingCoverage}</span> : null}
           </p>
+          {rollingCoverage ? <p className="roll-coverage">{rollingCoverage}</p> : null}
         </div>
-        <div className="metric">
+        <div className="metric macro">
           <div className="label">Protein</div>
           <div className="value">
             {formatNumber(today.protein_g, 1)} / {targets.protein_g} g
@@ -93,7 +139,7 @@ export function DietTodayCard({
             <span style={{ width: `${Math.min(100, proteinPct)}%` }} />
           </div>
         </div>
-        <div className="metric">
+        <div className="metric macro">
           <div className="label">Carbs</div>
           <div className="value">
             {formatNumber(today.carbs_g, 1)} / {targets.carbs_g} g
@@ -102,7 +148,7 @@ export function DietTodayCard({
             <span style={{ width: `${Math.min(100, carbsPct)}%` }} />
           </div>
         </div>
-        <div className="metric">
+        <div className="metric macro">
           <div className="label">Fat</div>
           <div className="value">
             {formatNumber(today.fat_g, 1)} / {targets.fat_g} g
@@ -119,17 +165,6 @@ export function DietTodayCard({
           <div className={`bar${waterPct > 100 ? " over" : ""}`}>
             <span style={{ width: `${Math.min(100, waterPct)}%` }} />
           </div>
-        </div>
-        <div className="metric">
-          <div className="label">WHOOP burn</div>
-          <div className="value">
-            {today.whoop_burn_kcal == null ? "—" : `${formatNumber(today.whoop_burn_kcal)} kcal`}
-          </div>
-          {cycleLabel ? (
-            <div className="sub">
-              {today.cycle_closed ? "closed" : "so far"} · {cycleLabel}
-            </div>
-          ) : null}
         </div>
         <div className="metric">
           <div className="label">Weight</div>

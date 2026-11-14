@@ -41,3 +41,19 @@ export function phaseDaysLeft(today: string, phase: CaloriePhase): number {
   const endUtc = Date.UTC(endYear, endMonth - 1, endDay);
   return Math.round((endUtc - startUtc) / 86_400_000) + 1;
 }
+
+/** Inclusive length of the phase. Phase 1 is 44 days. */
+export function phaseLengthDays(phase: CaloriePhase): number {
+  return phaseDaysLeft(phase.start, phase);
+}
+
+/**
+ * Share of the phase already behind you.
+ * Today still counts as a day to go, so 14 Nov is 5/44 and the last day is 43/44.
+ */
+export function phaseProgress(today: string, phase: CaloriePhase): number {
+  const total = phaseLengthDays(phase);
+  if (total <= 0) return 0;
+  const done = total - phaseDaysLeft(today, phase);
+  return Math.min(1, Math.max(0, done / total));
+}
