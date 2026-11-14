@@ -78,7 +78,7 @@ test("the board marks a logged session done and highlights today's strength day"
   assert.equal(board.todayMode, "lift");
   assert.deepEqual(
     board.days.map((day) => day.position),
-    [1, 2, 4, 5],
+    [1, 2, 3, 4],
   );
   const monday = board.days[0];
   const wednesday = board.days[1];
@@ -89,7 +89,9 @@ test("the board marks a logged session done and highlights today's strength day"
   assert.equal(monday?.groups[0]?.rows[0]?.logged?.includes("7"), true);
   assert.equal(wednesday?.isToday, true);
   assert.equal(wednesday?.status, "Not done this week");
-  assert.equal(wednesday?.weekLabel, "Week 1 · build");
+  assert.equal(wednesday?.weekLabel, "Today · Week 1 of 8");
+  assert.equal(monday?.weekLabel, "Week 1 of 8");
+  assert.match(wednesday?.copyText ?? "", /^Day B - Legs \(Today · Week 1 of 8\)/);
 
   const runDay = await getExerciseBoard("2026-11-17");
   assert.equal(runDay.todayMode, "full");
@@ -99,6 +101,9 @@ test("the board marks a logged session done and highlights today's strength day"
   const before = await getExerciseBoard("2026-11-12");
   assert.equal(before.todayMode, "full");
   assert.equal(before.days[0]?.status, "Preview");
+  assert.equal(before.days[0]?.weekLabel, "Starts Mon 16 Nov · Week 1 of 8");
+  assert.match(before.days[0]?.copyText ?? "", /^Day A - Push \(Starts Mon 16 Nov · Week 1 of 8\)\n/);
+  assert.match(before.weekCopyText, /Day D - Hinge \(Starts Mon 16 Nov · Week 1 of 8\)/);
   assert.match(before.today.restNote ?? "", /starts/);
 });
 

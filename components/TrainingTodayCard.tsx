@@ -1,22 +1,22 @@
+import { CopyTextButton } from "@/components/CopyTextButton";
 import { formatRpe, TrainingBlocks } from "@/components/TrainingBlocks";
 import type { TrainingTile } from "@/lib/training-view";
 
 export function TrainingTodayCard({
   view,
   mode = "full",
+  weekCopy,
 }: {
   view: TrainingTile;
   mode?: "full" | "lift";
+  weekCopy?: string;
 }) {
   const meta = [view.dateLabel, view.weekLabel].filter(Boolean).join(" · ");
 
   if (mode === "lift") {
     return (
       <section className="card exercise-today" data-tab-group="exercise" data-tile="today">
-        <div className="tile-heading">
-          <h2>Today</h2>
-          {meta ? <p className="tile-meta">{meta}</p> : null}
-        </div>
+        <TodayHeading title="Today" meta={meta} weekCopy={weekCopy} />
         <p className="train-lead">{view.dayLabel ?? "Strength"} is highlighted.</p>
         {view.dailyWalk ? <p className="note">{view.dailyWalk}</p> : null}
       </section>
@@ -25,10 +25,7 @@ export function TrainingTodayCard({
 
   return (
     <section className="card training-tile exercise-today" data-tab-group="exercise" data-tile="today">
-      <div className="tile-heading">
-        <h2>{view.heading}</h2>
-        {meta ? <p className="tile-meta">{meta}</p> : null}
-      </div>
+      <TodayHeading title={view.heading} meta={meta} weekCopy={weekCopy} />
 
       {view.state === "before" || view.state === "after" ? (
         <>
@@ -60,5 +57,17 @@ export function TrainingTodayCard({
         </>
       )}
     </section>
+  );
+}
+
+function TodayHeading({ title, meta, weekCopy }: { title: string; meta: string; weekCopy?: string }) {
+  return (
+    <div className="tile-heading">
+      <div className="exercise-today-titles">
+        <h2>{title}</h2>
+        {meta ? <p className="tile-meta">{meta}</p> : null}
+      </div>
+      {weekCopy ? <CopyTextButton text={weekCopy} label="Copy week" /> : null}
+    </div>
   );
 }

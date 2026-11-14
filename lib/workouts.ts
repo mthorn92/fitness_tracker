@@ -138,7 +138,7 @@ export async function lastSyncedAt(): Promise<string | null> {
 }
 
 /**
- * Exercise tiles 3 and 6. One ranged read, no Strava call.
+ * Exercise tiles 5 and 6. One ranged read, no Strava call.
  * The run tile needs about four weeks; the workout tile needs seven days.
  */
 export async function loadExerciseActivities(today: string): Promise<{
