@@ -2,11 +2,10 @@ import { DailyRing } from "@/components/DailyRing";
 import {
   phaseCalorieSummary,
   rollingCalorieAverage,
-  rollingLoggedMean,
   type CalorieAverage,
 } from "@/lib/calorie-average";
 import { clampPercent, formatNumber } from "@/lib/format";
-import { formatWeightDelta, kgToGoal, latestWeighIn, weightWindowDelta, type WeightDelta } from "@/lib/weight-delta";
+import { formatWeightDelta, latestWeighIn, weightWindowDelta, type WeightDelta } from "@/lib/weight-delta";
 import { phaseLengthDays, phaseProgress } from "@/lib/phases";
 import type { DietDashboardView } from "@/lib/types";
 
@@ -42,22 +41,18 @@ function AverageChip({
   );
 }
 
-function formatSevenDay(value: number | null, digits: number, unit: string): string {
-  if (value == null) return "7d avg —";
-  const shown = digits === 0 ? Math.round(value) : value;
-  return `7d avg ${formatNumber(shown, digits)} ${unit}`;
-}
-
-function changeTag(days: number, delta: WeightDelta): { text: string; tone: "under" | "over" | "even" } {
+function changeValue(delta: WeightDelta): { text: string; tone: "down" | "up" | "flat" } {
   const shown = formatWeightDelta(delta.deltaKg);
-  if (shown.direction === "none" || delta.deltaKg == null) return { text: `${days}d —`, tone: "even" };
-  if (shown.direction === "flat") return { text: `${days}d 0.0 kg`, tone: "even" };
+  if (shown.direction === "none" || delta.deltaKg == null) return { text: "—", tone: "flat" };
+  if (shown.direction === "flat") return { text: "0.0 kg", tone: "flat" };
   const kg = formatNumber(Math.abs(Math.round(delta.deltaKg * 10) / 10), 1);
   const arrow = shown.direction === "down" ? "↓" : "↑";
-  return {
-    text: `${days}d ${arrow} ${kg} kg`,
-    tone: shown.direction === "down" ? "under" : "over",
-  };
+  return { text: `${arrow} ${kg} kg`, tone: shown.direction === "down" ? "down" : "up" };
+}
+
+function toGoalText(currentKg: number, goalKg: number): string {
+  const delta = Math.round((currentKg - goalKg) * 10) / 10;
+  return `${formatNumber(Math.abs(delta), 1)} kg`;
 }
 
 function MacroCell({
@@ -66,26 +61,20 @@ function MacroCell({
   target,
   unit,
   warnWhenOver,
-  average,
 }: {
   label: string;
   current: number;
   target: number;
   unit: string;
   warnWhenOver: boolean;
-  average: number | null;
 }) {
   const over = warnWhenOver && target > 0 && current > target;
   const shown = `${formatNumber(current, 1)} / ${formatNumber(target, Number.isInteger(target) ? 0 : 1)} ${unit}`;
   const meterMax = Math.max(target, 0);
-  const avgDigits = unit === "L" ? 1 : 0;
   return (
     <div className={`daily-macro${over ? " is-over" : ""}`}>
       <div className="daily-kicker">{label}</div>
-      <div className="macro-line">
-        <div className="value">{shown}</div>
-        <div className="macro-avg">{formatSevenDay(average, avgDigits, unit)}</div>
-      </div>
+      <div className="value">{shown}</div>
       <div
         className={`bar${over ? " over" : ""}`}
         role="meter"
@@ -101,29 +90,44 @@ function MacroCell({
   );
 }
 
+function WeightStat({
+  label,
+  value,
+  tone,
+  hero = false,
+  title,
+}: {
+  label: string;
+  value: string;
+  tone?: "down" | "up" | "flat";
+  hero?: boolean;
+  title?: string;
+}) {
+  const toneClass = tone && tone !== "flat" ? ` is-${tone}` : "";
+  return (
+    <div className={`weight-stat${hero ? " is-hero" : ""}${toneClass}`} title={title}>
+      <p className="daily-kicker">{label}</p>
+      <p className="weight-stat-value">{value}</p>
+    </div>
+  );
+}
+
 function WeightCard({ data, asOf }: { data: DietDashboardView; asOf: string }) {
   const latest = latestWeighIn(data.weight_points, asOf);
-  const goal = latest ? kgToGoal(latest.kg, data.goal_weight_kg) : null;
   const week = weightWindowDelta(data.weight_points, asOf, 7);
   const month = weightWindowDelta(data.weight_points, asOf, 28);
-  const weekTag = changeTag(7, week);
-  const monthTag = changeTag(28, month);
+  const weekValue = changeValue(week);
+  const monthValue = changeValue(month);
+  const goal =
+    latest && Number.isFinite(data.goal_weight_kg) ? toGoalText(latest.kg, data.goal_weight_kg) : "—";
   return (
     <div className="daily-chip daily-chip-wide">
-      <p className="daily-kicker">Weight</p>
-      <p className="daily-chip-figure">
-        <span className="daily-chip-num">{latest ? formatNumber(latest.kg, 1) : "—"}</span>
-        {latest ? <span className="daily-chip-of">kg</span> : null}
-        <span className="daily-chip-pills">
-          <span className={`daily-pill ${weekTag.tone}`} title={week.detail}>
-            {weekTag.text}
-          </span>
-          <span className={`daily-pill ${monthTag.tone}`} title={month.detail}>
-            {monthTag.text}
-          </span>
-        </span>
-      </p>
-      {goal ? <p className="daily-chip-note">{goal}</p> : null}
+      <div className="weight-stats">
+        <WeightStat label="Weight" value={latest ? `${formatNumber(latest.kg, 1)} kg` : "—"} hero />
+        <WeightStat label="To goal" value={goal} />
+        <WeightStat label="7 days" value={weekValue.text} tone={weekValue.tone} title={week.detail} />
+        <WeightStat label="28 days" value={monthValue.text} tone={monthValue.tone} title={month.detail} />
+      </div>
     </div>
   );
 }
@@ -146,22 +150,6 @@ export function DietTodayCard({
   const rolling = rollingCalorieAverage(loggedDays, calendarToday, targets.calories_kcal);
   const phase = phaseCalorieSummary(loggedDays, calendarToday);
   const phaseDays = phase ? phaseLengthDays(phase.phase) : 0;
-  const proteinAvg = rollingLoggedMean(
-    data.days.map((day) => ({ date: day.date, value: day.kcal == null ? null : day.protein_g })),
-    calendarToday,
-  );
-  const carbsAvg = rollingLoggedMean(
-    data.days.map((day) => ({ date: day.date, value: day.kcal == null ? null : day.carbs_g })),
-    calendarToday,
-  );
-  const fatAvg = rollingLoggedMean(
-    data.days.map((day) => ({ date: day.date, value: day.kcal == null ? null : day.fat_g })),
-    calendarToday,
-  );
-  const waterAvg = rollingLoggedMean(
-    data.days.map((day) => ({ date: day.date, value: day.water_l > 0 ? day.water_l : null })),
-    calendarToday,
-  );
   const lastDay = phase?.daysLeft === 1;
 
   return (
@@ -179,6 +167,7 @@ export function DietTodayCard({
           <span className="daily-ring-num">{kcalLabel}</span>
           <span className="daily-ring-sub">/ {targetLabel}</span>
           <span className={`daily-ring-status${kcalOver ? " is-over" : " is-under"}`}>{kcalStatus}</span>
+          <span className="daily-ring-kicker">Calories today</span>
         </DailyRing>
         {phase ? (
           <DailyRing
@@ -218,7 +207,6 @@ export function DietTodayCard({
           target={targets.protein_g}
           unit="g"
           warnWhenOver={false}
-          average={proteinAvg}
         />
         <MacroCell
           label="Carbs"
@@ -226,7 +214,6 @@ export function DietTodayCard({
           target={targets.carbs_g}
           unit="g"
           warnWhenOver
-          average={carbsAvg}
         />
         <MacroCell
           label="Fat"
@@ -234,7 +221,6 @@ export function DietTodayCard({
           target={targets.fat_g}
           unit="g"
           warnWhenOver
-          average={fatAvg}
         />
         <MacroCell
           label="Water"
@@ -242,7 +228,6 @@ export function DietTodayCard({
           target={targets.water_l}
           unit="L"
           warnWhenOver={false}
-          average={waterAvg}
         />
       </div>
     </section>

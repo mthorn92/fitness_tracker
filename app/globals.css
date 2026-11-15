@@ -527,15 +527,35 @@ body {
 }
 
 .daily-tile .daily-ring-copy {
-  top: 20%;
+  top: 18%;
+}
+
+.daily-tile .daily-ring-num {
+  font-size: clamp(1.05rem, 16cqi, 1.35rem);
 }
 
 .daily-tile .daily-ring-sub {
-  margin-top: 0.12rem;
+  margin-top: 0.08rem;
+  font-size: clamp(0.56rem, 8cqi, 0.66rem);
 }
 
 .daily-tile .daily-ring-status {
-  margin-top: 0.06rem;
+  margin-top: 0.04rem;
+  font-size: clamp(0.52rem, 7cqi, 0.62rem);
+}
+
+.daily-tile .daily-ring-phase,
+.daily-tile .daily-ring-kicker {
+  margin-top: 0.08rem;
+  color: var(--muted);
+  font-size: clamp(0.48rem, 6.5cqi, 0.58rem);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
+.daily-tile .daily-ring-kicker {
+  text-transform: uppercase;
 }
 
 .daily-ring.is-compact {
@@ -725,52 +745,44 @@ body {
   color: var(--muted);
 }
 
-.daily-chip-note {
-  margin: 0.06rem 0 0;
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 600;
-  line-height: 1.2;
+.weight-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--daily-space);
 }
 
-.daily-chip-pills {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.28rem;
-  margin-left: auto;
+.weight-stat {
+  min-width: 0;
+  text-align: left;
 }
 
-.daily-chip-pills .daily-pill {
-  margin-left: 0;
+.weight-stat-value {
+  margin: 0.12rem 0 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.weight-stat.is-hero .weight-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.weight-stat.is-down .weight-stat-value {
+  color: var(--accent);
+}
+
+.weight-stat.is-up .weight-stat-value {
+  color: var(--warn);
 }
 
 .daily-macro {
   min-width: 0;
   padding: 2px var(--daily-pad-x) 0;
   background: transparent;
-}
-
-.macro-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem;
-}
-
-.macro-avg {
-  flex: none;
-  margin: 0;
-  padding: 0.06rem 0.32rem 0.08rem;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--muted) 16%, var(--card));
-  color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  white-space: nowrap;
 }
 
 .daily-macro .value {
