@@ -1,47 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getExerciseBoard, sessionForStrengthDay, strengthSchedule } from "./exercise-board";
-import { upsertSession } from "./store";
+import { buildExerciseBoard, getExerciseBoard, sessionForStrengthDay } from "./exercise-board";
+import { loadTrainingPlan } from "./plan";
 import type { TrainingSession } from "./types";
 
 process.env.FITNESS_PGLITE_MEMORY = "1";
-
-test("before the block, the four strength tiles preview week 1 in week order", () => {
-  const schedule = strengthSchedule("2026-11-12");
-  assert.equal(schedule.mode, "upcoming");
-  assert.deepEqual(
-    schedule.days.map((day) => day.weekday),
-    ["mon", "wed", "thu", "sat"],
-  );
-  assert.deepEqual(
-    schedule.days.map((day) => day.date),
-    ["2026-11-16", "2026-11-18", "2026-11-19", "2026-11-21"],
-  );
-  assert.deepEqual(
-    schedule.days.map((day) => day.prescribed.label),
-    ["Day A push", "Day B legs", "Day C pull", "Day D hinge"],
-  );
-  assert.equal(schedule.days.every((day) => day.isToday), false);
-  const bench = schedule.days[0]?.prescribed.items.find((item) => item.key === "bench_press");
-  assert.equal(bench?.sets, 3);
-  assert.equal(bench?.reps, 7);
-  assert.equal(bench?.load_kg, 50);
-  const pull = schedule.days[0]?.prescribed.items.find((item) => item.key === "banded_pullup");
-  assert.equal(pull?.band, "2 red");
-});
-
-test("a deload week keeps the build reps and halves the sets", () => {
-  const schedule = strengthSchedule("2026-12-09");
-  assert.equal(schedule.mode, "current");
-  const wednesday = schedule.days.find((day) => day.weekday === "wed");
-  assert.equal(wednesday?.isToday, true);
-  assert.equal(wednesday?.prescribed.week_type, "deload");
-  const squat = wednesday?.prescribed.items.find((item) => item.key === "box_squat");
-  assert.equal(squat?.sets, 2);
-  assert.equal(squat?.reps, 9);
-  assert.equal(squat?.load_kg, 40);
-  assert.equal(wednesday?.prescribed.deload_note, "Stop with 4+ reps in reserve");
-});
 
 test("completion follows plan_day, and a dateless fallback only fills a blank plan day", () => {
   const sessions: TrainingSession[] = [
@@ -58,53 +21,87 @@ test("completion follows plan_day, and a dateless fallback only fills a blank pl
   assert.equal(skipped, null);
 });
 
-test("the board marks a logged session done and highlights today's strength day", async () => {
-  await upsertSession({
-    id: "session_2026-11-16_01",
-    date: "2026-11-16",
-    plan_id: "plan_2026-11-16",
-    plan_day: "mon",
-    completed: true,
-    rpe: 7,
-    feedback: "Stopped with reps in reserve.",
-    sets: [
-      { exercise_key: "bench_press", set: 1, reps: 7, load_kg: 50, band: null, hold_s: null, done: true },
+test("week 1 day tiles show the plan target and the logged sets", () => {
+  const plan = loadTrainingPlan();
+  const board = buildExerciseBoard({
+    date: "2026-11-15",
+    plan,
+    weights: [
+      { date: "2026-11-09", kg: 104.6 },
+      { date: "2026-11-15", kg: 102 },
     ],
-    duration_min: null,
-    avg_hr: null,
+    sessions: [
+      {
+        id: "session_2026-11-15_01",
+        date: "2026-11-15",
+        plan_id: plan.id,
+        plan_day: null,
+        day_slot: "a",
+        completed: true,
+        rpe: 7,
+        feedback: null,
+        duration_min: null,
+        avg_hr: null,
+        sets: [
+          { exercise_key: "bench_press", set: 1, reps: 7, load_kg: 50, band: null, hold_s: null, done: true },
+          { exercise_key: "bench_press", set: 2, reps: 7, load_kg: 50, band: null, hold_s: null, done: true },
+          { exercise_key: "bench_press", set: 3, reps: 7, load_kg: 50, band: null, hold_s: null, done: true },
+          { exercise_key: "banded_pullup", set: 1, reps: 6, load_kg: null, band: "2 red", hold_s: null, done: true },
+          { exercise_key: "banded_pullup", set: 2, reps: 6, load_kg: null, band: "2 red", hold_s: null, done: true },
+          { exercise_key: "banded_pullup", set: 3, reps: 5, load_kg: null, band: "2 red", hold_s: null, done: true },
+          { exercise_key: "strict_pullup", set: 1, reps: 1, load_kg: null, band: null, hold_s: null, done: true },
+          { exercise_key: "strict_pullup", set: 2, reps: 0, load_kg: null, band: null, hold_s: null, done: true },
+        ],
+      },
+    ],
   });
 
-  const board = await getExerciseBoard("2026-11-18");
-  assert.equal(board.todayMode, "lift");
-  assert.deepEqual(
-    board.days.map((day) => day.position),
-    [1, 2, 3, 4],
-  );
-  const monday = board.days[0];
-  const wednesday = board.days[1];
-  assert.equal(monday?.name, "Day A push");
-  assert.equal(monday?.status, "Done this week");
-  assert.equal(monday?.rpe, 7);
-  assert.equal(monday?.groups[0]?.rows[0]?.prescription, "3 × 7 @ 50 kg");
-  assert.equal(monday?.groups[0]?.rows[0]?.logged?.includes("7"), true);
-  assert.equal(wednesday?.isToday, true);
-  assert.equal(wednesday?.status, "Not done this week");
-  assert.equal(wednesday?.weekLabel, "Today · Week 1 of 8");
-  assert.equal(monday?.weekLabel, "Week 1 of 8");
-  assert.match(wednesday?.copyText ?? "", /^Day B - Legs \(Today · Week 1 of 8\)/);
+  assert.equal(board.currentWeek, 1);
+  assert.equal(board.weekCount, 5);
+  assert.equal(board.todayLabel, "Sun, 15 Nov");
+  const week = board.weeks[0];
+  assert.equal(week?.subtitle, "Day A done · Daily walk");
+  assert.equal(week?.sessions, 1);
+  const dayA = week?.days[0];
+  const dayB = week?.days[1];
+  assert.equal(dayA?.statusLabel, "Sun, 15 Nov");
+  assert.equal(dayB?.statusLabel, "Not started");
+  const bench = dayA?.rows.find((row) => row.key === "bench_press");
+  const pull = dayA?.rows.find((row) => row.key === "banded_pullup");
+  const strict = dayA?.rows.find((row) => row.key === "strict_pullup");
+  assert.equal(bench?.target, "3 × 7 @ 50 kg");
+  assert.equal(bench?.actual, "3×7 @ 50");
+  assert.equal(bench?.status, "met");
+  assert.equal(pull?.target, "3 × 6 · 2 red bands");
+  assert.equal(pull?.actual, "6, 6, 5");
+  assert.equal(pull?.status, "partial");
+  assert.equal(strict?.status, "partial");
+  assert.equal(dayB?.rows.every((row) => row.status === "none"), true);
 
-  const runDay = await getExerciseBoard("2026-11-17");
-  assert.equal(runDay.todayMode, "full");
-  assert.equal(runDay.today.dayLabel, "Easy run");
-  assert.match(runDay.today.cardioText ?? "", /25–30 min/);
+  assert.equal(board.e1rm.bench, 61.7);
+  assert.equal(board.work[0]?.groups.chest, 50 * 7 * 3);
+  assert.equal(board.work[0]?.groups.back, 6 + 6 + 5);
+  assert.equal(week?.pullups.assisted, 17);
+  assert.equal(week?.pullups.strict, 1);
+  assert.equal(week?.pullups.band, "2 red");
+  assert.equal(board.phase.daysLeft, 37);
+  assert.equal(board.phase.blockSessions, 1);
+  assert.equal(board.phase.blockTarget, 20);
+  assert.equal(board.phase.weightKg, 102);
+  assert.equal(board.phase.weightTrend, "down");
+  assert.equal(board.phase.strictPullups, 1);
 
-  const before = await getExerciseBoard("2026-11-12");
-  assert.equal(before.todayMode, "full");
-  assert.equal(before.days[0]?.status, "Preview");
-  assert.equal(before.days[0]?.weekLabel, "Starts Mon 16 Nov · Week 1 of 8");
-  assert.match(before.days[0]?.copyText ?? "", /^Day A - Push \(Starts Mon 16 Nov · Week 1 of 8\)\n/);
-  assert.match(before.weekCopyText, /Day D - Hinge \(Starts Mon 16 Nov · Week 1 of 8\)/);
-  assert.match(before.today.restNote ?? "", /starts/);
+  const week5 = board.weeks[4];
+  const laterBench = week5?.days[0]?.rows.find((row) => row.key === "bench_press");
+  assert.equal(laterBench?.target, "2 × 7 @ 55 kg");
+  assert.equal(laterBench?.status, "none");
+});
+
+test("the board loads the active plan when nothing is logged", async () => {
+  const board = await getExerciseBoard("2026-11-15");
+  assert.equal(board.planId, "plan_2026-11-15");
+  assert.equal(board.weeks[0]?.days.map((day) => day.slot).join(""), "abcd");
+  assert.equal(board.weeks[0]?.subtitle, "Daily walk");
 });
 
 function session(

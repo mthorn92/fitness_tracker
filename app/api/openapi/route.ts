@@ -199,6 +199,12 @@ export async function GET(request: Request) {
             sets: { type: "array", items: { $ref: "#/components/schemas/SessionSet" } },
             duration_min: { type: "number", nullable: true, description: "Run duration in minutes", example: 28 },
             avg_hr: { type: "number", nullable: true, description: "Average heart rate for a run", example: 138 },
+            day_slot: {
+              type: "string",
+              nullable: true,
+              enum: ["a", "b", "c", "d"],
+              description: "Optional A–D day for a flexible plan. Additive.",
+            },
           },
         },
         WorkoutActivity: {
@@ -359,6 +365,18 @@ export async function GET(request: Request) {
               },
             },
           },
+        },
+      },
+      "/api/plan": {
+        get: {
+          summary: "Read the active training plan",
+          description:
+            "Same auth as /api/log. Returns active_plan_id, plan_ids, and plan. A stored plan replaces the repo JSON with the same id.",
+        },
+        post: {
+          summary: "Upsert a training plan by id",
+          description:
+            "Same auth as /api/log. Body is the plan JSON (id plan_YYYY-MM-DD) plus optional active: true. Stored plans take precedence over repo JSON.",
         },
       },
       "/api/workouts": {

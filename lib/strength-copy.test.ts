@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import planFile from "@/data/plans/2026-11-16-8wk.json";
 import { strengthSchedule } from "./exercise-board";
 import { formatStrengthDayCopy, formatStrengthWeekCopy, type StrengthCopyDay } from "./strength-copy";
+import type { TrainingPlan } from "./types";
+
+const oldPlan = planFile as TrainingPlan;
 
 const WEEK = "Starts Mon 16 Nov · Week 1 of 8";
 
@@ -27,7 +31,7 @@ test("day A copy text groups supersets and stays plain", () => {
 });
 
 test("holds, per-leg work, and a later superset stay one exercise per line", () => {
-  const schedule = strengthSchedule("2026-11-12");
+  const schedule = strengthSchedule("2026-11-12", oldPlan);
   const pull = formatStrengthDayCopy(copyDay("2026-11-12", 2, WEEK));
   const hinge = formatStrengthDayCopy(copyDay("2026-11-12", 3, WEEK));
   const legs = formatStrengthDayCopy(copyDay("2026-11-12", 1, WEEK));
@@ -57,7 +61,7 @@ test("copy week uses each day's week label and a blank line between days", () =>
 });
 
 function copyDay(date: string, index: number, weekLabel: string): StrengthCopyDay {
-  const day = strengthSchedule(date).days[index];
+  const day = strengthSchedule(date, oldPlan).days[index];
   if (!day) throw new Error(`Missing strength day ${index}`);
   return {
     name: day.prescribed.label ?? "Strength",

@@ -1,0 +1,325 @@
+{
+  "id": "plan_2026-11-15",
+  "name": "Cut + strength block 1",
+  "start_date": "2026-11-15",
+  "end_date": "2026-12-22",
+  "daily_walk": "Daily walk",
+  "weeks": [
+    { "week": 1, "type": "build", "start_date": "2026-11-15", "end_date": "2026-11-21" },
+    { "week": 2, "type": "build", "start_date": "2026-11-22", "end_date": "2026-11-28" },
+    { "week": 3, "type": "build", "start_date": "2026-11-29", "end_date": "2026-12-05" },
+    { "week": 4, "type": "build", "start_date": "2026-12-06", "end_date": "2026-12-13" },
+    { "week": 5, "type": "test", "start_date": "2026-12-14", "end_date": "2026-12-20" }
+  ],
+  "walk_only": {
+    "start_date": "2026-12-21",
+    "end_date": "2026-12-22",
+    "note": "Walks only"
+  },
+  "deload_rule": {
+    "sets": "halve_round_up",
+    "load": "keep",
+    "rir_note": "Stop at 2–3 reps in reserve"
+  },
+  "progression": {
+    "compound": { "reps": [7, 8, 9], "then": "add_load_and_reset" },
+    "accessory": { "reps": [10, 12, 15], "then": "add_load_and_reset" },
+    "pullup": { "add_reps_per_build_week": 1, "cap_reps": 10, "then": "lighter_band_and_reset" }
+  },
+  "progression_rules": [
+    "Days A–D can be done in any order. Avoid doing B and D back to back.",
+    "Sets stop at 2–3 reps in reserve. The aim is to hold or build strength while in a deficit.",
+    "Compounds add a rep each build week (7, then 8, then 9). The next build week adds load_step_kg and resets to 7. Bench, box squat and deadlift step 5 kg. Overhead press steps 2.5 kg.",
+    "Accessories written at 10 reps go 10, then 12, then 15, then add load_step_kg when the exercise has one and reset to 10. Rep ranges written above 10 stay as written.",
+    "Banded pull-ups add one rep per build week until 10, then the next build week uses a lighter band and starts again. The aim is 4×10, then a lighter band.",
+    "Week 5 (14–20 Dec) is a test week: 2 sets, testing strict and banded pull-ups and rep-maxes on bench, overhead press, box squat and deadlift. Loads and reps stay at the week 4 build.",
+    "13 Dec stays in week 4 so the block has no empty day before the test week.",
+    "21–22 Dec is walks only.",
+    "Two easy runs a week, 25–30 min, heart rate under 145 bpm. Target band 130–140, watch alert at 140. Walk breaks are fine. No spin bike. Daily walks."
+  ],
+  "runs": {
+    "per_week": 2,
+    "label": "Easy run",
+    "duration_min_min": 25,
+    "duration_min_max": 30,
+    "hr_cap_bpm": 145,
+    "hr_alert_bpm": 140,
+    "hr_target_low_bpm": 130,
+    "hr_target_high_bpm": 140,
+    "note": "Walk breaks are fine. No spin bike. MAF, age about 35, no deduction."
+  },
+  "slots": [
+    {
+      "id": "a",
+      "label": "Day A · Push + triceps",
+      "items": [
+        {
+          "key": "bench_press",
+          "name": "Bench press",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 50,
+          "group": "A1",
+          "progression": "compound",
+          "load_step_kg": 5,
+          "muscle_group": "chest"
+        },
+        {
+          "key": "banded_pullup",
+          "name": "Banded pull-ups",
+          "sets": 3,
+          "reps": 6,
+          "band": "2 red",
+          "group": "A2",
+          "progression": "pullup",
+          "muscle_group": "back"
+        },
+        {
+          "key": "strict_pullup",
+          "name": "Strict pull-up attempts",
+          "sets": 2,
+          "reps": 1,
+          "extra": "attempt",
+          "progression": "none",
+          "muscle_group": "back"
+        },
+        {
+          "key": "overhead_press",
+          "name": "Overhead press",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 25,
+          "progression": "compound",
+          "load_step_kg": 2.5,
+          "muscle_group": "shoulders"
+        },
+        {
+          "key": "db_lateral_raise",
+          "name": "DB lateral raise",
+          "sets": 3,
+          "reps": 10,
+          "load_kg": 8,
+          "progression": "accessory",
+          "muscle_group": "shoulders"
+        },
+        {
+          "key": "rope_pushdown",
+          "name": "Rope pushdown",
+          "sets": 3,
+          "reps": 10,
+          "progression": "accessory",
+          "muscle_group": "arms"
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "label": "Day B · Legs + shoulders + biceps",
+      "items": [
+        {
+          "key": "single_db_clean_jerk",
+          "name": "Single-DB clean & jerk",
+          "sets": 3,
+          "reps": 5,
+          "extra": "per side",
+          "load_kg_min": 12,
+          "load_kg_max": 15,
+          "progression": "none",
+          "muscle_group": "legs"
+        },
+        {
+          "key": "box_squat",
+          "name": "Box squat",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 40,
+          "progression": "compound",
+          "load_step_kg": 5,
+          "muscle_group": "legs"
+        },
+        {
+          "key": "bulgarian_split_squat",
+          "name": "Split squat",
+          "sets": 3,
+          "reps": 8,
+          "reps_max": 10,
+          "extra": "per leg",
+          "group": "B1",
+          "progression": "none",
+          "muscle_group": "legs"
+        },
+        {
+          "key": "seated_db_press",
+          "name": "Seated DB press",
+          "sets": 3,
+          "reps": 8,
+          "reps_max": 12,
+          "group": "B2",
+          "progression": "none",
+          "muscle_group": "shoulders"
+        },
+        {
+          "key": "db_lateral_raise",
+          "name": "DB lateral raise",
+          "sets": 3,
+          "reps": 12,
+          "reps_max": 15,
+          "progression": "none",
+          "muscle_group": "shoulders"
+        },
+        {
+          "key": "hammer_curl",
+          "name": "Hammer curl",
+          "sets": 3,
+          "reps": 10,
+          "reps_max": 12,
+          "group": "C1",
+          "progression": "none",
+          "muscle_group": "arms"
+        },
+        {
+          "key": "band_pull_apart",
+          "name": "Band pull-aparts",
+          "sets": 2,
+          "reps": 15,
+          "reps_max": 20,
+          "group": "C2",
+          "progression": "none",
+          "muscle_group": "shoulders"
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "label": "Day C · Pull + triceps",
+      "items": [
+        {
+          "key": "banded_pullup",
+          "name": "Banded pull-ups",
+          "sets": 4,
+          "reps": 8,
+          "band": "2 red",
+          "group": "A1",
+          "progression": "pullup",
+          "muscle_group": "back"
+        },
+        {
+          "key": "cable_row",
+          "name": "Cable row",
+          "sets": 3,
+          "reps": 10,
+          "group": "A2",
+          "progression": "accessory",
+          "muscle_group": "back"
+        },
+        {
+          "key": "pullup_negative",
+          "name": "Band-free negatives",
+          "sets": 3,
+          "reps": 1,
+          "hold_s": 5,
+          "extra": "negative",
+          "progression": "none",
+          "muscle_group": "back"
+        },
+        {
+          "key": "pullup_top_hold",
+          "name": "Top hold",
+          "sets": 1,
+          "reps": 1,
+          "hold_s": 10,
+          "extra": "top hold",
+          "progression": "none",
+          "muscle_group": "back"
+        },
+        {
+          "key": "face_pull",
+          "name": "Face pulls",
+          "sets": 2,
+          "reps": 12,
+          "progression": "accessory",
+          "muscle_group": "shoulders"
+        },
+        {
+          "key": "cable_tricep_extension",
+          "name": "OH cable triceps ext.",
+          "sets": 3,
+          "reps": 10,
+          "reps_max": 12,
+          "progression": "none",
+          "muscle_group": "arms"
+        }
+      ]
+    },
+    {
+      "id": "d",
+      "label": "Day D · Hinge + biceps",
+      "items": [
+        {
+          "key": "box_jump",
+          "name": "Box jumps",
+          "sets": 3,
+          "reps": 5,
+          "extra": "low box",
+          "progression": "none",
+          "muscle_group": "legs"
+        },
+        {
+          "key": "deadlift",
+          "name": "Deadlift",
+          "sets": 3,
+          "reps": 7,
+          "load_kg": 50,
+          "progression": "compound",
+          "load_step_kg": 5,
+          "muscle_group": "legs"
+        },
+        {
+          "key": "band_good_morning",
+          "name": "Band good mornings",
+          "sets": 3,
+          "reps": 15,
+          "group": "A1",
+          "progression": "none",
+          "muscle_group": "legs"
+        },
+        {
+          "key": "dead_hang",
+          "name": "Dead hang",
+          "sets": 2,
+          "reps": 1,
+          "hold_s": 20,
+          "group": "A2",
+          "extra": "dead hang",
+          "progression": "none",
+          "muscle_group": "back"
+        },
+        {
+          "key": "scap_pullup",
+          "name": "Scap pull-ups",
+          "sets": 2,
+          "reps": 8,
+          "progression": "none",
+          "muscle_group": "back"
+        },
+        {
+          "key": "db_curl",
+          "name": "DB curl",
+          "sets": 3,
+          "reps": 10,
+          "progression": "accessory",
+          "muscle_group": "arms"
+        }
+      ]
+    }
+  ],
+  "days": {
+    "sun": { "label": "Walk", "kind": "rest", "note": "Daily walk. Days A–D are in any order." },
+    "mon": { "label": "Walk", "kind": "rest", "note": "Daily walk. Days A–D are in any order." },
+    "tue": { "label": "Walk", "kind": "rest", "note": "Daily walk. Easy run when it fits." },
+    "wed": { "label": "Walk", "kind": "rest", "note": "Daily walk. Days A–D are in any order." },
+    "thu": { "label": "Walk", "kind": "rest", "note": "Daily walk. Days A–D are in any order." },
+    "fri": { "label": "Walk", "kind": "rest", "note": "Daily walk. Easy run when it fits." },
+    "sat": { "label": "Walk", "kind": "rest", "note": "Daily walk. Days A–D are in any order." }
+  }
+}

@@ -377,7 +377,11 @@ export type DietDashboardView = {
   };
 };
 
-export type PlanWeekType = "build" | "deload";
+export type PlanWeekType = "build" | "deload" | "test";
+
+export type MuscleGroup = "chest" | "shoulders" | "back" | "legs" | "arms";
+
+export type DaySlot = "a" | "b" | "c" | "d";
 
 export type PlanWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -399,6 +403,44 @@ export type PlanItem = {
   /** Kilograms added when a rep ladder finishes. Compounds use this. */
   load_step_kg?: number;
   extra?: string;
+  /** Upper end of a rep range. The low end stays in `reps`. */
+  reps_max?: number;
+  /** Light starting load when the plan gives a range instead of one weight. */
+  load_kg_min?: number;
+  load_kg_max?: number;
+  muscle_group?: MuscleGroup;
+};
+
+export type PlanWeek = {
+  week: number;
+  type: PlanWeekType;
+  /** Inclusive. When set on every week, these dates replace the 7-day grid. */
+  start_date?: string;
+  end_date?: string;
+};
+
+export type PlanSlot = {
+  id: DaySlot;
+  label: string;
+  items: PlanItem[];
+};
+
+export type PlanRuns = {
+  per_week: number;
+  label: string;
+  duration_min_min: number;
+  duration_min_max: number;
+  hr_cap_bpm: number;
+  hr_alert_bpm?: number;
+  hr_target_low_bpm?: number;
+  hr_target_high_bpm?: number;
+  note?: string;
+};
+
+export type PlanWalkOnly = {
+  start_date: string;
+  end_date: string;
+  note: string;
 };
 
 export type PlanLiftDay = {
@@ -424,13 +466,15 @@ export type PlanRestDay = {
 
 export type PlanDay = PlanLiftDay | PlanCardioDay | PlanRestDay;
 
-/** 8-week block loaded from data/plans. */
+/** Training block loaded from data/plans, or from the plans table when one is stored. */
 export type TrainingPlan = {
   id: string;
   name: string;
   start_date: string;
+  /** Inclusive last day. When omitted, the block is weeks × 7 days from start_date. */
+  end_date?: string;
   daily_walk: string;
-  weeks: Array<{ week: number; type: PlanWeekType }>;
+  weeks: PlanWeek[];
   deload_rule: {
     sets: "halve_round_up";
     load: "keep";
@@ -447,6 +491,10 @@ export type TrainingPlan = {
   };
   progression_rules: string[];
   days: Record<PlanWeekday, PlanDay>;
+  /** Days A–D in any order. When set, the Exercise tab uses these instead of weekdays. */
+  slots?: PlanSlot[];
+  runs?: PlanRuns;
+  walk_only?: PlanWalkOnly;
 };
 
 export type PrescribedExercise = {
@@ -460,6 +508,10 @@ export type PrescribedExercise = {
   group: string | null;
   extra: string | null;
   progression: PlanProgression;
+  reps_max: number | null;
+  load_kg_min: number | null;
+  load_kg_max: number | null;
+  muscle_group: MuscleGroup | null;
 };
 
 /**
@@ -512,4 +564,6 @@ export type TrainingSession = {
   sets: SessionSet[];
   duration_min: number | null;
   avg_hr: number | null;
+  /** Optional A–D slot. Additive. Omitted or null on older sessions. */
+  day_slot?: DaySlot | null;
 };

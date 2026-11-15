@@ -1,13 +1,25 @@
-import planFile from "@/data/plans/2026-11-16-8wk.json";
+import activeFile from "@/data/plans/active.json";
+import plan20261115 from "@/data/plans/2026-11-15-5wk.json";
+import plan20261116 from "@/data/plans/2026-11-16-8wk.json";
 import { parseIsoDate, shiftIsoDate } from "@/lib/format";
 import type {
   PlanItem,
+  PlanSlot,
+  PlanWeek,
   PlanWeekday,
   PlanWeekType,
   PrescribedDay,
   PrescribedExercise,
   TrainingPlan,
 } from "@/lib/types";
+
+/** Repo JSON. A stored plan with the same id replaces the file. See loadActiveTrainingPlan. */
+export const REPO_PLANS: TrainingPlan[] = [
+  plan20261115 as TrainingPlan,
+  plan20261116 as TrainingPlan,
+];
+
+export const REPO_ACTIVE_PLAN_ID = activeFile.id;
 
 /**
  * Prescriptions follow the plan calendar only.
@@ -25,26 +37,64 @@ import type {
 
 const WEEKDAYS: PlanWeekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
+export function loadRepoTrainingPlan(id = REPO_ACTIVE_PLAN_ID): TrainingPlan {
+  const found = REPO_PLANS.find((plan) => plan.id === id);
+  if (!found) throw new Error(`Missing repo plan ${id}`);
+  return found;
+}
+
+/** Active plan from repo JSON. Stored plans, when present, are applied by loadActiveTrainingPlan. */
 export function loadTrainingPlan(): TrainingPlan {
-  return planFile as TrainingPlan;
+  return loadRepoTrainingPlan();
+}
+
+export function planUsesDatedWeeks(plan: TrainingPlan): boolean {
+  return plan.weeks.length > 0 && plan.weeks.every((week) => week.start_date && week.end_date);
 }
 
 export function planEndDate(plan: TrainingPlan = loadTrainingPlan()): string {
+  if (plan.end_date) return plan.end_date;
   return shiftIsoDate(plan.start_date, plan.weeks.length * 7 - 1);
 }
 
-/** Monday–Sunday dates for a 1-based block week, or null when the week is outside the plan. */
+/** Inclusive dates for a 1-based block week, or null when the week is outside the plan. */
 export function planWeekRange(
   week: number,
   plan: TrainingPlan = loadTrainingPlan(),
 ): { start: string; end: string } | null {
-  if (!plan.weeks.some((entry) => entry.week === week)) return null;
+  const meta = plan.weeks.find((entry) => entry.week === week);
+  if (!meta) return null;
+  if (meta.start_date && meta.end_date) return { start: meta.start_date, end: meta.end_date };
+  if (planUsesDatedWeeks(plan)) return null;
   const start = shiftIsoDate(plan.start_date, (week - 1) * 7);
   return { start, end: shiftIsoDate(start, 6) };
 }
 
+export function weekMetaForDate(date: string, plan: TrainingPlan): PlanWeek | null {
+  if (planUsesDatedWeeks(plan)) {
+    return (
+      plan.weeks.find(
+        (week) => week.start_date && week.end_date && date >= week.start_date && date <= week.end_date,
+      ) ?? null
+    );
+  }
+  const offset = daysBetween(plan.start_date, date);
+  if (offset < 0 || offset >= plan.weeks.length * 7) return null;
+  const week = Math.floor(offset / 7) + 1;
+  return plan.weeks.find((entry) => entry.week === week) ?? null;
+}
+
 export function scheduledTrainingDays(plan: TrainingPlan = loadTrainingPlan()): number {
+  if (plan.slots && plan.slots.length > 0) return plan.slots.length;
   return Object.values(plan.days).filter((day) => day.kind !== "rest").length;
+}
+
+/** Prescription for one flexible day in a block week. Test weeks cap sets at 2. */
+export function prescribeSlot(slot: PlanSlot, week: number, plan: TrainingPlan): PrescribedExercise[] {
+  const meta = plan.weeks.find((entry) => entry.week === week);
+  const weekType = meta?.type ?? "build";
+  const buildIndex = buildWeekIndex(plan, week);
+  return slot.items.map((item) => prescribeItem(item, buildIndex, weekType, plan));
 }
 
 export function prescribeDay(date: string, plan: TrainingPlan = loadTrainingPlan()): PrescribedDay {
@@ -69,15 +119,33 @@ export function prescribeDay(date: string, plan: TrainingPlan = loadTrainingPlan
     note: null,
   };
 
-  const offset = daysBetween(plan.start_date, date);
-  if (offset < 0 || offset >= plan.weeks.length * 7) return base;
+  if (date < plan.start_date || date > end) return base;
 
-  const week = Math.floor(offset / 7) + 1;
-  const meta = plan.weeks.find((entry) => entry.week === week);
-  if (!meta) return base;
+  const walk = plan.walk_only;
+  if (walk && date >= walk.start_date && date <= walk.end_date) {
+    base.in_block = true;
+    base.note = walk.note;
+    base.kind = "rest";
+    base.label = "Walks only";
+    base.plan_day = WEEKDAYS[parseIsoDate(date).getUTCDay()];
+    return base;
+  }
+
+  const meta = weekMetaForDate(date, plan);
+  if (!meta) {
+    base.in_block = true;
+    base.plan_day = WEEKDAYS[parseIsoDate(date).getUTCDay()];
+    base.kind = "rest";
+    base.label = plan.daily_walk;
+    base.note = plan.daily_walk;
+    return base;
+  }
+
+  const week = meta.week;
 
   const planDay = WEEKDAYS[parseIsoDate(date).getUTCDay()];
   const day = plan.days[planDay];
+  if (!day) return base;
   const weekType = meta.type;
   const buildIndex = buildWeekIndex(plan, week);
 
@@ -154,7 +222,9 @@ function prescribeItem(
   if (weekType === "deload" && plan.deload_rule.sets === "halve_round_up") {
     sets = Math.ceil(sets / 2);
   }
+  if (weekType === "test") sets = Math.min(sets, 2);
 
+  const loadUnchanged = load === (item.load_kg ?? null);
   return {
     key: item.key,
     name: item.name,
@@ -166,6 +236,10 @@ function prescribeItem(
     group: item.group ?? null,
     extra: item.extra ?? null,
     progression: item.progression,
+    reps_max: reps === item.reps ? (item.reps_max ?? null) : null,
+    load_kg_min: loadUnchanged ? (item.load_kg_min ?? null) : null,
+    load_kg_max: loadUnchanged ? (item.load_kg_max ?? null) : null,
+    muscle_group: item.muscle_group ?? null,
   };
 }
 

@@ -5,6 +5,7 @@ import { seedIfEmpty } from "@/lib/seed";
 import { slugId } from "@/lib/ids";
 import type {
   DayLog,
+  DaySlot,
   DayWhoop,
   FitnessSnapshot,
   FoodItem,
@@ -811,8 +812,8 @@ export async function upsertSession(
   const existing = await sql<{ id: string }>("select id from sessions where id = $1", [input.id]);
   await sql(
     `insert into sessions (
-       id, date, plan_id, plan_day, completed, rpe, feedback, sets, duration_min, avg_hr, updated_at
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10, now())
+       id, date, plan_id, plan_day, completed, rpe, feedback, sets, duration_min, avg_hr, day_slot, updated_at
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11, now())
      on conflict (id) do update set
        date = excluded.date,
        plan_id = excluded.plan_id,
@@ -823,6 +824,7 @@ export async function upsertSession(
        sets = excluded.sets,
        duration_min = excluded.duration_min,
        avg_hr = excluded.avg_hr,
+       day_slot = excluded.day_slot,
        updated_at = now()`,
     [
       input.id,
@@ -835,6 +837,7 @@ export async function upsertSession(
       JSON.stringify(input.sets),
       input.duration_min,
       input.avg_hr,
+      input.day_slot ?? null,
     ],
   );
   await refreshPages();
@@ -856,7 +859,71 @@ function mapSession(row: Record<string, unknown>): TrainingSession {
     sets: parseSets(row.sets),
     duration_min: row.duration_min == null || row.duration_min === "" ? null : num(row.duration_min),
     avg_hr: row.avg_hr == null || row.avg_hr === "" ? null : num(row.avg_hr),
+    day_slot: daySlot(row.day_slot),
   };
+}
+
+function daySlot(value: unknown): DaySlot | null {
+  const slot = optionalText(value);
+  if (slot === "a" || slot === "b" || slot === "c" || slot === "d") return slot;
+  return null;
+}
+
+export async function listWeights(): Promise<Array<{ date: string; kg: number }>> {
+  await ready();
+  const rows = await sql<{ date: string; kg: number }>("select date, kg from weights order by date");
+  return rows.map((row) => ({ date: text(row.date), kg: num(row.kg) }));
+}
+
+export type StoredPlanRow = {
+  id: string;
+  body: unknown;
+  active: boolean;
+};
+
+export async function listStoredPlans(): Promise<StoredPlanRow[]> {
+  await ready();
+  const rows = await sql<Record<string, unknown>>("select id, body, active from plans order by id");
+  return rows.map((row) => ({
+    id: text(row.id),
+    body: parseJson(row.body),
+    active: bool(row.active),
+  }));
+}
+
+export async function upsertStoredPlan(
+  id: string,
+  body: unknown,
+  active: boolean | null,
+  options?: { refresh?: boolean },
+): Promise<{ created: boolean }> {
+  await ready();
+  const existing = await sql<{ id: string }>("select id from plans where id = $1", [id]);
+  if (active === true) {
+    await sql("update plans set active = false where active = true and id <> $1", [id]);
+  }
+  await sql(
+    `insert into plans (id, body, active, updated_at)
+     values ($1, $2::jsonb, $3, now())
+     on conflict (id) do update set
+       body = excluded.body,
+       active = case when $4::boolean is null then plans.active else excluded.active end,
+       updated_at = now()`,
+    [id, JSON.stringify(body), active === true, active],
+  );
+  if (options?.refresh !== false) await refreshPages();
+  return { created: existing.length === 0 };
+}
+
+function parseJson(value: unknown): unknown {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return value;
 }
 
 function parseSets(value: unknown): SessionSet[] {

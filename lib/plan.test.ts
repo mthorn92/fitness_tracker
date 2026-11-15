@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadTrainingPlan, planEndDate, prescribeDay, scheduledTrainingDays } from "./plan";
+import planFile from "@/data/plans/2026-11-16-8wk.json";
+import {
+  loadTrainingPlan,
+  planEndDate,
+  planWeekRange,
+  prescribeDay,
+  prescribeSlot,
+  scheduledTrainingDays,
+} from "./plan";
+import type { TrainingPlan } from "./types";
 
-const plan = loadTrainingPlan();
+const plan = planFile as TrainingPlan;
 
 function item(date: string, key: string) {
   const day = prescribeDay(date, plan);
@@ -166,6 +175,79 @@ test("deload halves sets, keeps the previous build load, and shows the reserve n
   assert.equal(last.reps, 9);
   assert.equal(last.load_kg, 55);
   assert.equal(item("2027-01-09", "dead_hang").sets, 1);
+});
+
+test("the active repo plan is the 5-week block from 15 Nov", () => {
+  const active = loadTrainingPlan();
+  assert.equal(active.id, "plan_2026-11-15");
+  assert.equal(active.start_date, "2026-11-15");
+  assert.equal(planEndDate(active), "2026-12-22");
+  assert.equal(active.weeks.length, 5);
+  assert.equal(scheduledTrainingDays(active), 4);
+  assert.equal(planWeekRange(5, active)?.start, "2026-12-14");
+  assert.equal(planWeekRange(5, active)?.end, "2026-12-20");
+  assert.equal(planWeekRange(4, active)?.end, "2026-12-13");
+
+  const dayA = active.slots?.find((slot) => slot.id === "a");
+  const dayB = active.slots?.find((slot) => slot.id === "b");
+  const dayC = active.slots?.find((slot) => slot.id === "c");
+  const dayD = active.slots?.find((slot) => slot.id === "d");
+  assert.deepEqual(dayA?.items.map((item) => item.key), [
+    "bench_press",
+    "banded_pullup",
+    "strict_pullup",
+    "overhead_press",
+    "db_lateral_raise",
+    "rope_pushdown",
+  ]);
+  assert.deepEqual(dayB?.items.map((item) => item.key), [
+    "single_db_clean_jerk",
+    "box_squat",
+    "bulgarian_split_squat",
+    "seated_db_press",
+    "db_lateral_raise",
+    "hammer_curl",
+    "band_pull_apart",
+  ]);
+  assert.deepEqual(dayC?.items.map((item) => item.key), [
+    "banded_pullup",
+    "cable_row",
+    "pullup_negative",
+    "pullup_top_hold",
+    "face_pull",
+    "cable_tricep_extension",
+  ]);
+  assert.deepEqual(dayD?.items.map((item) => item.key), [
+    "box_jump",
+    "deadlift",
+    "band_good_morning",
+    "dead_hang",
+    "scap_pullup",
+    "db_curl",
+  ]);
+  assert.equal(dayA?.items.every((item) => item.muscle_group), true);
+
+  const week1 = prescribeSlot(dayA!, 1, active);
+  const bench = week1.find((item) => item.key === "bench_press");
+  assert.equal(bench?.sets, 3);
+  assert.equal(bench?.reps, 7);
+  assert.equal(bench?.load_kg, 50);
+  const week4Bench = prescribeSlot(dayA!, 4, active).find((item) => item.key === "bench_press");
+  assert.equal(week4Bench?.reps, 7);
+  assert.equal(week4Bench?.load_kg, 55);
+  const week5Bench = prescribeSlot(dayA!, 5, active).find((item) => item.key === "bench_press");
+  assert.equal(week5Bench?.sets, 2);
+  assert.equal(week5Bench?.reps, 7);
+  assert.equal(week5Bench?.load_kg, 55);
+  const week5Pull = prescribeSlot(dayC!, 5, active).find((item) => item.key === "banded_pullup");
+  assert.equal(week5Pull?.sets, 2);
+
+  const walks = prescribeDay("2026-12-21", active);
+  assert.equal(walks.in_block, true);
+  assert.equal(walks.label, "Walks only");
+  assert.equal(prescribeDay("2026-11-14", active).in_block, false);
+  assert.equal(prescribeDay("2026-12-22", active).in_block, true);
+  assert.equal(prescribeDay("2026-12-23", active).in_block, false);
 });
 
 test("dates outside the block are not a training day", () => {
