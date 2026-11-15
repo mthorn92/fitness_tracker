@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ChartRangeBar } from "@/components/ChartRangeBar";
 import {
   CaloriesChartTile,
@@ -13,11 +13,10 @@ import {
 import { DietTodayCard } from "@/components/DietTodayCard";
 import { PhaseTile } from "@/components/PhaseTile";
 import { MonthRings } from "@/components/MonthRings";
+import { ExerciseDayTile, ExerciseToday, OverloadTile, PhaseSummaryTile } from "@/components/ExerciseTiles";
 import { StravaRunsTile } from "@/components/StravaRunsTile";
-import { StrengthDayTile } from "@/components/StrengthDayTile";
 import { StravaWorkoutsTile } from "@/components/StravaWorkoutsTile";
 import { TodayFood } from "@/components/TodayFood";
-import { TrainingTodayCard } from "@/components/TrainingTodayCard";
 import {
   DASHBOARD_TAB_EVENT,
   DASHBOARD_TABS,
@@ -242,6 +241,12 @@ export function Dashboard({
     document.dispatchEvent(new Event(DASHBOARD_TAB_EVENT));
   }, [tab]);
 
+  const [exerciseWeek, setExerciseWeek] = useState(board.currentWeek);
+  useEffect(() => {
+    setExerciseWeek(board.currentWeek);
+  }, [board.planId, board.currentWeek]);
+  const selectedWeek = board.weeks.find((entry) => entry.week === exerciseWeek) ?? board.weeks[0];
+
   function select(next: DashboardTab) {
     writeStoredTab(next);
     writeTabUrl(next);
@@ -279,7 +284,7 @@ export function Dashboard({
       <header className="dashboard-head">
         <h1>Max&apos;s Dashboard</h1>
         <p className="updated">Updated {updated}</p>
-        <ChartRangeBar range={range} onChange={selectRange} />
+        {tab === "diet" ? <ChartRangeBar range={range} onChange={selectRange} /> : null}
         <div className="tabs" role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown}>
           {DASHBOARD_TABS.map((name) => (
             <button
@@ -305,12 +310,18 @@ export function Dashboard({
       <ProteinChartTile proteinRef={charts.protein} data={data} model={model} today={today} />
       <PhaseTile data={data} today={today} />
       <PersonalKcalTile data={data} />
-      <TrainingTodayCard view={board.today} mode={board.todayMode} weekCopy={board.weekCopyText} />
-      {board.days.map((day) => (
-        <StrengthDayTile key={day.planDay} day={day} />
-      ))}
-      <StravaWorkoutsTile model={workouts} />
-      <StravaRunsTile model={strava} />
+      {selectedWeek ? (
+        <>
+          <ExerciseToday board={board} week={selectedWeek} onWeek={setExerciseWeek} />
+          {selectedWeek.days.map((day) => (
+            <ExerciseDayTile key={day.slot} day={day} />
+          ))}
+          <StravaWorkoutsTile model={workouts} />
+          <StravaRunsTile model={strava} />
+          <OverloadTile board={board} week={selectedWeek} />
+          <PhaseSummaryTile board={board} week={selectedWeek} />
+        </>
+      ) : null}
     </main>
   );
 }

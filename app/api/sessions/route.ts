@@ -1,10 +1,11 @@
 import { asArray, asBoolean, asDate, asId, asNumber, asObject, asString } from "@/lib/api-body";
 import { json, requireLogAccess } from "@/lib/auth";
 import { listSessions, nextSessionId, upsertSession } from "@/lib/store";
-import type { PlanWeekday, SessionSet, TrainingSession } from "@/lib/types";
+import type { DaySlot, PlanWeekday, SessionSet, TrainingSession } from "@/lib/types";
 
 const SESSION_ID = /^session_(\d{4}-\d{2}-\d{2})_(\d{2})$/;
 const PLAN_DAYS = new Set(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+const DAY_SLOTS = new Set(["a", "b", "c", "d"]);
 
 export async function GET(request: Request) {
   const access = await requireLogAccess(request);
@@ -110,6 +111,13 @@ export async function POST(request: Request) {
     if (avg_hr == null || avg_hr < 1 || avg_hr > 250) return json({ error: "invalid_avg_hr" }, 400);
   }
 
+  let day_slot: DaySlot | null = null;
+  if ("day_slot" in body && body.day_slot != null && body.day_slot !== "") {
+    const slot = asString(body.day_slot, 1);
+    if (!slot || !DAY_SLOTS.has(slot)) return json({ error: "invalid_day_slot" }, 400);
+    day_slot = slot as DaySlot;
+  }
+
   const session: TrainingSession = {
     id,
     date,
@@ -121,6 +129,7 @@ export async function POST(request: Request) {
     sets,
     duration_min,
     avg_hr,
+    day_slot,
   };
   const saved = await upsertSession(session);
   return json(saved.session, saved.created ? 201 : 200);
