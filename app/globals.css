@@ -341,6 +341,7 @@ body {
 @media (min-width: 800px) {
   .dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
 
   .dashboard[data-tab="exercise"] {
@@ -370,13 +371,19 @@ body {
   overflow: visible;
 }
 
-/* Three columns on a wide window. Each row is at least as tall as its content, and leftover viewport space is shared. Nothing is clipped. */
+/* Three columns on a wide window. Rows are as tall as their content. Tiles do not stretch to fill the screen, so a long food list or a tall neighbour leaves a gap instead of pulling the charts with it. */
 @media (min-width: 1100px) {
   .dashboard {
-    min-height: 100dvh;
+    min-height: 0;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto repeat(3, minmax(min-content, 1fr));
-    align-content: stretch;
+    grid-template-rows: auto;
+    align-content: start;
+    align-items: start;
+  }
+
+  .dashboard > .card {
+    align-self: start;
+    height: auto;
   }
 
   .chart-tile {
@@ -389,13 +396,15 @@ body {
   }
 
   .chart-tile .chart-wrap {
-    flex: 1 1 220px;
+    flex: none;
+    height: 280px;
+    min-height: 280px;
   }
 
   .chart-tile .chart-wrap.chart-wrap-mini {
-    flex: 0 0 auto;
-    height: 150px;
-    min-height: 150px;
+    flex: none;
+    height: 220px;
+    min-height: 220px;
   }
 
   .dashboard[data-tab="diet"] > [data-tab-group="diet"] > h2,
@@ -406,7 +415,7 @@ body {
     line-height: 1.25;
   }
 
-  /* The 1fr rows are for the diet grid. Exercise stays content-sized: four strength days, then the two Strava tiles. */
+  /* Exercise stays content-sized: four strength days, then the two Strava tiles. */
   .dashboard[data-tab="exercise"] {
     min-height: 0;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -703,17 +712,21 @@ body {
   margin-top: 0.36rem;
 }
 
-.daily-weight {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0.8rem 0 0;
+.weight-block {
+  margin: 0.7rem 0 0;
   padding-top: 0.5rem;
   border-top: 1px solid var(--line);
 }
 
-.daily-weight-label {
+.weight-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+}
+
+.weight-kicker {
+  margin: 0;
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 650;
@@ -722,12 +735,110 @@ body {
   text-transform: uppercase;
 }
 
-.daily-weight-value {
+.weight-figure {
+  margin: 0.04rem 0 0;
   font-variant-numeric: tabular-nums;
-  font-size: 0.92rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.weight-figure span {
+  color: var(--muted);
+  font-size: 0.82rem;
   font-weight: 650;
+}
+
+.weight-goal {
+  margin: 0 0 0.12rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.weight-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.weight-chip {
+  min-width: 0;
+  margin: 0;
+  padding: 0.28rem 0.45rem 0.32rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.weight-chip-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.weight-chip-value {
+  display: block;
+  margin-top: 0.06rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
+}
+
+.weight-chip.is-down .weight-chip-value {
+  color: var(--accent);
+}
+
+.weight-chip.is-up .weight-chip-value {
+  color: var(--warn);
+}
+
+.weight-chip.is-flat .weight-chip-value,
+.weight-chip.is-none .weight-chip-value {
+  color: var(--muted);
+}
+
+.today-meter {
+  margin: 0 0 0.35rem;
+}
+
+.today-meter-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.today-meter-kicker {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.today-meter-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.today-meter .bar {
+  height: 6px;
+  margin-top: 0.28rem;
 }
 
 .phase-dates {
@@ -837,8 +948,8 @@ body {
 }
 
 .chart-wrap.chart-wrap-mini {
-  height: 150px;
-  min-height: 150px;
+  height: 200px;
+  min-height: 200px;
 }
 
 .personal-body {
@@ -883,8 +994,9 @@ body {
 .chart-wrap {
   position: relative;
   width: 100%;
-  height: 220px;
-  min-height: 220px;
+  height: 240px;
+  min-height: 240px;
+  flex: none;
 }
 
 .chart-wrap canvas {
@@ -1213,7 +1325,7 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-shrink: 0;
+  flex: none;
   margin-top: auto;
   padding-top: 0.55rem;
   border-top: 1px solid var(--line);
@@ -1226,6 +1338,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .food-tile .tile-heading {
@@ -1235,6 +1349,8 @@ body {
 .food-list {
   overflow-y: auto;
   min-height: 0;
+  max-height: 20rem;
+  overscroll-behavior: contain;
 }
 
 .food-tile .food-list {
@@ -1324,7 +1440,9 @@ body {
 
 @media (min-width: 800px) {
   .food-tile {
-    height: 100%;
+    height: auto;
+    align-self: start;
+    overflow: hidden;
   }
 }
 

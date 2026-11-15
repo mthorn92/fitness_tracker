@@ -84,7 +84,7 @@ export function PhaseTile({
             </span>
           </p>
           {average ? <span className={`daily-pill ${average.status}`}>{deltaText(average)}</span> : null}
-          <p className="phase-logged">{loggedLabel(balance.loggedDays)}</p>
+          <p className="phase-logged">{loggedLabel(average?.days ?? 0)}</p>
         </div>
       </div>
       <div className="phase-deficit">
@@ -98,8 +98,9 @@ export function PhaseTile({
             </p>
             <p className="phase-deficit-kg">≈ {formatNumber(Math.abs(balance.deficitKg), 2)} kg</p>
             <p className="note">
-              vs {formatNumber(phase.kcal_target)} × {formatNumber(balance.loggedDays)} logged {dayWord}.
-              {todayOpen ? " Today isn't counted yet." : ""}
+              vs {formatNumber(phase.kcal_target)} × {formatNumber(balance.loggedDays)} logged {dayWord}
+              {balance.includesOpenToday ? ", incl. today so far." : "."}
+              {!balance.includesOpenToday && todayOpen ? " Today isn't counted yet." : ""}
             </p>
           </>
         ) : (

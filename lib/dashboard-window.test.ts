@@ -20,6 +20,8 @@ test("the selected chart window keeps meals and the running deficit", async () =
   assert.equal(rangedView.today.kcal, fullView.today.kcal);
   assert.equal(rangedView.cumulative_deficit_kcal, fullView.cumulative_deficit_kcal);
   assert.equal(rangedView.days.length, fullView.days.length);
+  assert.ok(fullView.weight_points.some((point) => point.date === "2026-11-09" && point.kg === 104.5));
+  assert.deepEqual(rangedView.weight_points, fullView.weight_points);
   const fullLog = buildTodayView(full, fullView.today.date);
   const rangedLog = buildTodayView(ranged, rangedView.today.date);
   assert.deepEqual(

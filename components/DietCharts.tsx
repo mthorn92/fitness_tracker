@@ -12,7 +12,7 @@ import {
 } from "@/lib/chart-range";
 import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
 import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
-import { formatNumber } from "@/lib/format";
+import { clampPercent, formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
 
 const chartLibrary = typeof window === "undefined" ? null : import("chart.js");
@@ -34,6 +34,34 @@ function chartPoint(value: unknown): number | null {
 
 function formatTarget(value: number): string {
   return value.toLocaleString("en-AU", { maximumFractionDigits: 1 });
+}
+
+/** Diagonal hatch so today's unfinished bar reads differently from a completed day. */
+function hatchPattern(color: string): CanvasPattern | string {
+  const canvas = document.createElement("canvas");
+  canvas.width = 8;
+  canvas.height = 8;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return hexAlpha(color, 0.28);
+  ctx.clearRect(0, 0, 8, 8);
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.lineTo(8, 0);
+  ctx.moveTo(-2, 2);
+  ctx.lineTo(2, -2);
+  ctx.moveTo(6, 10);
+  ctx.lineTo(10, 6);
+  ctx.stroke();
+  return ctx.createPattern(canvas, "repeat") ?? hexAlpha(color, 0.28);
+}
+
+function barFill(color: string, inProgress: boolean[]): Array<string | CanvasPattern> {
+  const solid = hexAlpha(color, 0.55);
+  const pending = hatchPattern(color);
+  return inProgress.map((flag) => (flag ? pending : solid));
 }
 
 function hexAlpha(c: string, a: number): string {
@@ -126,25 +154,33 @@ function targetScale(
   reserveLabel: boolean,
   axisFor: (target: number, dataMax: number) => { step: number; max: number } = targetAxis,
   left = 0,
+  axisFont = 0,
 ) {
   const axis = axisFor(target, finiteMax(values));
   const base = baseOpts(yTitle, true);
+  const yTicks = {
+    ...base.scales.y.ticks,
+    stepSize: axis.step,
+    autoSkip: false,
+    maxTicksLimit: 24,
+    ...(axisFont ? { font: { size: axisFont } } : {}),
+  };
   return {
     ...base,
     layout: {
-      padding: { top: 8, right: reserveLabel ? 68 : 4, bottom: 0, left },
+      padding: { top: axisFont ? 18 : 8, right: reserveLabel ? 68 : 4, bottom: 0, left },
     },
     scales: {
       ...base.scales,
+      x: axisFont
+        ? { ...base.scales.x, ticks: { ...base.scales.x.ticks, font: { size: Math.max(12, axisFont - 1) } } }
+        : base.scales.x,
       y: {
         ...base.scales.y,
         min: 0,
         max: axis.max,
         ticks: {
-          ...base.scales.y.ticks,
-          stepSize: axis.step,
-          autoSkip: false,
-          maxTicksLimit: 24,
+          ...yTicks,
           callback(value: string | number) {
             const number = Number(value);
             if (!Number.isFinite(number)) return "";
@@ -279,6 +315,37 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
           return item.text !== "Average";
         },
       };
+      const foodFill = barFill(food, model.inProgress);
+      const proteinFill = barFill(accent, model.inProgress);
+      const barValueLabels = (digits: number): Plugin => ({
+        id: "barValueLabels",
+        afterDatasetsDraw(chart) {
+          const meta = chart.getDatasetMeta(0);
+          const dataset = chart.data.datasets[0];
+          if (!meta || meta.hidden || !dataset) return;
+          const { ctx, chartArea } = chart;
+          ctx.save();
+          ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+          ctx.fillStyle = ink;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          meta.data.forEach((element, index) => {
+            const raw = dataset.data[index];
+            const value = typeof raw === "number" ? raw : null;
+            if (value == null || !Number.isFinite(value)) return;
+            const width = "width" in element ? Number(element.width) : 0;
+            if (width > 0 && width < 22 && model.inProgress[index] !== true) return;
+            const whole = Math.abs(value - Math.round(value)) < 1e-6;
+            const label = value.toLocaleString("en-AU", {
+              maximumFractionDigits: digits,
+              minimumFractionDigits: digits > 0 && !whole ? 1 : 0,
+            });
+            const y = Math.min(Math.max(element.y - 3, chartArea.top + 12), chartArea.bottom - 2);
+            ctx.fillText(label, element.x, y);
+          });
+          ctx.restore();
+        },
+      });
 
       Chart.defaults.font.family =
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
@@ -402,9 +469,9 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                   type: "bar",
                   label: "Food",
                   data: series(model.kcal),
-                  backgroundColor: hexAlpha(food, 0.55),
+                  backgroundColor: foodFill,
                   borderColor: food,
-                  borderWidth: 0,
+                  borderWidth: model.inProgress.map((flag) => (flag ? 1 : 0)),
                   borderRadius: 3,
                   order: 2,
                 } as ChartDataset,
@@ -449,7 +516,9 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                   type: "bar",
                   label: "Protein",
                   data: series(model.proteinG),
-                  backgroundColor: hexAlpha(accent, 0.55),
+                  backgroundColor: proteinFill,
+                  borderColor: accent,
+                  borderWidth: model.inProgress.map((flag) => (flag ? 1 : 0)),
                   borderRadius: 3,
                 } as ChartDataset,
                 targetLine(
@@ -467,15 +536,19 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                 model.averages.proteinLine != null,
                 proteinAxis,
                 10,
+                13,
               ),
               plugins: {
                 legend: { display: true, position: "bottom" as const, labels: hideAverage },
                 tooltip: averageTooltip(proteinStat),
               },
             },
-            plugins: guidesFor(model.averages.proteinLine, proteinMark, [
-              { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
-            ]),
+            plugins: [
+              ...guidesFor(model.averages.proteinLine, proteinMark, [
+                { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
+              ]),
+              barValueLabels(0),
+            ],
         },
         {
             type: "bar",
@@ -486,7 +559,9 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                   type: "bar",
                   label: "Water",
                   data: series(model.waterL),
-                  backgroundColor: hexAlpha(food, 0.55),
+                  backgroundColor: foodFill,
+                  borderColor: food,
+                  borderWidth: model.inProgress.map((flag) => (flag ? 1 : 0)),
                   borderRadius: 3,
                 } as ChartDataset,
                 targetLine(`${formatTarget(model.targets.water_l)} L`, model.targets.water_l),
@@ -501,15 +576,19 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                 model.averages.waterLine != null,
                 targetAxis,
                 10,
+                13,
               ),
               plugins: {
                 legend: { display: true, position: "bottom" as const, labels: hideAverage },
                 tooltip: averageTooltip(waterStat),
               },
             },
-            plugins: guidesFor(model.averages.waterLine, waterMark, [
-              { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
-            ]),
+            plugins: [
+              ...guidesFor(model.averages.waterLine, waterMark, [
+                { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
+              ]),
+              barValueLabels(1),
+            ],
         },
       ];
 
@@ -695,8 +774,11 @@ export function CaloriesChartTile({
       </div>
       <p className="note">
         {model.weekly
-          ? `Bars are weekly food totals. The solid orange line is weekly WHOOP burn. The dashed line is ${weeklyTarget} kcal (7 × ${daily}). The violet line is the daily average, drawn ×7 so it lines up.`
-          : `Bars are food. The solid orange line is WHOOP cycle burn. The dashed line is the ${daily} kcal food budget. The violet line is the average of logged days.`}
+          ? `Bars are weekly food totals. The solid orange line is weekly WHOOP burn. The dashed line is ${weeklyTarget} kcal (7 × ${daily}). The violet line is the daily average of completed days, drawn ×7 so it lines up.`
+          : `Bars are food. The solid orange line is WHOOP cycle burn. The dashed line is the ${daily} kcal food budget. The violet line is the average of completed days.`}
+        {model.openToday
+          ? " Today's bar is in progress. Today is left out of the average and the WHOOP line while the cycle is open."
+          : ""}
       </p>
     </section>
   );
@@ -761,21 +843,65 @@ export function DeficitChartTile({
   );
 }
 
+function amountPair(current: number, target: number, unit: string): string {
+  const digits = (value: number) => (Number.isInteger(value) ? 0 : 1);
+  return `${formatNumber(current, digits(current))} / ${formatNumber(target, digits(target))} ${unit}`;
+}
+
+function TodayMeter({
+  current,
+  target,
+  unit,
+  label,
+}: {
+  current: number;
+  target: number;
+  unit: string;
+  label: string;
+}) {
+  const text = amountPair(current, target, unit);
+  const meterMax = Math.max(target, 0);
+  return (
+    <div className="today-meter">
+      <div className="today-meter-row">
+        <span className="today-meter-kicker">{label}</span>
+        <span className="today-meter-value">{text}</span>
+      </div>
+      <div
+        className="bar"
+        role="meter"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={meterMax}
+        aria-valuenow={Math.min(Math.max(current, 0), meterMax)}
+        aria-valuetext={text}
+      >
+        <span style={{ width: `${clampPercent(current, target)}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function ProteinWaterChartTile({
   proteinRef,
   waterRef,
   data,
   model,
+  today,
 }: {
   proteinRef: RefObject<HTMLCanvasElement | null>;
   waterRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
   model: DietChartModel;
+  today: string;
 }) {
   const proteinDaily = data.targets.protein_g.toLocaleString("en-AU");
   const proteinWeekly = model.targets.protein_g.toLocaleString("en-AU");
   const waterDaily = formatTarget(data.targets.water_l);
   const waterWeekly = formatTarget(model.targets.water_l);
+  const todayRow = data.days.find((day) => day.date === today) ?? null;
+  const progressLabel = todayRow?.date === today ? "Today" : (todayRow?.label ?? "Today");
+  const openNote = model.openToday ? " Today's bar is in progress and left out of the average." : "";
   return (
     <section className="card chart-tile protein-water-tile" data-tab-group="diet" data-tile="protein-water">
       <h2>Protein and water</h2>
@@ -784,13 +910,22 @@ export function ProteinWaterChartTile({
           <h3>Protein</h3>
           <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
         </div>
+        {todayRow ? (
+          <TodayMeter
+            label={progressLabel}
+            current={todayRow.protein_g}
+            target={data.targets.protein_g}
+            unit="g"
+          />
+        ) : null}
         <div className="chart-wrap chart-wrap-mini">
           <canvas ref={proteinRef} aria-label="Protein chart" />
         </div>
         <p className="note">
           {model.weekly
-            ? `Weekly protein totals. The dashed line is ${proteinWeekly} g (7 × ${proteinDaily} g). The violet line is the daily average, drawn ×7.`
-            : `Daily protein vs the ${proteinDaily} g target. The violet line is the average of logged days.`}
+            ? `Weekly protein totals. The dashed line is ${proteinWeekly} g (7 × ${proteinDaily} g). The violet line is the daily average of completed days, drawn ×7.`
+            : `Daily protein vs the ${proteinDaily} g target. The violet line is the average of completed days.`}
+          {openNote}
         </p>
       </div>
       <div className="mini-chart">
@@ -798,13 +933,22 @@ export function ProteinWaterChartTile({
           <h3>Water</h3>
           <PeriodAverage text={formatWaterPerDay(model.averages.waterPerDay)} />
         </div>
+        {todayRow ? (
+          <TodayMeter
+            label={progressLabel}
+            current={todayRow.water_l}
+            target={data.targets.water_l}
+            unit="L"
+          />
+        ) : null}
         <div className="chart-wrap chart-wrap-mini">
           <canvas ref={waterRef} aria-label="Water chart" />
         </div>
         <p className="note">
           {model.weekly
-            ? `Weekly water totals. The dashed line is ${waterWeekly} L (7 × ${waterDaily} L). The violet line is the daily average, drawn ×7.`
-            : `Daily water vs the ${waterDaily} L target. The violet line is the average of logged days.`}
+            ? `Weekly water totals. The dashed line is ${waterWeekly} L (7 × ${waterDaily} L). The violet line is the daily average of completed days, drawn ×7.`
+            : `Daily water vs the ${waterDaily} L target. The violet line is the average of completed days.`}
+          {openNote}
         </p>
       </div>
     </section>

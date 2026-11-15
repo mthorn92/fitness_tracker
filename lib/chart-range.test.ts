@@ -4,6 +4,7 @@ import {
   addCalendarMonths,
   averageLineValue,
   buildDietChartModel,
+  isOpenToday,
   chartRangeStart,
   formatKcalPerDay,
   formatProteinPerDay,
@@ -215,6 +216,94 @@ test("cumulative lines keep history from before the selected window", () => {
   assert.deepEqual(model.labels, ["2026-11-13"]);
   assert.deepEqual(model.deficitWhoop, [1200]);
   assert.deepEqual(model.deficitFixed, [1600]);
+});
+
+test("an open today stays off the WHOOP line and the averages", () => {
+  const model = buildDietChartModel({
+    days: [
+      day({ date: "2026-11-13", kcal: 2000, protein_g: 160, water_l: 3, whoop_burn_kcal: 2300, cycle_closed: true }),
+      day({ date: "2026-11-14", kcal: 1800, protein_g: 150, water_l: 2, whoop_burn_kcal: 2200, cycle_closed: true }),
+      day({
+        date: "2026-11-15",
+        kcal: 500,
+        protein_g: 40,
+        water_l: 0.5,
+        whoop_burn_kcal: 120,
+        cycle_closed: false,
+      }),
+    ],
+    weightRolling7: [null, null, null],
+    range: "14d",
+    targets,
+    goalWeightKg: 95,
+    today: "2026-11-15",
+  });
+
+  assert.equal(isOpenToday({ date: "2026-11-15", cycle_closed: false }, "2026-11-15"), true);
+  assert.equal(isOpenToday({ date: "2026-11-14", cycle_closed: false }, "2026-11-15"), false);
+  assert.deepEqual(model.kcal, [2000, 1800, 500]);
+  assert.deepEqual(model.whoopKcal, [2300, 2200, null]);
+  assert.deepEqual(model.inProgress, [false, false, true]);
+  assert.equal(model.openToday, true);
+  assert.equal(model.averages.kcalPerDay, 1900);
+  assert.equal(model.averages.proteinPerDay, 155);
+  assert.equal(model.averages.waterPerDay, 2.5);
+  assert.equal(model.averages.kcalLine, 1900);
+});
+
+test("a closed today counts toward the WHOOP line and the average", () => {
+  const model = buildDietChartModel({
+    days: [
+      day({ date: "2026-11-14", kcal: 1800, protein_g: 140, water_l: 2, whoop_burn_kcal: 2100 }),
+      day({
+        date: "2026-11-15",
+        kcal: 2000,
+        protein_g: 170,
+        water_l: 3,
+        whoop_burn_kcal: 2400,
+        cycle_closed: true,
+      }),
+    ],
+    weightRolling7: [null, null],
+    range: "14d",
+    targets,
+    goalWeightKg: 95,
+    today: "2026-11-15",
+  });
+
+  assert.deepEqual(model.whoopKcal, [2100, 2400]);
+  assert.equal(model.openToday, false);
+  assert.equal(model.averages.kcalPerDay, 1900);
+  assert.equal(model.averages.proteinPerDay, 155);
+});
+
+test("weekly totals keep today's food and drop an open WHOOP burn", () => {
+  const model = buildDietChartModel({
+    days: [
+      day({ date: "2026-11-09", kcal: 2000, protein_g: 150, water_l: 3, whoop_burn_kcal: 2200, cycle_closed: true }),
+      day({
+        date: "2026-11-15",
+        kcal: 400,
+        protein_g: 30,
+        water_l: 1,
+        whoop_burn_kcal: 80,
+        cycle_closed: false,
+      }),
+    ],
+    weightRolling7: [null, null],
+    range: "all",
+    targets,
+    goalWeightKg: 95,
+    today: "2026-11-15",
+  });
+
+  assert.equal(model.weekly, true);
+  assert.deepEqual(model.kcal, [2400]);
+  assert.deepEqual(model.whoopKcal, [2200]);
+  assert.deepEqual(model.inProgress, [true]);
+  assert.equal(model.averages.kcalPerDay, 2000);
+  assert.equal(model.averages.proteinPerDay, 150);
+  assert.equal(model.averages.waterPerDay, 3);
 });
 
 test("average stat lines stay per day", () => {

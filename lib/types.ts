@@ -359,6 +359,8 @@ export type DietDashboardView = {
   today: DietDashboardDay;
   days: DietDashboardDay[];
   weight_rolling7: Array<number | null>;
+  /** Every logged weigh-in, including days before the chart window. */
+  weight_points: Array<{ date: string; kg: number }>;
   cumulative_deficit_kcal: number;
   expected_kg_lost: number;
   /**

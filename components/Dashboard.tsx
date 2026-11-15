@@ -178,8 +178,9 @@ export function Dashboard({
         range,
         targets: data.targets,
         goalWeightKg: data.goal_weight_kg,
+        today,
       }),
-    [data, range],
+    [data, range, today],
   );
   const charts = useDietCharts(model);
 
@@ -306,6 +307,7 @@ export function Dashboard({
         waterRef={charts.water}
         data={data}
         model={model}
+        today={today}
       />
       <PhaseTile data={data} today={today} />
       <PersonalKcalTile data={data} />

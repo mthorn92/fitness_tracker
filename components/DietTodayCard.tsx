@@ -5,6 +5,7 @@ import {
   type CalorieAverage,
 } from "@/lib/calorie-average";
 import { clampPercent, formatNumber } from "@/lib/format";
+import { formatWeightDelta, kgToGoal, latestWeighIn, weightWindowDelta, type WeightDelta } from "@/lib/weight-delta";
 import { phaseLengthDays, phaseProgress } from "@/lib/phases";
 import type { DietDashboardView } from "@/lib/types";
 
@@ -78,6 +79,39 @@ function MacroCell({
         aria-valuetext={over ? `${shown}, over target` : shown}
       >
         <span style={{ width: `${clampPercent(current, target)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function WeightChip({ delta }: { delta: WeightDelta }) {
+  const shown = formatWeightDelta(delta.deltaKg);
+  return (
+    <p className={`weight-chip is-${shown.direction}`} title={delta.detail}>
+      <span className="weight-chip-label">{delta.label}</span>
+      <span className="weight-chip-value">{shown.text}</span>
+    </p>
+  );
+}
+
+function WeightBlock({ data, asOf }: { data: DietDashboardView; asOf: string }) {
+  const latest = latestWeighIn(data.weight_points, asOf);
+  const goal = latest ? kgToGoal(latest.kg, data.goal_weight_kg) : null;
+  return (
+    <div className="weight-block">
+      <div className="weight-head">
+        <div>
+          <p className="weight-kicker">Weight</p>
+          <p className="weight-figure">
+            {latest ? formatNumber(latest.kg, 1) : "—"}
+            {latest ? <span> kg</span> : null}
+          </p>
+        </div>
+        {goal ? <p className="weight-goal">{goal}</p> : null}
+      </div>
+      <div className="weight-chips">
+        <WeightChip delta={weightWindowDelta(data.weight_points, asOf, 7)} />
+        <WeightChip delta={weightWindowDelta(data.weight_points, asOf, 28)} />
       </div>
     </div>
   );
@@ -180,12 +214,7 @@ export function DietTodayCard({
           warnWhenOver={false}
         />
       </div>
-      <p className="daily-weight">
-        <span className="daily-weight-label">Weight</span>
-        <span className="daily-weight-value">
-          {today.weight_kg == null ? "—" : `${formatNumber(today.weight_kg, 1)} kg`}
-        </span>
-      </p>
+      <WeightBlock data={data} asOf={today.date} />
     </section>
   );
 }

@@ -13,7 +13,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/",
-        headers: [{ key: "Cache-Control", value: "private, max-age=30, stale-while-revalidate=60" }],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, no-cache, no-store, max-age=0, must-revalidate",
+          },
+        ],
       },
     ];
   },
