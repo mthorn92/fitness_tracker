@@ -1,4 +1,4 @@
-import { asDate, asNumber, asObject, asString, asTime } from "@/lib/api-body";
+import { asBoolean, asDate, asNumber, asObject, asString, asTime } from "@/lib/api-body";
 import { json, requireLogAccess } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { deleteFood, ensureStore, upsertFood } from "@/lib/store";
@@ -14,6 +14,7 @@ type FoodRow = {
   fat_g: number;
   meal: string | null;
   saved_meal: string | null;
+  planned?: boolean | null;
 };
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +29,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = asObject(await request.json().catch(() => null));
   if (!body) return json({ error: "invalid_json" }, 400);
 
+  let planned = row.planned === true;
+  if ("planned" in body) {
+    const value = asBoolean(body.planned);
+    if (value == null) return json({ error: "invalid_food" }, 400);
+    planned = value;
+  }
+
   const saved = await upsertFood({
     id,
     date: asDate(body.date) ?? row.date,
@@ -39,6 +47,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     fat_g: asNumber(body.fat_g) ?? Number(row.fat_g),
     meal: asString(body.meal, 40) ?? row.meal,
     saved_meal: asString(body.saved_meal, 120) ?? row.saved_meal,
+    planned,
   });
   return json(saved);
 }

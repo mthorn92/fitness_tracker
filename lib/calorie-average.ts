@@ -32,6 +32,11 @@ export type CalorieAverage = {
   /** averageKcal − targetKcal. Negative is under the target. */
   deltaKcal: number;
   status: "under" | "over" | "even";
+  /**
+   * target × days − the unrounded sum.
+   * Positive is room left to hold the average on target. Negative needs clawing back.
+   */
+  bufferKcal: number;
 };
 
 function loggedKcalByDate(days: readonly LoggedCalorieDay[]): Map<string, number> {
@@ -45,11 +50,19 @@ function loggedKcalByDate(days: readonly LoggedCalorieDay[]): Map<string, number
 
 function averageFromValues(values: number[], targetKcal: number): CalorieAverage | null {
   if (values.length === 0 || !Number.isFinite(targetKcal)) return null;
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const sum = values.reduce((total, value) => total + value, 0);
+  const mean = sum / values.length;
   const averageKcal = Math.round(mean);
   const deltaKcal = averageKcal - targetKcal;
   const status = deltaKcal > 0 ? "over" : deltaKcal < 0 ? "under" : "even";
-  return { averageKcal, days: values.length, targetKcal, deltaKcal, status };
+  return {
+    averageKcal,
+    days: values.length,
+    targetKcal,
+    deltaKcal,
+    status,
+    bufferKcal: targetKcal * values.length - sum,
+  };
 }
 
 function valuesBetween(

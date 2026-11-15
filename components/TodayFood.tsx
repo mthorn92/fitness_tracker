@@ -1,6 +1,7 @@
 "use client";
 
 import { formatNumber, formatTime } from "@/lib/format";
+import { isPlannedFood } from "@/lib/planned-food";
 import type { FoodItem } from "@/lib/types";
 
 const TIME_GROUPS = ["Breakfast", "Lunch", "Dinner", "Snacks"] as const;
@@ -42,7 +43,21 @@ function formatClock(time: string): string {
   return minutesOf(time) == null ? time : formatTime(time);
 }
 
-export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: string }) {
+export function TodayFood({
+  foods,
+  date,
+  dateLabel,
+  today,
+  tomorrow,
+  onOpenTomorrow,
+}: {
+  foods: FoodItem[];
+  date: string;
+  dateLabel: string;
+  today: string;
+  tomorrow: { date: string; kcal: number } | null;
+  onOpenTomorrow?: () => void;
+}) {
   const buckets = new Map<string, FoodItem[]>();
   for (const food of foods) {
     const name = groupName(food);
@@ -90,22 +105,36 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
               <div key={name} className="food-group">
                 <h3>{name}</h3>
                 <ul>
-                  {items.map((food, index) => (
-                    <li key={food.id ?? `${food.time}-${food.item}-${index}`}>
-                      <span className="food-time">{formatClock(food.time)}</span>
-                      <span className="food-item">{food.item}</span>
-                      <span className="food-kcal">
-                        {formatNumber(food.kcal, kcalDigits(food.kcal))}
-                        <span className="unit">kcal</span>
-                      </span>
-                    </li>
-                  ))}
+                  {items.map((food, index) => {
+                    const planned = isPlannedFood(food, date, today);
+                    return (
+                      <li
+                        key={food.id ?? `${food.time}-${food.item}-${index}`}
+                        className={planned ? "is-planned" : undefined}
+                      >
+                        <span className="food-time">{formatClock(food.time)}</span>
+                        <span className="food-item">
+                          {food.item}
+                          {planned ? <span className="food-planned-tag">Planned</span> : null}
+                        </span>
+                        <span className="food-kcal">
+                          {formatNumber(food.kcal, kcalDigits(food.kcal))}
+                          <span className="unit">kcal</span>
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             );
           })}
         </div>
       )}
+      {tomorrow && tomorrow.date !== date ? (
+        <button type="button" className="food-tomorrow" onClick={onOpenTomorrow}>
+          Tomorrow planned · {formatNumber(tomorrow.kcal, kcalDigits(tomorrow.kcal))} kcal ›
+        </button>
+      ) : null}
       <div className="food-total">
         <span>Total</span>
         <span>{formatNumber(total, kcalDigits(total))} kcal</span>

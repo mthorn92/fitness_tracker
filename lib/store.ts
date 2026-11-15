@@ -67,6 +67,8 @@ export type FoodInput = {
   fat_g: number;
   meal?: string | null;
   saved_meal?: string | null;
+  /** Optional. Absent or false leaves the line as eaten. */
+  planned?: boolean;
 };
 
 export type WaterInput = {
@@ -185,10 +187,18 @@ export async function loadSnapshot(window?: SnapshotWindow): Promise<FitnessSnap
         `select * from foods${foodsWhere.clause} order by date, time, id`,
         foodsWhere.params,
       ),
-      prefix
+        prefix
         ? sql<Record<string, unknown>>(
-            `select date, sum(kcal) as kcal, sum(protein_g) as protein_g, sum(carbs_g) as carbs_g, sum(fat_g) as fat_g
-             from foods where date < $1 group by date`,
+            `select date,
+                    sum(kcal) as kcal,
+                    sum(protein_g) as protein_g,
+                    sum(carbs_g) as carbs_g,
+                    sum(fat_g) as fat_g
+             from foods
+             where date < $1
+               and coalesce(planned, false) = false
+               and item not ilike '%(planned)%'
+             group by date`,
             [prefix],
           )
         : Promise.resolve([] as Record<string, unknown>[]),
@@ -287,6 +297,7 @@ export async function loadSnapshot(window?: SnapshotWindow): Promise<FitnessSnap
       fat_g: num(row.fat_g),
       meal: optionalText(row.meal),
       saved_meal: optionalText(row.saved_meal),
+      planned: bool(row.planned),
     };
     const day = ensureDay(date);
     day.foods.push(food);
@@ -489,8 +500,8 @@ export async function upsertFood(input: FoodInput): Promise<{ id: string }> {
   await ready();
   const id = input.id?.trim() || newId("food");
   await sql(
-    `insert into foods (id, date, time, item, kcal, protein_g, carbs_g, fat_g, meal, saved_meal, updated_at)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())
+    `insert into foods (id, date, time, item, kcal, protein_g, carbs_g, fat_g, meal, saved_meal, planned, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now())
      on conflict (id) do update set
        date = excluded.date,
        time = excluded.time,
@@ -501,6 +512,7 @@ export async function upsertFood(input: FoodInput): Promise<{ id: string }> {
        fat_g = excluded.fat_g,
        meal = excluded.meal,
        saved_meal = excluded.saved_meal,
+       planned = excluded.planned,
        updated_at = now()`,
     [
       id,
@@ -513,6 +525,7 @@ export async function upsertFood(input: FoodInput): Promise<{ id: string }> {
       input.fat_g,
       input.meal ?? null,
       input.saved_meal ?? null,
+      input.planned ?? false,
     ],
   );
   await refreshPages();

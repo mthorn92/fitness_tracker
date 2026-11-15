@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ChartRangeBar } from "@/components/ChartRangeBar";
 import {
@@ -11,6 +12,7 @@ import {
   WeightChartTile,
 } from "@/components/DietCharts";
 import { DietTodayCard } from "@/components/DietTodayCard";
+import { EatingDateBar } from "@/components/EatingDateBar";
 import { PhaseTile } from "@/components/PhaseTile";
 import { MonthRings } from "@/components/MonthRings";
 import { ExerciseDayTile, ExerciseToday, OverloadTile, PhaseSummaryTile } from "@/components/ExerciseTiles";
@@ -159,6 +161,7 @@ export function Dashboard({
   strava: StravaTileModel;
   today: string;
 }) {
+  const router = useRouter();
   const tab = useSyncExternalStore(
     subscribeTab,
     () => currentTab(initialTab),
@@ -178,6 +181,7 @@ export function Dashboard({
         targets: data.targets,
         goalWeightKg: data.goal_weight_kg,
         today,
+        highlightDate: data.today.date <= today ? data.today.date : null,
       }),
     [data, range, today],
   );
@@ -247,6 +251,15 @@ export function Dashboard({
   }, [board.planId, board.currentWeek]);
   const selectedWeek = board.weeks.find((entry) => entry.week === exerciseWeek) ?? board.weeks[0];
 
+  function openDate(next: string) {
+    const params = new URLSearchParams(window.location.search);
+    if (next === today) params.delete("date");
+    else params.set("date", next);
+    if (!params.get("tab")) params.set("tab", "diet");
+    const query = params.toString();
+    router.push(`${window.location.pathname}${query ? `?${query}` : ""}`);
+  }
+
   function select(next: DashboardTab) {
     writeStoredTab(next);
     writeTabUrl(next);
@@ -301,14 +314,28 @@ export function Dashboard({
           ))}
         </div>
       </header>
+      <EatingDateBar date={data.today.date} today={today} minDate={data.start_date} />
       <DietTodayCard data={data} today={today} />
-      <TodayFood foods={foods} dateLabel={data.today.label} />
+      <TodayFood
+        foods={foods}
+        date={data.today.date}
+        dateLabel={data.today.label}
+        today={today}
+        tomorrow={data.tomorrow}
+        onOpenTomorrow={data.tomorrow ? () => openDate(data.tomorrow!.date) : undefined}
+      />
       <MonthRings days={data.days} today={today} />
       <WeightChartTile canvasRef={charts.weight} model={model} />
       <CaloriesChartTile canvasRef={charts.calories} data={data} model={model} />
       <DeficitChartTile canvasRef={charts.deficit} data={data} model={model} />
-      <ProteinChartTile proteinRef={charts.protein} data={data} model={model} today={today} />
-      <PhaseTile data={data} today={today} />
+      <ProteinChartTile
+        proteinRef={charts.protein}
+        data={data}
+        model={model}
+        today={today}
+        focusDate={data.today.date}
+      />
+      <PhaseTile data={data} />
       <PersonalKcalTile data={data} />
       {selectedWeek ? (
         <>

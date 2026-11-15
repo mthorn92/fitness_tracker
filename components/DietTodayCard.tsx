@@ -1,10 +1,6 @@
 import { DailyRing } from "@/components/DailyRing";
-import {
-  phaseCalorieSummary,
-  rollingCalorieAverage,
-  type CalorieAverage,
-} from "@/lib/calorie-average";
-import { clampPercent, formatNumber } from "@/lib/format";
+import { rollingCalorieAverage, type CalorieAverage } from "@/lib/calorie-average";
+import { clampPercent, formatNumber, shiftIsoDate } from "@/lib/format";
 import { formatWeightDelta, latestWeighIn, weightWindowDelta, type WeightDelta } from "@/lib/weight-delta";
 import { phaseLengthDays, phaseProgress } from "@/lib/phases";
 import type { DietDashboardView } from "@/lib/types";
@@ -19,16 +15,27 @@ function kcalDigits(value: number): 0 | 1 {
   return Number.isInteger(value) ? 0 : 1;
 }
 
+function bufferLabel(bufferKcal: number): { text: string; tone: "good" | "warn" } {
+  const rounded = Math.round(bufferKcal);
+  if (rounded < 0) {
+    return { text: `−${formatNumber(Math.abs(rounded))} to claw back`, tone: "warn" };
+  }
+  return { text: `+${formatNumber(rounded)} kcal to spare`, tone: "good" };
+}
+
 function AverageChip({
   label,
   average,
   targetKcal,
+  buffer = false,
 }: {
   label: string;
   average: CalorieAverage | null;
   targetKcal: number;
+  buffer?: boolean;
 }) {
   const target = average?.targetKcal ?? targetKcal;
+  const spare = buffer && average ? bufferLabel(average.bufferKcal) : null;
   return (
     <div className="daily-chip daily-chip-span">
       <div className="daily-chip-main">
@@ -41,6 +48,7 @@ function AverageChip({
       <div className="daily-chip-tag">
         {average ? <span className={`daily-pill ${average.status}`}>{deltaText(average)}</span> : null}
       </div>
+      {spare ? <p className={`weekly-buffer ${spare.tone}`}>{spare.text}</p> : null}
     </div>
   );
 }
@@ -145,14 +153,18 @@ export function DietTodayCard({
   const kcal = today.kcal ?? 0;
   const digits = kcalDigits(kcal);
   const kcalOver = kcal > targets.calories_kcal;
-  const kcalStatus = `${formatNumber(Math.abs(kcal - targets.calories_kcal), digits)} ${kcalOver ? "over" : "remaining"}`;
+  const kcalStatus = `${formatNumber(Math.abs(kcal - targets.calories_kcal), digits)} ${kcalOver ? "over" : "left"}`;
   const kcalLabel = formatNumber(kcal, digits);
   const targetLabel = formatNumber(targets.calories_kcal);
+  const selected = today.date;
+  const asOf = selected < calendarToday ? selected : calendarToday;
+  const averageAnchor = selected < calendarToday ? shiftIsoDate(selected, 1) : calendarToday;
   const loggedDays = data.days.map((day) => ({ date: day.date, kcal: day.kcal }));
-  const rolling = rollingCalorieAverage(loggedDays, calendarToday, targets.calories_kcal);
-  const phase = phaseCalorieSummary(loggedDays, calendarToday);
+  const rolling = rollingCalorieAverage(loggedDays, averageAnchor, targets.calories_kcal);
+  const phase = data.phase_board;
   const phaseDays = phase ? phaseLengthDays(phase.phase) : 0;
   const lastDay = phase?.daysLeft === 1;
+  const calorieKicker = selected > calendarToday ? "Planned" : selected === calendarToday ? "Calories today" : "Calories";
 
   return (
     <section className="card daily-tile" data-tab-group="diet" data-tile="daily">
@@ -169,11 +181,11 @@ export function DietTodayCard({
           <span className="daily-ring-num">{kcalLabel}</span>
           <span className="daily-ring-sub">/ {targetLabel}</span>
           <span className={`daily-ring-status${kcalOver ? " is-over" : " is-under"}`}>{kcalStatus}</span>
-          <span className="daily-ring-kicker">Calories today</span>
+          <span className="daily-ring-kicker">{calorieKicker}</span>
         </DailyRing>
         {phase ? (
           <DailyRing
-            progress={phaseProgress(calendarToday, phase.phase)}
+            progress={phaseProgress(selected, phase.phase)}
             tone="good"
             flag
             label={phase.phase.name}
@@ -194,7 +206,12 @@ export function DietTodayCard({
         ) : null}
       </div>
       <div className="daily-board">
-        <AverageChip label="Calories · 7-day avg" average={rolling} targetKcal={targets.calories_kcal} />
+        <AverageChip
+          label="Calories · 7-day avg"
+          average={rolling}
+          targetKcal={targets.calories_kcal}
+          buffer
+        />
         {phase ? (
           <AverageChip
             label={`${phase.phase.name} · cal avg`}
@@ -202,7 +219,7 @@ export function DietTodayCard({
             targetKcal={phase.phase.kcal_target}
           />
         ) : null}
-        <WeightCard data={data} asOf={today.date} />
+        <WeightCard data={data} asOf={asOf} />
         <MacroCell
           label="Protein"
           current={today.protein_g}

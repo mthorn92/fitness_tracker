@@ -1,3 +1,5 @@
+import type { PhaseBoard } from "@/lib/phase-board";
+
 export type MacroTotals = {
   kcal: number;
   protein_g: number;
@@ -11,6 +13,8 @@ export type FoodItem = MacroTotals & {
   item: string;
   meal?: string;
   saved_meal?: string;
+  /** Set by the logger. Future dates and "(planned)" names are also treated as planned. */
+  planned?: boolean;
 };
 
 export type WaterEntry = {
@@ -375,6 +379,14 @@ export type DietDashboardView = {
     rolling_change_kg: number | null;
     kcal_per_kg: number | null;
   };
+  /** Melbourne calendar day used as "today" when this view was built. */
+  calendar_today: string;
+  /** Profile start, the earliest day the date picker offers. */
+  start_date: string;
+  /** Tomorrow's logged food, when any line exists. Planned days stay out of the charts. */
+  tomorrow: { date: string; kcal: number } | null;
+  /** Phase summary as of the selected day. Null outside every phase. */
+  phase_board: PhaseBoard | null;
 };
 
 export type PlanWeekType = "build" | "deload" | "test";

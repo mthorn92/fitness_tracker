@@ -8,9 +8,6 @@ import {
   canGoToNextMonth,
   dayOfMonth,
   formatMonthTitle,
-  greenStreak,
-  monthCounts,
-  monthTallyText,
   parseYearMonth,
   ringAriaLabel,
   ringSummary,
@@ -95,10 +92,6 @@ export function MonthRings({ days, today }: { days: DietDashboardDay[]; today: s
   const [pinned, setPinned] = useState<string | null>(null);
   const inputs = days.map(toInput);
   const cells = buildMonthGrid(cursor.year, cursor.month, inputs, today);
-  const { green, red } = monthCounts(inputs, today, cursor.year, cursor.month);
-  const viewingCurrent = cursor.year === current.year && cursor.month === current.month;
-  const streak = viewingCurrent ? greenStreak(inputs, today) : 0;
-  const tally = monthTallyText(green, red, viewingCurrent ? streak : null);
   const title = formatMonthTitle(cursor.year, cursor.month);
   const openDate = hovered ?? pinned;
   const nextEnabled = canGoToNextMonth(cursor.year, cursor.month, today);
@@ -232,10 +225,7 @@ export function MonthRings({ days, today }: { days: DietDashboardDay[]; today: s
         })}
       </div>
 
-      <p className="rings-tally">
-        {tally}
-        <span className="rings-hint"> Green: at or under burn. Red: over.</span>
-      </p>
+      <p className="rings-hint">Green: at or under burn. Red: over.</p>
     </section>
   );
 }
