@@ -232,8 +232,10 @@ export function MonthRings({ days, today }: { days: DietDashboardDay[]; today: s
         })}
       </div>
 
-      <p className="rings-tally">{tally}</p>
-      <p className="rings-hint">Green means you ate no more than you burned. Red means you ate more.</p>
+      <p className="rings-tally">
+        {tally}
+        <span className="rings-hint"> Green: at or under burn. Red: over.</span>
+      </p>
     </section>
   );
 }

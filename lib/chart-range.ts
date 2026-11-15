@@ -70,6 +70,10 @@ export type RangeDay = {
   whoop_burn_kcal: number | null;
   deficit_kcal: number | null;
   cumulative_deficit_kcal: number | null;
+  /** WHOOP cycle closed for this date, when the dashboard knows. */
+  cycle_closed?: boolean | null;
+  /** Day marked complete. A closed cycle or a complete flag counts as finished. */
+  complete?: boolean;
 };
 
 export type DietChartTargets = {
@@ -100,6 +104,10 @@ export type DietChartModel = {
     proteinLine: number | null;
     waterLine: number | null;
   };
+  /** Parallel to the plotted points. True when that bar includes an open today. */
+  inProgress: boolean[];
+  /** Calendar today is in the window and its WHOOP cycle is still open. */
+  openToday: boolean;
 };
 
 function finiteOrNull(value: number | null | undefined): number | null {
@@ -189,6 +197,9 @@ type ChartPoint = {
   whoopKcal: number | null;
   deficitCumulative: number | null;
   fixedCumulative: number | null;
+  inProgress: boolean;
+  /** False for an open today, so partial intake stays out of the period average. */
+  includeInAverage: boolean;
 };
 
 function weekLabel(monday: string): string {
@@ -208,6 +219,8 @@ function bucketWeek(days: ChartPoint[]): ChartPoint {
     whoopKcal: sumOfLogged(days.map((day) => day.whoopKcal)),
     deficitCumulative: lastLogged(days.map((day) => day.deficitCumulative)),
     fixedCumulative: lastLogged(days.map((day) => day.fixedCumulative)),
+    inProgress: days.some((day) => day.inProgress),
+    includeInAverage: false,
   };
 }
 
@@ -249,14 +262,17 @@ function emptyModel(weekly: boolean, goalWeightKg: number, targets: DietChartTar
       proteinLine: null,
       waterLine: null,
     },
+    inProgress: [],
+    openToday: false,
   };
 }
 
 function toSeries(points: ChartPoint[], weekly: boolean, goalWeightKg: number, targets: DietChartTargets, days: ChartPoint[]): DietChartModel {
   const factor = weekly ? 7 : 1;
-  const kcalPerDay = meanOfLogged(days.map((day) => day.kcal));
-  const proteinPerDay = meanOfLogged(days.map((day) => day.proteinG));
-  const waterPerDay = meanOfLogged(days.map((day) => day.waterL));
+  const counted = days.filter((day) => day.includeInAverage);
+  const kcalPerDay = meanOfLogged(counted.map((day) => day.kcal));
+  const proteinPerDay = meanOfLogged(counted.map((day) => day.proteinG));
+  const waterPerDay = meanOfLogged(counted.map((day) => day.waterL));
   return {
     weekly,
     labels: points.map((point) => point.label),
@@ -282,7 +298,18 @@ function toSeries(points: ChartPoint[], weekly: boolean, goalWeightKg: number, t
       proteinLine: averageLineValue(proteinPerDay, weekly),
       waterLine: averageLineValue(waterPerDay, weekly),
     },
+    inProgress: points.map((point) => point.inProgress),
+    openToday: days.some((day) => day.inProgress),
   };
+}
+
+/** Today stays off the WHOOP line and the averages while its cycle is still open. */
+export function isOpenToday(
+  day: Pick<RangeDay, "date" | "cycle_closed" | "complete">,
+  today: string | null | undefined,
+): boolean {
+  if (!today || day.date !== today) return false;
+  return day.cycle_closed !== true && day.complete !== true;
 }
 
 /**
@@ -298,6 +325,8 @@ export function buildDietChartModel(input: {
   range: ChartRangeId;
   targets: DietChartTargets;
   goalWeightKg: number;
+  /** Melbourne calendar day. An open cycle on this date is left out of burn and averages. */
+  today?: string | null;
 }): DietChartModel {
   const weekly = isWeeklyChartRange(input.range);
   const end = input.days.reduce<string | null>((latest, day) => {
@@ -325,9 +354,11 @@ export function buildDietChartModel(input: {
       kcal: loggedKcal(day),
       proteinG: loggedProtein(day),
       waterL: loggedWater(day),
-      whoopKcal: finiteOrNull(day.whoop_burn_kcal),
+      whoopKcal: isOpenToday(day, input.today) ? null : finiteOrNull(day.whoop_burn_kcal),
       deficitCumulative: day.deficit_kcal == null ? null : finiteOrNull(day.cumulative_deficit_kcal),
       fixedCumulative: finiteOrNull(fixed.values[index]),
+      inProgress: isOpenToday(day, input.today),
+      includeInAverage: !isOpenToday(day, input.today),
     });
   });
   visible.sort((a, b) => a.date.localeCompare(b.date));

@@ -22,8 +22,10 @@ export type PhaseFoodBalance = {
   deficitKcal: number;
   /** deficitKcal / 7,700. */
   deficitKg: number;
-  /** True when today's own food is included. An open today is not. */
+  /** True when today's own food is included. */
   countsToday: boolean;
+  /** Today's food is in the total and the day is still open. */
+  includesOpenToday: boolean;
 };
 
 function dayClosed(day: PhaseFoodDay): boolean {
@@ -34,15 +36,15 @@ function countsForBalance(day: PhaseFoodDay, today: string, phase: CaloriePhase)
   if (day.date < phase.start || day.date > phase.end) return false;
   if (typeof day.kcal !== "number" || !Number.isFinite(day.kcal)) return false;
   if (day.date > today) return false;
-  if (day.date < today) return true;
-  return dayClosed(day);
+  return true;
 }
 
 /**
  * Food logged against the phase budget.
- * Days before today count when food was logged. Today counts only once the day
- * is closed, the same rule as the cumulative deficit chart. The target comes
- * from the phase, so a later phase does not keep using 2,000.
+ * Days through today count when food was logged, including today's food so far
+ * while the cycle is still open. The figure is the budget to date (phase target
+ * times counted days) minus food eaten. The target comes from the phase, so a
+ * later phase does not keep using 2,000. WHOOP burn is not an input.
  */
 export function phaseFoodBalance(
   days: readonly PhaseFoodDay[],
@@ -53,12 +55,16 @@ export function phaseFoodBalance(
   let loggedDays = 0;
   let foodKcal = 0;
   let countsToday = false;
+  let includesOpenToday = false;
   for (const day of days) {
     if (seen.has(day.date) || !countsForBalance(day, today, phase)) continue;
     seen.add(day.date);
     loggedDays += 1;
     foodKcal += day.kcal as number;
-    if (day.date === today) countsToday = true;
+    if (day.date === today) {
+      countsToday = true;
+      if (!dayClosed(day)) includesOpenToday = true;
+    }
   }
   const deficitKcal = phase.kcal_target * loggedDays - foodKcal;
   return {
@@ -68,6 +74,7 @@ export function phaseFoodBalance(
     deficitKcal,
     deficitKg: deficitKcal / KCAL_PER_KG,
     countsToday,
+    includesOpenToday,
   };
 }
 

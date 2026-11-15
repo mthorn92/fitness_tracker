@@ -395,7 +395,7 @@ export async function getDashboardPageData(requested: string | undefined, range:
 }
 
 export function buildDietDashboardView(data: FitnessSnapshot, date?: string): DietDashboardView {
-  const today = todayIsoDate();
+  const today = todayIsoDate("Australia/Melbourne");
   const selected = resolveDate(data, date);
   const targets = {
     calories_kcal: data.targets.calories_kcal || DEFAULT_TARGETS.calories_kcal,
@@ -479,6 +479,18 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
   const rolling = withSevenDayAverage(weightPoints);
   const rollingByDate = new Map(rolling.map((point) => [point.date, point.avg7d]));
   const weight_rolling7 = days.map((day) => rollingByDate.get(day.date) ?? null);
+  const weight_points = Object.entries(data.days)
+    .flatMap(([date, log]) =>
+      log.weight_kg != null && Number.isFinite(log.weight_kg) ? [{ date, kg: log.weight_kg }] : [],
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (
+    Number.isFinite(data.start_weight_kg) &&
+    !weight_points.some((point) => point.date === data.start_date)
+  ) {
+    weight_points.unshift({ date: data.start_date, kg: data.start_weight_kg });
+    weight_points.sort((a, b) => a.date.localeCompare(b.date));
+  }
 
   const closedDays = days.filter((day) => day.cycle_closed === true || day.complete);
   const completed_days = closedDays.length;
@@ -506,6 +518,7 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
     today: todayRow,
     days,
     weight_rolling7,
+    weight_points,
     cumulative_deficit_kcal: deficit.cumulativeDeficitKcal || runningCumulative,
     expected_kg_lost: (deficit.cumulativeDeficitKcal || runningCumulative) / KCAL_PER_KG,
     in_progress_label: deficitInProgressLabel(
@@ -529,7 +542,7 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
 
 export async function getChartsView(): Promise<ChartsView> {
   const data = await getFitnessData();
-  const today = todayIsoDate();
+  const today = todayIsoDate("Australia/Melbourne");
   const currentDate = latestLoggedDate(data);
   const currentDay = data.days[currentDate];
 
