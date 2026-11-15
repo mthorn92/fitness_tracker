@@ -527,7 +527,16 @@ body {
 }
 
 .daily-tile .daily-ring-copy {
-  top: 18%;
+  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18%;
 }
 
 .daily-tile .daily-ring-num {
@@ -662,6 +671,12 @@ body {
   user-select: none;
 }
 
+.daily-tile .daily-ring-flag {
+  top: 1%;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 .daily-board {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -690,6 +705,17 @@ body {
 
 .daily-chip-wide {
   grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  padding: var(--daily-pad-y) 0;
+}
+
+.weight-half {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  min-width: 0;
+  padding: 0 var(--daily-pad-x);
 }
 
 .daily-chip-figure {
@@ -745,12 +771,6 @@ body {
   color: var(--muted);
 }
 
-.weight-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--daily-space);
-}
-
 .weight-stat {
   min-width: 0;
   text-align: left;
@@ -759,16 +779,14 @@ body {
 .weight-stat-value {
   margin: 0.12rem 0 0;
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
 .weight-stat.is-hero .weight-stat-value {
-  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
 }
 
 .weight-stat.is-down .weight-stat-value {

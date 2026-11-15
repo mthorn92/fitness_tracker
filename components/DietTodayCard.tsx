@@ -122,9 +122,11 @@ function WeightCard({ data, asOf }: { data: DietDashboardView; asOf: string }) {
     latest && Number.isFinite(data.goal_weight_kg) ? toGoalText(latest.kg, data.goal_weight_kg) : "—";
   return (
     <div className="daily-chip daily-chip-wide">
-      <div className="weight-stats">
+      <div className="weight-half">
         <WeightStat label="Weight" value={latest ? `${formatNumber(latest.kg, 1)} kg` : "—"} hero />
         <WeightStat label="To goal" value={goal} />
+      </div>
+      <div className="weight-half">
         <WeightStat label="7 days" value={weekValue.text} tone={weekValue.tone} title={week.detail} />
         <WeightStat label="28 days" value={monthValue.text} tone={monthValue.tone} title={month.detail} />
       </div>
