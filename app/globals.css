@@ -427,25 +427,6 @@ body {
     min-height: 2.05rem;
   }
 
-  .dashboard[data-tab="diet"] .daily-tile {
-    padding-top: 0.5rem;
-    padding-bottom: 0.45rem;
-  }
-
-  .dashboard[data-tab="diet"] .daily-stats {
-    gap: 0.22rem;
-    margin-top: 0.16rem;
-  }
-
-  .dashboard[data-tab="diet"] .daily-chip {
-    padding: 0.14rem 0.4rem 0.12rem;
-  }
-
-  .dashboard[data-tab="diet"] .daily-macros {
-    gap: 0.16rem 0.55rem;
-    margin-top: 0.16rem;
-  }
-
   .dashboard[data-tab="diet"] > [data-tab-group="diet"] > h2,
   .dashboard[data-tab="diet"] .tile-heading h2,
   .dashboard[data-tab="diet"] .rings-nav h2 {
@@ -518,28 +499,43 @@ body {
   margin-top: 0.1rem;
 }
 
+.daily-tile {
+  --daily-space: 8px;
+  --daily-pad-y: 4px;
+  --daily-pad-x: 8px;
+}
+
 .daily-tile h2 {
-  margin-bottom: 0.3rem;
+  margin-bottom: var(--daily-space);
 }
 
 .daily-rings {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: start;
-  gap: 0.35rem 0.85rem;
+  justify-items: center;
+  gap: var(--daily-space) 1.5rem;
 }
 
 .daily-ring {
   position: relative;
   width: 100%;
-  max-width: 10rem;
+  max-width: 6.95rem;
   aspect-ratio: 1;
   margin-inline: auto;
   container-type: inline-size;
 }
 
 .daily-tile .daily-ring-copy {
-  top: 27%;
+  top: 20%;
+}
+
+.daily-tile .daily-ring-sub {
+  margin-top: 0.12rem;
+}
+
+.daily-tile .daily-ring-status {
+  margin-top: 0.06rem;
 }
 
 .daily-ring.is-compact {
@@ -646,22 +642,16 @@ body {
   user-select: none;
 }
 
-.daily-stats {
+.daily-board {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.35rem;
-  margin-top: 0.28rem;
+  gap: var(--daily-space);
+  margin-top: var(--daily-space);
   align-items: stretch;
 }
 
-.daily-chip {
-  min-width: 0;
-  padding: 0.22rem 0.45rem 0.18rem;
-  border-radius: 8px;
-  background: var(--surface-2);
-}
-
-.daily-chip-label {
+.daily-chip-label,
+.daily-kicker {
   margin: 0;
   color: var(--muted);
   font-size: 0.68rem;
@@ -671,12 +661,23 @@ body {
   text-transform: uppercase;
 }
 
+.daily-chip {
+  min-width: 0;
+  padding: var(--daily-pad-y) var(--daily-pad-x);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.daily-chip-wide {
+  grid-column: 1 / -1;
+}
+
 .daily-chip-figure {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.12rem 0.35rem;
-  margin: 0.08rem 0 0;
+  gap: 0.2rem 0.35rem;
+  margin: 0.1rem 0 0;
 }
 
 .daily-chip-num {
@@ -725,30 +726,30 @@ body {
 }
 
 .daily-chip-note {
-  margin: 0.12rem 0 0;
+  margin: 0.06rem 0 0;
   color: var(--muted);
   font-size: 0.66rem;
   font-weight: 600;
   line-height: 1.2;
 }
 
-.daily-chip-tags {
-  display: flex;
+.daily-chip-pills {
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.28rem;
-  margin-top: 0.12rem;
+  margin-left: auto;
 }
 
-.daily-chip-tags .daily-pill {
+.daily-chip-pills .daily-pill {
   margin-left: 0;
 }
 
-.daily-macros {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.28rem 0.65rem;
-  margin-top: 0.28rem;
+.daily-macro {
+  min-width: 0;
+  padding: 2px var(--daily-pad-x) 0;
+  background: transparent;
 }
 
 .macro-line {
@@ -763,22 +764,13 @@ body {
   margin: 0;
   padding: 0.06rem 0.32rem 0.08rem;
   border-radius: 4px;
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--muted) 16%, var(--card));
   color: var(--muted);
   font-size: 0.62rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   white-space: nowrap;
-}
-
-.daily-macro .label {
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .daily-macro .value {

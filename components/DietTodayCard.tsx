@@ -32,7 +32,7 @@ function AverageChip({
   const target = average?.targetKcal ?? targetKcal;
   return (
     <div className="daily-chip">
-      <p className="daily-chip-label">{label}</p>
+      <p className="daily-kicker">{label}</p>
       <p className="daily-chip-figure">
         <span className="daily-chip-num">{average ? formatNumber(average.averageKcal) : "—"}</span>
         <span className="daily-chip-of">/ {formatNumber(target)}</span>
@@ -81,7 +81,7 @@ function MacroCell({
   const avgDigits = unit === "L" ? 1 : 0;
   return (
     <div className={`daily-macro${over ? " is-over" : ""}`}>
-      <div className="label">{label}</div>
+      <div className="daily-kicker">{label}</div>
       <div className="macro-line">
         <div className="value">{shown}</div>
         <div className="macro-avg">{formatSevenDay(average, avgDigits, unit)}</div>
@@ -101,7 +101,7 @@ function MacroCell({
   );
 }
 
-function WeightCards({ data, asOf }: { data: DietDashboardView; asOf: string }) {
+function WeightCard({ data, asOf }: { data: DietDashboardView; asOf: string }) {
   const latest = latestWeighIn(data.weight_points, asOf);
   const goal = latest ? kgToGoal(latest.kg, data.goal_weight_kg) : null;
   const week = weightWindowDelta(data.weight_points, asOf, 7);
@@ -109,27 +109,22 @@ function WeightCards({ data, asOf }: { data: DietDashboardView; asOf: string }) 
   const weekTag = changeTag(7, week);
   const monthTag = changeTag(28, month);
   return (
-    <>
-      <div className="daily-chip">
-        <p className="daily-chip-label">Weight</p>
-        <p className="daily-chip-figure">
-          <span className="daily-chip-num">{latest ? formatNumber(latest.kg, 1) : "—"}</span>
-          {latest ? <span className="daily-chip-of">kg</span> : null}
-        </p>
-        {goal ? <p className="daily-chip-note">{goal}</p> : null}
-      </div>
-      <div className="daily-chip">
-        <p className="daily-chip-label">Change</p>
-        <p className="daily-chip-tags">
+    <div className="daily-chip daily-chip-wide">
+      <p className="daily-kicker">Weight</p>
+      <p className="daily-chip-figure">
+        <span className="daily-chip-num">{latest ? formatNumber(latest.kg, 1) : "—"}</span>
+        {latest ? <span className="daily-chip-of">kg</span> : null}
+        <span className="daily-chip-pills">
           <span className={`daily-pill ${weekTag.tone}`} title={week.detail}>
             {weekTag.text}
           </span>
           <span className={`daily-pill ${monthTag.tone}`} title={month.detail}>
             {monthTag.text}
           </span>
-        </p>
-      </div>
-    </>
+        </span>
+      </p>
+      {goal ? <p className="daily-chip-note">{goal}</p> : null}
+    </div>
   );
 }
 
@@ -207,20 +202,16 @@ export function DietTodayCard({
           </DailyRing>
         ) : null}
       </div>
-      <div className="daily-stats">
-        <AverageChip label="7-day avg" average={rolling} targetKcal={targets.calories_kcal} />
+      <div className="daily-board">
+        <AverageChip label="Calories · 7-day avg" average={rolling} targetKcal={targets.calories_kcal} />
         {phase ? (
           <AverageChip
-            label={`${phase.phase.name} avg`}
+            label={`${phase.phase.name} · cal avg`}
             average={phase.average}
             targetKcal={phase.phase.kcal_target}
           />
-        ) : (
-          <div className="daily-chip" aria-hidden="true" />
-        )}
-        <WeightCards data={data} asOf={today.date} />
-      </div>
-      <div className="daily-macros">
+        ) : null}
+        <WeightCard data={data} asOf={today.date} />
         <MacroCell
           label="Protein"
           current={today.protein_g}
