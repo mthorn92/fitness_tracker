@@ -428,8 +428,22 @@ body {
   }
 
   .dashboard[data-tab="diet"] .daily-tile {
-    padding-top: 0.6rem;
-    padding-bottom: 0.55rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .dashboard[data-tab="diet"] .daily-stats {
+    gap: 0.22rem;
+    margin-top: 0.16rem;
+  }
+
+  .dashboard[data-tab="diet"] .daily-chip {
+    padding: 0.14rem 0.4rem 0.12rem;
+  }
+
+  .dashboard[data-tab="diet"] .daily-macros {
+    gap: 0.16rem 0.55rem;
+    margin-top: 0.16rem;
   }
 
   .dashboard[data-tab="diet"] > [data-tab-group="diet"] > h2,
@@ -632,11 +646,12 @@ body {
   user-select: none;
 }
 
-.daily-avgs {
+.daily-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.35rem;
   margin-top: 0.28rem;
+  align-items: stretch;
 }
 
 .daily-chip {
@@ -710,11 +725,23 @@ body {
 }
 
 .daily-chip-note {
-  margin: 0.28rem 0 0;
+  margin: 0.12rem 0 0;
   color: var(--muted);
   font-size: 0.66rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
+}
+
+.daily-chip-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  margin-top: 0.12rem;
+}
+
+.daily-chip-tags .daily-pill {
+  margin-left: 0;
 }
 
 .daily-macros {
@@ -732,9 +759,13 @@ body {
 }
 
 .macro-avg {
+  flex: none;
   margin: 0;
+  padding: 0.06rem 0.32rem 0.08rem;
+  border-radius: 4px;
+  background: var(--surface-2);
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
@@ -767,95 +798,6 @@ body {
 .daily-macro .bar {
   height: 4px;
   margin-top: 0.22rem;
-}
-
-.weight-block {
-  margin: 0.22rem 0 0;
-}
-
-.weight-kicker {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.weight-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.28rem 0.55rem;
-  margin-top: 0.12rem;
-}
-
-.weight-figure {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  font-size: 1.28rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
-}
-
-.weight-figure span {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 650;
-}
-
-.weight-goal {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.weight-chip {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  margin: 0;
-  padding: 0.16rem 0.4rem 0.18rem;
-  border-radius: 8px;
-  background: var(--surface-2);
-}
-
-.weight-chip-label {
-  display: block;
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.weight-chip-value {
-  display: block;
-  margin-top: 0.06rem;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-.weight-chip.is-down .weight-chip-value {
-  color: var(--accent);
-}
-
-.weight-chip.is-up .weight-chip-value {
-  color: var(--warn);
-}
-
-.weight-chip.is-flat .weight-chip-value,
-.weight-chip.is-none .weight-chip-value {
-  color: var(--muted);
 }
 
 .today-meter {
