@@ -30,13 +30,17 @@ function AverageChip({
 }) {
   const target = average?.targetKcal ?? targetKcal;
   return (
-    <div className="daily-chip">
-      <p className="daily-kicker">{label}</p>
-      <p className="daily-chip-figure">
-        <span className="daily-chip-num">{average ? formatNumber(average.averageKcal) : "—"}</span>
-        <span className="daily-chip-of">/ {formatNumber(target)}</span>
+    <div className="daily-chip daily-chip-span">
+      <div className="daily-chip-main">
+        <p className="daily-kicker">{label}</p>
+        <p className="daily-chip-figure">
+          <span className="daily-chip-num">{average ? formatNumber(average.averageKcal) : "—"}</span>
+          <span className="daily-chip-of">/ {formatNumber(target)}</span>
+        </p>
+      </div>
+      <div className="daily-chip-tag">
         {average ? <span className={`daily-pill ${average.status}`}>{deltaText(average)}</span> : null}
-      </p>
+      </div>
     </div>
   );
 }
@@ -122,14 +126,10 @@ function WeightCard({ data, asOf }: { data: DietDashboardView; asOf: string }) {
     latest && Number.isFinite(data.goal_weight_kg) ? toGoalText(latest.kg, data.goal_weight_kg) : "—";
   return (
     <div className="daily-chip daily-chip-wide">
-      <div className="weight-half">
-        <WeightStat label="Weight" value={latest ? `${formatNumber(latest.kg, 1)} kg` : "—"} hero />
-        <WeightStat label="To goal" value={goal} />
-      </div>
-      <div className="weight-half">
-        <WeightStat label="7 days" value={weekValue.text} tone={weekValue.tone} title={week.detail} />
-        <WeightStat label="28 days" value={monthValue.text} tone={monthValue.tone} title={month.detail} />
-      </div>
+      <WeightStat label="Weight" value={latest ? `${formatNumber(latest.kg, 1)} kg` : "—"} hero />
+      <WeightStat label="To goal" value={goal} />
+      <WeightStat label="7 days" value={weekValue.text} tone={weekValue.tone} title={week.detail} />
+      <WeightStat label="28 days" value={monthValue.text} tone={monthValue.tone} title={month.detail} />
     </div>
   );
 }

@@ -679,7 +679,7 @@ body {
 
 .daily-board {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--daily-space);
   margin-top: var(--daily-space);
   align-items: stretch;
@@ -703,19 +703,45 @@ body {
   background: var(--surface-2);
 }
 
+.daily-chip-span,
+.daily-chip-wide,
+.daily-macro {
+  grid-column: span 2;
+}
+
+.daily-chip-span,
 .daily-chip-wide {
-  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
+  align-items: end;
   padding: var(--daily-pad-y) 0;
 }
 
-.weight-half {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.daily-chip-wide {
+  grid-column: 1 / -1;
   align-items: start;
+}
+
+.daily-chip-main,
+.daily-chip-tag,
+.weight-stat {
   min-width: 0;
-  padding: 0 var(--daily-pad-x);
+  padding-left: var(--daily-pad-x);
+  text-align: left;
+}
+
+.daily-chip-main .daily-kicker {
+  white-space: nowrap;
+}
+
+.daily-chip-tag {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.daily-chip-tag .daily-pill {
+  margin-left: 0;
 }
 
 .daily-chip-figure {
@@ -746,7 +772,7 @@ body {
   display: inline-flex;
   align-items: center;
   margin-top: 0;
-  margin-left: auto;
+  margin-left: 0;
   padding: 0.05rem 0.4rem 0.07rem;
   border-radius: 99px;
   font-variant-numeric: tabular-nums;
@@ -769,11 +795,6 @@ body {
 .daily-pill.even {
   background: color-mix(in srgb, var(--muted) 14%, var(--card));
   color: var(--muted);
-}
-
-.weight-stat {
-  min-width: 0;
-  text-align: left;
 }
 
 .weight-stat-value {
@@ -799,8 +820,15 @@ body {
 
 .daily-macro {
   min-width: 0;
-  padding: 2px var(--daily-pad-x) 0;
+  padding: 2px 0 0;
   background: transparent;
+}
+
+.daily-macro .daily-kicker,
+.daily-macro .value,
+.daily-macro .bar {
+  margin-left: var(--daily-pad-x);
+  margin-right: var(--daily-pad-x);
 }
 
 .daily-macro .value {
