@@ -1,6 +1,6 @@
 import { phaseCalorieSummary, type CalorieAverage } from "@/lib/calorie-average";
 import { formatNumber } from "@/lib/format";
-import { activePhaseFoodBalance, formatPhaseRange } from "@/lib/phase-balance";
+import { formatPhaseRange } from "@/lib/phase-balance";
 import { phaseLengthDays, phaseProgress } from "@/lib/phases";
 import type { DietDashboardView } from "@/lib/types";
 import { DailyRing } from "@/components/DailyRing";
@@ -26,13 +26,10 @@ export function PhaseTile({
   const loggedDays = data.days.map((day) => ({
     date: day.date,
     kcal: day.kcal,
-    complete: day.complete,
-    cycleClosed: day.cycle_closed,
   }));
   const summary = phaseCalorieSummary(loggedDays, today);
-  const balance = activePhaseFoodBalance(loggedDays, today);
 
-  if (!summary || !balance) {
+  if (!summary) {
     return (
       <section className="card phase-tile" data-tab-group="diet" data-tile="phase">
         <h2>Phase</h2>
@@ -45,11 +42,6 @@ export function PhaseTile({
   const total = phaseLengthDays(phase);
   const lastDay = summary.daysLeft === 1;
   const average = summary.average;
-  const shownDeficit = Math.round(balance.deficitKcal);
-  const deficitTone = shownDeficit > 0 ? "under" : shownDeficit < 0 ? "over" : "even";
-  const deficitWord = deficitTone === "under" ? "under" : deficitTone === "over" ? "over" : "on target";
-  const dayWord = balance.loggedDays === 1 ? "day" : "days";
-  const todayOpen = today >= phase.start && today <= phase.end && !balance.countsToday;
 
   return (
     <section className="card phase-tile" data-tab-group="diet" data-tile="phase">
@@ -86,26 +78,6 @@ export function PhaseTile({
           {average ? <span className={`daily-pill ${average.status}`}>{deltaText(average)}</span> : null}
           <p className="phase-logged">{loggedLabel(average?.days ?? 0)}</p>
         </div>
-      </div>
-      <div className="phase-deficit">
-        <p className="phase-kicker">Food deficit</p>
-        {balance.loggedDays > 0 ? (
-          <>
-            <p className={`phase-deficit-kcal is-${deficitTone}`}>
-              {deficitTone === "even"
-                ? "On target"
-                : `${formatNumber(Math.abs(shownDeficit))} kcal ${deficitWord}`}
-            </p>
-            <p className="phase-deficit-kg">≈ {formatNumber(Math.abs(balance.deficitKg), 2)} kg</p>
-            <p className="note">
-              vs {formatNumber(phase.kcal_target)} × {formatNumber(balance.loggedDays)} logged {dayWord}
-              {balance.includesOpenToday ? ", incl. today so far." : "."}
-              {!balance.includesOpenToday && todayOpen ? " Today isn't counted yet." : ""}
-            </p>
-          </>
-        ) : (
-          <p className="note">No completed days logged yet.{todayOpen ? " Today isn't counted yet." : ""}</p>
-        )}
       </div>
     </section>
   );

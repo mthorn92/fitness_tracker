@@ -6,7 +6,7 @@ import {
   CaloriesChartTile,
   DeficitChartTile,
   PersonalKcalTile,
-  ProteinWaterChartTile,
+  ProteinChartTile,
   useDietCharts,
   WeightChartTile,
 } from "@/components/DietCharts";
@@ -302,13 +302,7 @@ export function Dashboard({
       <WeightChartTile canvasRef={charts.weight} model={model} />
       <CaloriesChartTile canvasRef={charts.calories} data={data} model={model} />
       <DeficitChartTile canvasRef={charts.deficit} data={data} model={model} />
-      <ProteinWaterChartTile
-        proteinRef={charts.protein}
-        waterRef={charts.water}
-        data={data}
-        model={model}
-        today={today}
-      />
+      <ProteinChartTile proteinRef={charts.protein} data={data} model={model} today={today} />
       <PhaseTile data={data} today={today} />
       <PersonalKcalTile data={data} />
       <TrainingTodayCard view={board.today} mode={board.todayMode} weekCopy={board.weekCopyText} />

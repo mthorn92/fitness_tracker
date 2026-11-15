@@ -68,6 +68,27 @@ function valuesBetween(
 }
 
 /**
+ * Mean of logged values for the calendar window ending yesterday.
+ * Today is never included. A day with no value is skipped.
+ * The window does not stretch back to replace a missing day.
+ */
+export function rollingLoggedMean(
+  days: readonly { date: string; value: number | null }[],
+  today: string,
+  windowDays = 7,
+): number | null {
+  if (windowDays < 1) return null;
+  const byDate = new Map<string, number>();
+  for (const day of days) {
+    if (typeof day.value !== "number" || !Number.isFinite(day.value)) continue;
+    byDate.set(day.date, day.value);
+  }
+  const values = valuesBetween(byDate, shiftIsoDate(today, -windowDays), shiftIsoDate(today, -1));
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+/**
  * Mean food calories for the calendar window ending yesterday.
  * Today is never included, even when food is already logged.
  * A day with no food is skipped. The window does not stretch back to replace it.

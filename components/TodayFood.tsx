@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { DASHBOARD_TAB_EVENT } from "@/components/dashboard-tab";
 import { formatNumber, formatTime } from "@/lib/format";
 import type { FoodItem } from "@/lib/types";
 
@@ -70,61 +68,6 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
   });
 
   const total = foods.reduce((sum, food) => sum + food.kcal, 0);
-  const tileRef = useRef<HTMLElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const tile = tileRef.current;
-    if (!tile) return;
-
-    const fit = () => {
-      const list = listRef.current;
-      const wide = window.matchMedia("(min-width: 800px)").matches;
-      const row = tile.parentElement;
-      const tileTop = tile.getBoundingClientRect().top;
-      const siblings =
-        wide && row
-          ? ([...row.children].filter((el) => {
-              if (el === tile) return false;
-              return Math.abs((el as HTMLElement).getBoundingClientRect().top - tileTop) < 8;
-            }) as HTMLElement[])
-          : [];
-      const siblingHeight = siblings.reduce((max, el) => Math.max(max, el.offsetHeight), 0);
-
-      // Phone: the list uses the CSS max-height and scrolls, with Total under it.
-      // Wide: lock the tile to the other cards in the row. A grid item otherwise
-      // refuses to be shorter than its meals, so the list has to scroll inside.
-      if (!wide || siblingHeight < 160) {
-        tile.style.height = "";
-        tile.style.maxHeight = "";
-        tile.style.minHeight = "";
-        if (list) list.style.maxHeight = "";
-        return;
-      }
-
-      const height = `${Math.round(siblingHeight)}px`;
-      tile.style.height = height;
-      tile.style.maxHeight = height;
-      tile.style.minHeight = "0";
-      if (list) list.style.maxHeight = "none";
-    };
-
-    fit();
-    const observer = new ResizeObserver(fit);
-    const row = tile.parentElement;
-    if (row) {
-      for (const child of row.children) {
-        if (child !== tile) observer.observe(child);
-      }
-    }
-    window.addEventListener("resize", fit);
-    document.addEventListener(DASHBOARD_TAB_EVENT, fit);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", fit);
-      document.removeEventListener(DASHBOARD_TAB_EVENT, fit);
-    };
-  }, [foods]);
 
   return (
     <section
@@ -132,7 +75,6 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
       aria-labelledby="todays-food-title"
       data-tab-group="diet"
       data-tile="food"
-      ref={tileRef}
     >
       <div className="tile-heading">
         <h2 id="todays-food-title">Today&apos;s food</h2>
@@ -141,7 +83,7 @@ export function TodayFood({ foods, dateLabel }: { foods: FoodItem[]; dateLabel: 
       {foods.length === 0 ? (
         <p className="food-empty">No food logged.</p>
       ) : (
-        <div className="food-list" ref={listRef}>
+        <div className="food-list">
           {names.map((name) => {
             const items = buckets.get(name) ?? [];
             return (

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calendarIsoDate, rollingCalorieAverage } from "./calorie-average";
+import { calendarIsoDate, rollingCalorieAverage, rollingLoggedMean } from "./calorie-average";
 
 const target = 2000;
 
@@ -21,6 +21,21 @@ test("rolling average uses completed days only and leaves today out", () => {
   assert.equal(average?.targetKcal, 2000);
   assert.equal(average?.deltaKcal, 0);
   assert.equal(average?.status, "even");
+});
+
+test("a macro average uses completed logged days and leaves today out", () => {
+  const mean = rollingLoggedMean(
+    [
+      { date: "2026-11-07", value: 100 },
+      { date: "2026-11-08", value: 140 },
+      { date: "2026-11-09", value: null },
+      { date: "2026-11-14", value: 200 },
+      { date: "2026-11-15", value: 20 },
+    ],
+    "2026-11-15",
+  );
+  assert.equal(mean, 170);
+  assert.equal(rollingLoggedMean([{ date: "2026-11-15", value: 40 }], "2026-11-15"), null);
 });
 
 test("missing days are skipped and the window does not grow to replace them", () => {

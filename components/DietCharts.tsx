@@ -7,11 +7,10 @@ import type { Chart, ChartConfiguration, ChartDataset, Plugin, TooltipItem } fro
 import {
   formatKcalPerDay,
   formatProteinPerDay,
-  formatWaterPerDay,
   type DietChartModel,
 } from "@/lib/chart-range";
 import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
-import { ASSUMED_TDEE_KCAL, fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
+import { fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import { clampPercent, formatNumber } from "@/lib/format";
 import type { DietDashboardView } from "@/lib/types";
 
@@ -30,10 +29,6 @@ function chartPoint(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-}
-
-function formatTarget(value: number): string {
-  return value.toLocaleString("en-AU", { maximumFractionDigits: 1 });
 }
 
 /** Diagonal hatch so today's unfinished bar reads differently from a completed day. */
@@ -121,7 +116,6 @@ export type DietChartRefs = {
   deficit: RefObject<HTMLCanvasElement | null>;
   calories: RefObject<HTMLCanvasElement | null>;
   protein: RefObject<HTMLCanvasElement | null>;
-  water: RefObject<HTMLCanvasElement | null>;
 };
 
 function averageDataset(value: number | null, count: number): ChartDataset | null {
@@ -259,7 +253,6 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
   const deficitCanvas = useRef<HTMLCanvasElement>(null);
   const caloriesCanvas = useRef<HTMLCanvasElement>(null);
   const proteinCanvas = useRef<HTMLCanvasElement>(null);
-  const waterCanvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -303,13 +296,10 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
       const single = count < 2;
       const kcalAverage = averageDataset(model.averages.kcalLine, count);
       const proteinAverage = averageDataset(model.averages.proteinLine, count);
-      const waterAverage = averageDataset(model.averages.waterLine, count);
       const kcalStat = formatKcalPerDay(model.averages.kcalPerDay);
       const proteinStat = formatProteinPerDay(model.averages.proteinPerDay);
-      const waterStat = formatWaterPerDay(model.averages.waterPerDay);
       const kcalMark = formatAverageLabel("kcal", model.averages.kcalPerDay ?? Number.NaN);
       const proteinMark = formatAverageLabel("protein", model.averages.proteinPerDay ?? Number.NaN);
-      const waterMark = formatAverageLabel("water", model.averages.waterPerDay ?? Number.NaN);
       const hideAverage = {
         filter(item: { text: string }) {
           return item.text !== "Average";
@@ -550,49 +540,9 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
               barValueLabels(0),
             ],
         },
-        {
-            type: "bar",
-            data: {
-              labels,
-              datasets: [
-                {
-                  type: "bar",
-                  label: "Water",
-                  data: series(model.waterL),
-                  backgroundColor: foodFill,
-                  borderColor: food,
-                  borderWidth: model.inProgress.map((flag) => (flag ? 1 : 0)),
-                  borderRadius: 3,
-                } as ChartDataset,
-                targetLine(`${formatTarget(model.targets.water_l)} L`, model.targets.water_l),
-                ...(waterAverage ? [waterAverage] : []),
-              ],
-            },
-            options: {
-              ...targetScale(
-                "L",
-                model.targets.water_l,
-                [...model.waterL, model.averages.waterLine],
-                model.averages.waterLine != null,
-                targetAxis,
-                10,
-                13,
-              ),
-              plugins: {
-                legend: { display: true, position: "bottom" as const, labels: hideAverage },
-                tooltip: averageTooltip(waterStat),
-              },
-            },
-            plugins: [
-              ...guidesFor(model.averages.waterLine, waterMark, [
-                { value: model.targets.water_l, color: muted, dash: [5, 4], width: 1.25 },
-              ]),
-              barValueLabels(1),
-            ],
-        },
       ];
 
-      const canvases = [weightCanvas, deficitCanvas, caloriesCanvas, proteinCanvas, waterCanvas].map(
+      const canvases = [weightCanvas, deficitCanvas, caloriesCanvas, proteinCanvas].map(
         (slot) => slot.current,
       );
       if (canvases.some((canvas) => canvas == null)) return;
@@ -722,7 +672,6 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
     deficit: deficitCanvas,
     calories: caloriesCanvas,
     protein: proteinCanvas,
-    water: waterCanvas,
   };
 }
 
@@ -774,11 +723,9 @@ export function CaloriesChartTile({
       </div>
       <p className="note">
         {model.weekly
-          ? `Bars are weekly food totals. The solid orange line is weekly WHOOP burn. The dashed line is ${weeklyTarget} kcal (7 × ${daily}). The violet line is the daily average of completed days, drawn ×7 so it lines up.`
-          : `Bars are food. The solid orange line is WHOOP cycle burn. The dashed line is the ${daily} kcal food budget. The violet line is the average of completed days.`}
-        {model.openToday
-          ? " Today's bar is in progress. Today is left out of the average and the WHOOP line while the cycle is open."
-          : ""}
+          ? `Weekly food. Orange is WHOOP burn. Dashed is ${weeklyTarget} kcal. Violet is the daily average ×7.`
+          : `Food bars. Orange is closed-day WHOOP burn. Dashed is ${daily} kcal. Violet averages completed days.`}
+        {model.openToday ? " Today is in progress." : ""}
       </p>
     </section>
   );
@@ -831,13 +778,10 @@ export function DeficitChartTile({
         />
       </div>
       <p className="note">
-        WHOOP burn is calories burned minus food. {fixedTdeeSeriesLabel()} uses{" "}
-        {ASSUMED_TDEE_KCAL.toLocaleString("en-AU")} kcal as the burn instead, minus food on those
-        same days. The kilograms under each total are the expected weight lost at {kcalPerKg} kcal
-        per kg. Counted days only: a past day counts even if WHOOP still shows an open cycle.
-        Comparison only. Neither figure is added to the food budget.
-        {model.weekly ? " Each point is the cumulative total at the end of that week." : null}
-        {data.in_progress_label ? ` ${data.in_progress_label} is in progress and not counted yet.` : null}
+        WHOOP is burn minus food. {fixedTdeeSeriesLabel()} uses that burn. Kg at {kcalPerKg} kcal/kg.
+        Neither changes the food budget.
+        {model.weekly ? " Points are week-end totals." : ""}
+        {data.in_progress_label ? ` ${data.in_progress_label} isn’t counted yet.` : ""}
       </p>
     </section>
   );
@@ -882,75 +826,36 @@ function TodayMeter({
   );
 }
 
-export function ProteinWaterChartTile({
+export function ProteinChartTile({
   proteinRef,
-  waterRef,
   data,
   model,
   today,
 }: {
   proteinRef: RefObject<HTMLCanvasElement | null>;
-  waterRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
   model: DietChartModel;
   today: string;
 }) {
   const proteinDaily = data.targets.protein_g.toLocaleString("en-AU");
   const proteinWeekly = model.targets.protein_g.toLocaleString("en-AU");
-  const waterDaily = formatTarget(data.targets.water_l);
-  const waterWeekly = formatTarget(model.targets.water_l);
   const todayRow = data.days.find((day) => day.date === today) ?? null;
-  const progressLabel = todayRow?.date === today ? "Today" : (todayRow?.label ?? "Today");
-  const openNote = model.openToday ? " Today's bar is in progress and left out of the average." : "";
   return (
-    <section className="card chart-tile protein-water-tile" data-tab-group="diet" data-tile="protein-water">
-      <h2>Protein and water</h2>
-      <div className="mini-chart">
-        <div className="mini-chart-head">
-          <h3>Protein</h3>
-          <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
-        </div>
-        {todayRow ? (
-          <TodayMeter
-            label={progressLabel}
-            current={todayRow.protein_g}
-            target={data.targets.protein_g}
-            unit="g"
-          />
-        ) : null}
-        <div className="chart-wrap chart-wrap-mini">
-          <canvas ref={proteinRef} aria-label="Protein chart" />
-        </div>
-        <p className="note">
-          {model.weekly
-            ? `Weekly protein totals. The dashed line is ${proteinWeekly} g (7 × ${proteinDaily} g). The violet line is the daily average of completed days, drawn ×7.`
-            : `Daily protein vs the ${proteinDaily} g target. The violet line is the average of completed days.`}
-          {openNote}
-        </p>
+    <section className="card chart-tile" data-tab-group="diet" data-tile="protein">
+      <h2>Protein</h2>
+      <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
+      {todayRow ? (
+        <TodayMeter label="Today" current={todayRow.protein_g} target={data.targets.protein_g} unit="g" />
+      ) : null}
+      <div className="chart-wrap">
+        <canvas ref={proteinRef} aria-label="Protein chart" />
       </div>
-      <div className="mini-chart">
-        <div className="mini-chart-head">
-          <h3>Water</h3>
-          <PeriodAverage text={formatWaterPerDay(model.averages.waterPerDay)} />
-        </div>
-        {todayRow ? (
-          <TodayMeter
-            label={progressLabel}
-            current={todayRow.water_l}
-            target={data.targets.water_l}
-            unit="L"
-          />
-        ) : null}
-        <div className="chart-wrap chart-wrap-mini">
-          <canvas ref={waterRef} aria-label="Water chart" />
-        </div>
-        <p className="note">
-          {model.weekly
-            ? `Weekly water totals. The dashed line is ${waterWeekly} L (7 × ${waterDaily} L). The violet line is the daily average of completed days, drawn ×7.`
-            : `Daily water vs the ${waterDaily} L target. The violet line is the average of completed days.`}
-          {openNote}
-        </p>
-      </div>
+      <p className="note">
+        {model.weekly
+          ? `Weekly totals. Dashed line is ${proteinWeekly} g. Violet line is the daily average, drawn ×7.`
+          : `Daily protein vs ${proteinDaily} g. Violet line averages completed days.`}
+        {model.openToday ? " Today’s bar is in progress." : ""}
+      </p>
     </section>
   );
 }
