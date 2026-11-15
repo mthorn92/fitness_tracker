@@ -58,6 +58,27 @@ test("the food target is unchanged by how large a day's calories are", () => {
   assert.equal(over?.status, "over");
 });
 
+test("the weekly buffer is the kcal still available to hold the 2,000 average", () => {
+  const spare = rollingCalorieAverage(
+    [
+      { date: "2026-11-08", kcal: 1996 },
+      { date: "2026-11-09", kcal: 1996 },
+      { date: "2026-11-10", kcal: 1996 },
+      { date: "2026-11-11", kcal: 1996 },
+      { date: "2026-11-12", kcal: 1996 },
+      { date: "2026-11-13", kcal: 1996 },
+      { date: "2026-11-14", kcal: 1996 },
+    ],
+    "2026-11-15",
+    target,
+  );
+  assert.equal(spare?.averageKcal, 1996);
+  assert.equal(spare?.bufferKcal, 28);
+
+  const over = rollingCalorieAverage([{ date: "2026-11-13", kcal: 2120 }], "2026-11-14", target);
+  assert.equal(over?.bufferKcal, 2000 - 2120);
+});
+
 test("the displayed average is the rounded mean", () => {
   const over = rollingCalorieAverage([{ date: "2026-11-13", kcal: 2000.5 }], "2026-11-14", target);
   assert.equal(over?.averageKcal, 2001);

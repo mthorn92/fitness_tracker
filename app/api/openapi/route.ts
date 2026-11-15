@@ -50,6 +50,13 @@ export async function GET(request: Request) {
               description: "Optional saved-meal name; macros fill in when omitted",
               example: "chicken rice veg meal prep",
             },
+            planned: {
+              type: "boolean",
+              description:
+                "Optional. True when the line is planned rather than eaten. Omitted means false. A date after today in Australia/Melbourne is also treated as planned.",
+              default: false,
+              example: false,
+            },
           },
         },
         Water: {

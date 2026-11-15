@@ -10,6 +10,10 @@ export type CaloriePhase = {
   /** Inclusive end, YYYY-MM-DD. */
   end: string;
   kcal_target: number;
+  /** Short kind shown after the name, for example "cut". */
+  subtitle?: string;
+  /** What starts the day after this phase ends, for example "maintenance". */
+  next?: string;
 };
 
 export const PHASES: readonly CaloriePhase[] = [
@@ -18,6 +22,8 @@ export const PHASES: readonly CaloriePhase[] = [
     start: "2026-11-09",
     end: "2026-12-22",
     kcal_target: 2000,
+    subtitle: "cut",
+    next: "maintenance",
   },
 ];
 

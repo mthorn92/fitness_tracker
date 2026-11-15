@@ -16,6 +16,8 @@ import {
   KCAL_PER_KG,
 } from "@/lib/deficit";
 import { dietChartStartDate, enumerateIsoDates } from "@/lib/diet-window";
+import { buildPhaseBoard } from "@/lib/phase-board";
+import { isPlannedFood } from "@/lib/planned-food";
 import { preferredWhoopBurnKcal } from "@/lib/whoop-burn";
 import {
   formatDateLabel,
@@ -120,6 +122,11 @@ function resolveDate(data: FitnessSnapshot, requested?: string): string {
   return latestLoggedDate(data);
 }
 
+/** Diet tab selection. A real calendar day, including tomorrow's plan. Defaults to Melbourne today. */
+function resolveDashboardDate(requested: string | undefined, today: string): string {
+  return requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : today;
+}
+
 function dateNavFor(data: FitnessSnapshot, date: string): DateNav {
   const { min, max } = dataDateRange(data);
   const prev = shiftIsoDate(date, -1);
@@ -213,7 +220,8 @@ export async function getTodayView(date?: string): Promise<TodayView> {
 }
 
 export function buildTodayView(data: FitnessSnapshot, date?: string): TodayView {
-  const selected = resolveDate(data, date);
+  const selected =
+    date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : resolveDate(data, date);
   const day = data.days[selected];
   const foods = (day?.foods ?? []).filter((food) => !food.id?.startsWith("agg:"));
   const eaten = sumFoods(foods);
@@ -279,13 +287,43 @@ export async function getSavedMeals(): Promise<SavedMealView[]> {
   }));
 }
 
-/** Food calories for a day — same source as the dashboard budget ring. */
-function dayFoodKcal(day: DayLog | undefined): number | null {
-  if (!day) return null;
-  const fromFoods = sumFoods(day.foods).kcal;
-  const kcal = fromFoods || day.calories_kcal || 0;
-  if (fromFoods <= 0 && day.calories_kcal <= 0 && day.foods.length === 0) return null;
-  return kcal;
+/**
+ * Food calories that count in averages, deficit, and trends.
+ * Planned lines, "(planned)" names, and every line on a future date are left out.
+ * A day that is only a plan returns null so it is skipped rather than averaged as zero.
+ */
+function dayFoodKcal(day: DayLog | undefined, date: string, today: string): number | null {
+  if (!day || date > today) return null;
+  const foods = day.foods.filter((food) => !isPlannedFood(food, date, today));
+  if (foods.length === 0) return null;
+  return sumFoods(foods).kcal;
+}
+
+function countedMacros(day: DayLog | undefined, date: string, today: string) {
+  const empty = { kcal: null as number | null, protein_g: 0, carbs_g: 0, fat_g: 0, water_l: 0 };
+  if (!day) return empty;
+  const water_l = day.water_l || day.water_entries.reduce((sum, entry) => sum + entry.litres, 0);
+  const foods = day.foods.filter((food) => !isPlannedFood(food, date, today));
+  if (foods.length === 0 || date > today) {
+    return { ...empty, water_l };
+  }
+  const eaten = sumFoods(foods);
+  return { kcal: eaten.kcal, protein_g: eaten.protein_g, carbs_g: eaten.carbs_g, fat_g: eaten.fat_g, water_l };
+}
+
+/** Everything logged on the selected day, including a plan, for the rings and the food list. */
+function displayMacros(day: DayLog | undefined) {
+  if (!day) return { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, water_l: 0 };
+  const foods = day.foods.filter((food) => !food.id?.startsWith("agg:"));
+  const eaten = sumFoods(foods.length > 0 ? foods : day.foods);
+  const water_l = day.water_l || day.water_entries.reduce((sum, entry) => sum + entry.litres, 0);
+  return {
+    kcal: foods.length === 0 && day.foods.length === 0 ? 0 : eaten.kcal,
+    protein_g: eaten.protein_g,
+    carbs_g: eaten.carbs_g,
+    fat_g: eaten.fat_g,
+    water_l,
+  };
 }
 
 function toTrendPoints(series: Array<{ date: string; value: number }>): TrendPoint[] {
@@ -354,20 +392,6 @@ function cycleClosedForDate(data: FitnessSnapshot, date: string): boolean | null
   return cycle.end != null;
 }
 
-function dayMacros(day: DayLog | undefined) {
-  if (!day) return { kcal: null as number | null, protein_g: 0, carbs_g: 0, fat_g: 0, water_l: 0 };
-  const eaten = sumFoods(day.foods);
-  const kcal = dayFoodKcal(day);
-  const water_l =
-    day.water_l || day.water_entries.reduce((sum, entry) => sum + entry.litres, 0);
-  return {
-    kcal,
-    protein_g: eaten.protein_g,
-    carbs_g: eaten.carbs_g,
-    fat_g: eaten.fat_g,
-    water_l,
-  };
-}
 
 export async function getDietDashboardView(date?: string): Promise<DietDashboardView> {
   return buildDietDashboardView(await getFitnessData(), date);
@@ -380,23 +404,22 @@ export async function getDietDashboardView(date?: string): Promise<DietDashboard
  */
 export async function getDashboardPageData(requested: string | undefined, range: ChartRangeId) {
   const bounds = await dashboardDateBounds();
-  const latest = bounds.latest;
-  const end =
-    requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) && requested >= bounds.start && requested <= latest
-      ? requested
-      : latest;
-  const from = chartRangeStart(range, end) ?? undefined;
-  const window: SnapshotWindow = { to: end };
+  const calendarToday = todayIsoDate("Australia/Melbourne");
+  const selected = resolveDashboardDate(requested, calendarToday);
+  const chartEnd = selected < calendarToday ? selected : calendarToday;
+  const from = chartRangeStart(range, chartEnd) ?? undefined;
+  const loadTo = [bounds.latest, shiftIsoDate(calendarToday, 1), selected].sort().at(-1) ?? calendarToday;
+  const window: SnapshotWindow = { to: loadTo };
   if (from) window.from = from;
   const snapshot = await loadSnapshot(window);
-  const data = buildDietDashboardView(snapshot, requested);
+  const data = buildDietDashboardView(snapshot, selected);
   const log = buildTodayView(snapshot, data.today.date);
   return { data, log };
 }
 
 export function buildDietDashboardView(data: FitnessSnapshot, date?: string): DietDashboardView {
   const today = todayIsoDate("Australia/Melbourne");
-  const selected = resolveDate(data, date);
+  const selected = resolveDashboardDate(date, today);
   const targets = {
     calories_kcal: data.targets.calories_kcal || DEFAULT_TARGETS.calories_kcal,
     protein_g: data.targets.protein_g || DEFAULT_TARGETS.protein_g,
@@ -414,18 +437,19 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
   ].sort();
   const windowMeta = candidateDates.map((iso) => ({
     date: iso,
-    foodKcal: dayFoodKcal(data.days[iso]),
+    foodKcal: dayFoodKcal(data.days[iso], iso, today),
     whoopKcal: whoopBurnForDate(data, iso),
   }));
   // Drop WHOOP-only prelude (for example Fri–Sun before food logging).
   const chartStart = dietChartStartDate(windowMeta, today);
-  const chartEnd = selected >= chartStart ? selected : chartStart;
+  const trendEnd = selected < today ? selected : today;
+  const chartEnd = trendEnd >= chartStart ? trendEnd : chartStart;
   const dates = enumerateIsoDates(chartStart, chartEnd);
 
   const deficitInputs = dates.map((iso) => ({
     date: iso,
     whoopKcal: whoopBurnForDate(data, iso),
-    foodKcal: dayFoodKcal(data.days[iso]),
+    foodKcal: dayFoodKcal(data.days[iso], iso, today),
     weightKg: data.days[iso]?.weight_kg ?? (iso === data.start_date ? data.start_weight_kg : null),
     complete: data.days[iso]?.complete ?? false,
     cycleClosed: cycleClosedForDate(data, iso),
@@ -436,7 +460,7 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
   let runningCumulative = 0;
   const days: DietDashboardDay[] = dates.map((iso) => {
     const day = data.days[iso];
-    const macros = dayMacros(day);
+    const macros = countedMacros(day, iso, today);
     const closed = cycleClosedForDate(data, iso);
     const point = deficitByDate.get(iso);
     const ready = isDeficitDayReady(
@@ -505,7 +529,40 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
       ? deficit.cumulativeDeficitKcal / rolling_change_kg
       : null;
 
-  const todayRow = days.find((day) => day.date === selected) ?? days[days.length - 1];
+  const chartRow = days.find((day) => day.date === selected);
+  const selectedLog = data.days[selected];
+  const shown = displayMacros(selectedLog);
+  const todayRow: DietDashboardDay = {
+    date: selected,
+    label: formatShortDate(selected),
+    weight_kg: selectedLog?.weight_kg ?? chartRow?.weight_kg ?? null,
+    kcal: shown.kcal,
+    protein_g: shown.protein_g,
+    carbs_g: shown.carbs_g,
+    fat_g: shown.fat_g,
+    water_l: shown.water_l,
+    whoop_burn_kcal: chartRow?.whoop_burn_kcal ?? whoopBurnForDate(data, selected),
+    cycle_closed: chartRow?.cycle_closed ?? cycleClosedForDate(data, selected),
+    complete: selectedLog?.complete ?? false,
+    deficit_kcal: chartRow?.deficit_kcal ?? null,
+    cumulative_deficit_kcal: chartRow?.cumulative_deficit_kcal ?? 0,
+    strain: selectedLog?.strain ?? selectedLog?.whoop?.strain ?? chartRow?.strain ?? null,
+    recovery_pct:
+      selectedLog?.recovery_pct ?? selectedLog?.whoop?.recovery_score ?? chartRow?.recovery_pct ?? null,
+  };
+  const tomorrowDate = shiftIsoDate(today, 1);
+  const tomorrowFoods = (data.days[tomorrowDate]?.foods ?? []).filter(
+    (food) => !food.id?.startsWith("agg:"),
+  );
+  const phaseHistory = candidateDates
+    .filter((iso) => iso <= (selected < today ? selected : today))
+    .map((iso) => ({
+      date: iso,
+      kcal: dayFoodKcal(data.days[iso], iso, today),
+      whoopKcal: whoopBurnForDate(data, iso),
+      complete: data.days[iso]?.complete ?? false,
+      cycleClosed: cycleClosedForDate(data, iso),
+    }));
   const now = new Date();
 
   return {
@@ -537,6 +594,12 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
       rolling_change_kg,
       kcal_per_kg: personalKcalPerKg,
     },
+    calendar_today: today,
+    start_date: data.start_date,
+    tomorrow: tomorrowFoods.length
+      ? { date: tomorrowDate, kcal: sumFoods(tomorrowFoods).kcal }
+      : null,
+    phase_board: buildPhaseBoard(phaseHistory, selected, today),
   };
 }
 
@@ -555,7 +618,7 @@ export async function getChartsView(): Promise<ChartsView> {
     if (log.weight_kg != null) {
       weightSeries.push({ date: day, value: log.weight_kg });
     }
-    const kcal = dayFoodKcal(log);
+    const kcal = dayFoodKcal(log, day, today);
     if (kcal != null) {
       calorieSeries.push({ date: day, value: kcal });
     }
@@ -581,14 +644,14 @@ export async function getChartsView(): Promise<ChartsView> {
   const deficitDays = [...deficitDates].sort().map((date) => ({
     date,
     whoopKcal: whoopBurnForDate(data, date),
-    foodKcal: dayFoodKcal(data.days[date]),
+    foodKcal: dayFoodKcal(data.days[date], date, today),
     weightKg: data.days[date]?.weight_kg ?? (date === data.start_date ? data.start_weight_kg : null),
     complete: data.days[date]?.complete ?? false,
     cycleClosed: cycleClosedForDate(data, date),
   }));
   const deficit = buildDeficitSeries(deficitDays, { today });
 
-  const latestCaloriesKcal = dayFoodKcal(currentDay);
+  const latestCaloriesKcal = dayFoodKcal(currentDay, currentDate, today);
 
   return {
     currentDate,

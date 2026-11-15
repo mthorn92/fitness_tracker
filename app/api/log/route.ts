@@ -131,6 +131,12 @@ function parseFoods(value: unknown, date: string): FoodInput[] | "invalid" {
     const savedMeal = asString(row.saved_meal, 120);
     const kcal = asNumber(row.kcal);
     if (kcal == null && !savedMeal) return "invalid";
+    let planned = false;
+    if ("planned" in row) {
+      const value = asBoolean(row.planned);
+      if (value == null) return "invalid";
+      planned = value;
+    }
     foods.push({
       id: asId(row.id) ?? undefined,
       date,
@@ -142,6 +148,7 @@ function parseFoods(value: unknown, date: string): FoodInput[] | "invalid" {
       fat_g: asNumber(row.fat_g) ?? 0,
       meal: asString(row.meal, 40),
       saved_meal: savedMeal,
+      planned,
     });
   }
   return foods;

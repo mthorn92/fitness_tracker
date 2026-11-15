@@ -118,6 +118,30 @@ export type DietChartRefs = {
   protein: RefObject<HTMLCanvasElement | null>;
 };
 
+/** Faint column behind the selected day on the weight, burn, and deficit charts. */
+function selectedBand(index: number | null, color: string): Plugin {
+  return {
+    id: "selectedBand",
+    beforeDatasetsDraw(chart) {
+      if (index == null || index < 0) return;
+      const scale = chart.scales.x;
+      const area = chart.chartArea;
+      if (!scale || !area) return;
+      const labels = chart.data.labels?.length ?? 0;
+      if (index >= labels) return;
+      const x = scale.getPixelForTick(index);
+      if (!Number.isFinite(x)) return;
+      const step = labels > 1 ? Math.abs(scale.getPixelForTick(1) - scale.getPixelForTick(0)) : 28;
+      const width = Math.max(12, Math.min(step * 0.72, area.width));
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.fillStyle = hexAlpha(color, 0.08);
+      ctx.fillRect(x - width / 2, area.top, width, area.bottom - area.top);
+      ctx.restore();
+    },
+  };
+}
+
 function averageDataset(value: number | null, count: number): ChartDataset | null {
   if (value == null || count === 0) return null;
   return {
@@ -411,16 +435,19 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
               ],
             },
             options: baseOpts("kg"),
-            plugins: single
-              ? [
-                  chartGuides({
-                    average: null,
-                    averageLabel: null,
-                    averageColor: avgColor,
-                    rules: [{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }],
-                  }),
-                ]
-              : [],
+            plugins: [
+              ...(single
+                ? [
+                    chartGuides({
+                      average: null,
+                      averageLabel: null,
+                      averageColor: avgColor,
+                      rules: [{ value: model.goalWeightKg, color: muted, dash: [5, 4], width: 1.25 }],
+                    }),
+                  ]
+                : []),
+              selectedBand(model.highlightIndex, accent),
+            ],
         },
         {
             type: "line",
@@ -449,6 +476,7 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                 },
               },
             },
+            plugins: [selectedBand(model.highlightIndex, accent)],
         },
         {
             type: "bar",
@@ -493,9 +521,12 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                 tooltip: averageTooltip(kcalStat),
               },
             },
-            plugins: guidesFor(model.averages.kcalLine, kcalMark, [
-              { value: model.targets.calories_kcal, color: muted, dash: [5, 4], width: 1.25 },
-            ]),
+            plugins: [
+              ...guidesFor(model.averages.kcalLine, kcalMark, [
+                { value: model.targets.calories_kcal, color: muted, dash: [5, 4], width: 1.25 },
+              ]),
+              selectedBand(model.highlightIndex, accent),
+            ],
         },
         {
             type: "bar",
@@ -723,9 +754,8 @@ export function CaloriesChartTile({
       </div>
       <p className="note">
         {model.weekly
-          ? `Weekly food. Orange is WHOOP burn. Dashed is ${weeklyTarget} kcal. Violet is the daily average ×7.`
-          : `Food bars. Orange is closed-day WHOOP burn. Dashed is ${daily} kcal. Violet averages completed days.`}
-        {model.openToday ? " Today is in progress." : ""}
+          ? `Weekly food vs WHOOP burn. Dashed is ${weeklyTarget} kcal. Planned days aren’t shown.`
+          : `Food vs closed-day WHOOP burn. Dashed is ${daily} kcal.${model.openToday ? " Today is in progress." : ""} Planned days aren’t shown.`}
       </p>
     </section>
   );
@@ -779,7 +809,6 @@ export function DeficitChartTile({
       </div>
       <p className="note">
         WHOOP is burn minus food. {fixedTdeeSeriesLabel()} uses that burn. Kg at {kcalPerKg} kcal/kg.
-        Neither changes the food budget.
         {model.weekly ? " Points are week-end totals." : ""}
         {data.in_progress_label ? ` ${data.in_progress_label} isn’t counted yet.` : ""}
       </p>
@@ -831,21 +860,24 @@ export function ProteinChartTile({
   data,
   model,
   today,
+  focusDate,
 }: {
   proteinRef: RefObject<HTMLCanvasElement | null>;
   data: DietDashboardView;
   model: DietChartModel;
   today: string;
+  focusDate: string;
 }) {
   const proteinDaily = data.targets.protein_g.toLocaleString("en-AU");
   const proteinWeekly = model.targets.protein_g.toLocaleString("en-AU");
-  const todayRow = data.days.find((day) => day.date === today) ?? null;
+  const todayRow = data.today.date === focusDate ? data.today : (data.days.find((day) => day.date === focusDate) ?? null);
+  const meterLabel = focusDate === today ? "Today" : (todayRow?.label ?? "Today");
   return (
     <section className="card chart-tile" data-tab-group="diet" data-tile="protein">
       <h2>Protein</h2>
       <PeriodAverage text={formatProteinPerDay(model.averages.proteinPerDay)} />
       {todayRow ? (
-        <TodayMeter label="Today" current={todayRow.protein_g} target={data.targets.protein_g} unit="g" />
+        <TodayMeter label={meterLabel} current={todayRow.protein_g} target={data.targets.protein_g} unit="g" />
       ) : null}
       <div className="chart-wrap">
         <canvas ref={proteinRef} aria-label="Protein chart" />

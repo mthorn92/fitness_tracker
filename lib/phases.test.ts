@@ -12,6 +12,8 @@ test("Phase 1 is the 2,000 kcal block from 9 Nov through 22 Dec", () => {
     start: "2026-11-09",
     end: "2026-12-22",
     kcal_target: 2000,
+    subtitle: "cut",
+    next: "maintenance",
   });
 });
 

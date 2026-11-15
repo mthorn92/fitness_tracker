@@ -396,9 +396,11 @@ body {
     margin: 0.35rem 0 0;
   }
 
-  .dashboard[data-tab="diet"] > [data-tab-group="diet"] {
-    height: 24rem;
-    max-height: 24rem;
+  .dashboard[data-tab="diet"] > [data-tab-group="diet"]:not([data-tile="eating"]) {
+    display: flex;
+    flex-direction: column;
+    height: 452px;
+    max-height: 452px;
     min-height: 0;
     overflow: hidden;
   }
@@ -800,10 +802,35 @@ body {
 .weight-stat-value {
   margin: 0.12rem 0 0;
   font-variant-numeric: tabular-nums;
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.1;
+  white-space: nowrap;
+}
+
+.weekly-buffer {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0.12rem 0 0;
+  padding-left: var(--daily-pad-x);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.weekly-buffer.good {
+  color: var(--good);
+}
+
+.weekly-buffer.warn {
+  color: var(--warn);
+}
+
+.daily-chip-span {
+  grid-template-rows: auto auto;
 }
 
 .weight-stat.is-hero .weight-stat-value {
@@ -884,10 +911,122 @@ body {
 }
 
 .phase-dates {
-  margin: -0.35rem 0 0.75rem;
+  margin: 0 0 0.15rem;
   color: var(--muted);
   font-size: 0.8rem;
-  line-height: 1.45;
+  line-height: 1.3;
+}
+
+.phase-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.phase-next {
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.phase-facts,
+.phase-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.8rem;
+}
+
+.phase-fact-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.35rem;
+  margin: 0.05rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.phase-of {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.phase-meters {
+  margin: 0.45rem 0 0.35rem;
+}
+
+.phase-meter {
+  display: grid;
+  grid-template-columns: 5.4rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.phase-meter-k {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.phase-meter .bar {
+  height: 6px;
+  margin-top: 0;
+}
+
+.phase-meter-n {
+  font-size: 0.78rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.phase-weight {
+  margin: 0.35rem 0 0.4rem;
+}
+
+.phase-weight-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.05rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.phase-weight-value .is-down {
+  color: var(--good);
+}
+
+.phase-weight-value .is-up {
+  color: var(--warn);
+}
+
+.phase-compare {
+  margin: 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.phase-note {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .phase-top {
@@ -1298,11 +1437,12 @@ body {
 }
 
 .rings-hint {
-  display: block;
+  margin: 0.55rem 0 0;
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.35;
+  text-align: center;
 }
 
 .food-empty {
@@ -1337,6 +1477,48 @@ body {
   align-items: baseline;
   padding: 0.12rem 0;
   font-size: 0.9rem;
+}
+
+.food-group li.is-planned {
+  opacity: 0.62;
+}
+
+.food-planned-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 0.95rem;
+  margin-left: 0.35rem;
+  padding: 0 0.28rem;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.food-tomorrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  text-align: left;
+}
+
+.food-tomorrow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .food-time {
@@ -1395,8 +1577,103 @@ body {
   overscroll-behavior: contain;
 }
 
+.food-tile {
+  display: flex;
+  flex-direction: column;
+}
+
 .food-tile .food-list {
   flex: 1 1 auto;
+}
+
+@media (max-width: 1099px) {
+  .dashboard[data-tab="diet"] .food-list {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+.eating-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  grid-column: 1 / -1;
+  padding: 0.55rem 0.9rem;
+}
+
+.eating-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.eating-date {
+  margin: 0;
+  min-width: 7.6em;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.eating-arrow,
+.eating-cal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.eating-arrow:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.eating-arrow:focus-visible,
+.eating-cal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.eating-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.date-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.15rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 18%, var(--card));
+  color: var(--warn);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.dashboard[data-tab="diet"] .chart-tile .note,
+.dashboard[data-tab="diet"] .rings-hint,
+.dashboard[data-tab="diet"] .phase-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .training-tile .tile-heading {
@@ -1887,7 +2164,7 @@ body {
     counter-reset: diet-pos;
   }
 
-  .dashboard[data-tab="diet"] > [data-tab-group="diet"] {
+  .dashboard[data-tab="diet"] > [data-tab-group="diet"]:not([data-tile="eating"]) {
     counter-increment: diet-pos;
   }
 

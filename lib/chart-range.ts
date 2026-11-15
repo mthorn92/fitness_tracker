@@ -108,6 +108,8 @@ export type DietChartModel = {
   inProgress: boolean[];
   /** Calendar today is in the window and its WHOOP cycle is still open. */
   openToday: boolean;
+  /** Index of the selected day on the plotted axis, when that day is in the window. */
+  highlightIndex: number | null;
 };
 
 function finiteOrNull(value: number | null | undefined): number | null {
@@ -264,10 +266,18 @@ function emptyModel(weekly: boolean, goalWeightKg: number, targets: DietChartTar
     },
     inProgress: [],
     openToday: false,
+    highlightIndex: null,
   };
 }
 
-function toSeries(points: ChartPoint[], weekly: boolean, goalWeightKg: number, targets: DietChartTargets, days: ChartPoint[]): DietChartModel {
+function toSeries(
+  points: ChartPoint[],
+  weekly: boolean,
+  goalWeightKg: number,
+  targets: DietChartTargets,
+  days: ChartPoint[],
+  highlightIndex: number | null,
+): DietChartModel {
   const factor = weekly ? 7 : 1;
   const counted = days.filter((day) => day.includeInAverage);
   const kcalPerDay = meanOfLogged(counted.map((day) => day.kcal));
@@ -300,6 +310,7 @@ function toSeries(points: ChartPoint[], weekly: boolean, goalWeightKg: number, t
     },
     inProgress: points.map((point) => point.inProgress),
     openToday: days.some((day) => day.inProgress),
+    highlightIndex,
   };
 }
 
@@ -327,6 +338,8 @@ export function buildDietChartModel(input: {
   goalWeightKg: number;
   /** Melbourne calendar day. An open cycle on this date is left out of burn and averages. */
   today?: string | null;
+  /** Selected day. A faint band is drawn when it falls inside the plotted window. */
+  highlightDate?: string | null;
 }): DietChartModel {
   const weekly = isWeeklyChartRange(input.range);
   const end = input.days.reduce<string | null>((latest, day) => {
@@ -363,5 +376,19 @@ export function buildDietChartModel(input: {
   });
   visible.sort((a, b) => a.date.localeCompare(b.date));
   const points = weekly ? groupWeeks(visible) : visible;
-  return toSeries(points, weekly, input.goalWeightKg, input.targets, visible);
+  const highlight = input.highlightDate;
+  const highlightIndex =
+    highlight == null
+      ? null
+      : points.findIndex((point) =>
+          weekly ? weekStartMonday(highlight) === point.date : point.date === highlight,
+        );
+  return toSeries(
+    points,
+    weekly,
+    input.goalWeightKg,
+    input.targets,
+    visible,
+    highlightIndex != null && highlightIndex >= 0 ? highlightIndex : null,
+  );
 }

@@ -1,4 +1,4 @@
-import { asDate, asId, asNumber, asObject, asString, asTime } from "@/lib/api-body";
+import { asBoolean, asDate, asId, asNumber, asObject, asString, asTime } from "@/lib/api-body";
 import { json, requireLogAccess } from "@/lib/auth";
 import { upsertFood } from "@/lib/store";
 
@@ -19,6 +19,12 @@ export async function POST(request: Request) {
   if (!date || !time || !item || kcal == null) {
     return json({ error: "invalid_food" }, 400);
   }
+  let planned = false;
+  if ("planned" in body) {
+    const value = asBoolean(body.planned);
+    if (value == null) return json({ error: "invalid_food" }, 400);
+    planned = value;
+  }
 
   const saved = await upsertFood({
     id: asId(body.id) ?? undefined,
@@ -31,6 +37,7 @@ export async function POST(request: Request) {
     fat_g,
     meal: asString(body.meal, 40),
     saved_meal: asString(body.saved_meal, 120),
+    planned,
   });
   return json(saved, body.id ? 200 : 201);
 }
