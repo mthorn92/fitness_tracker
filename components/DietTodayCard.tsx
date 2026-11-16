@@ -1,56 +1,30 @@
-import { DailyRing } from "@/components/DailyRing";
 import { rollingCalorieAverage, type CalorieAverage } from "@/lib/calorie-average";
 import { clampPercent, formatNumber, shiftIsoDate } from "@/lib/format";
 import { formatWeightDelta, latestWeighIn, weightWindowDelta, type WeightDelta } from "@/lib/weight-delta";
-import { phaseLengthDays, phaseProgress } from "@/lib/phases";
+import { phaseLengthDays, phaseProgress, type CaloriePhase } from "@/lib/phases";
 import type { DietDashboardView } from "@/lib/types";
+import type { WeighIn } from "@/lib/weight-delta";
 
-function deltaText(average: CalorieAverage): string {
-  if (average.status === "even") return "on target";
-  const amount = formatNumber(Math.abs(average.deltaKcal));
-  return average.status === "under" ? `${amount} under` : `${amount} over`;
-}
+const CLAW_BACK_KCAL_THRESHOLD = 100;
+const COUNTDOWN_RING = 96;
+const COUNTDOWN_STROKE = 5;
+const COUNTDOWN_RADIUS = (COUNTDOWN_RING - COUNTDOWN_STROKE) / 2;
+const COUNTDOWN_CIRCUMFERENCE = 2 * Math.PI * COUNTDOWN_RADIUS;
 
 function kcalDigits(value: number): 0 | 1 {
   return Number.isInteger(value) ? 0 : 1;
 }
 
-function bufferLabel(bufferKcal: number): { text: string; tone: "good" | "warn" } {
+function bufferLabel(bufferKcal: number): string {
   const rounded = Math.round(bufferKcal);
-  if (rounded < 0) {
-    return { text: `−${formatNumber(Math.abs(rounded))} to claw back`, tone: "warn" };
-  }
-  return { text: `+${formatNumber(rounded)} kcal to spare`, tone: "good" };
+  return `−${formatNumber(Math.abs(rounded))} to claw back`;
 }
 
-function AverageChip({
-  label,
-  average,
-  targetKcal,
-  buffer = false,
-}: {
-  label: string;
-  average: CalorieAverage | null;
-  targetKcal: number;
-  buffer?: boolean;
-}) {
-  const target = average?.targetKcal ?? targetKcal;
-  const spare = buffer && average ? bufferLabel(average.bufferKcal) : null;
-  return (
-    <div className="daily-chip daily-chip-span">
-      <div className="daily-chip-main">
-        <p className="daily-kicker">{label}</p>
-        <p className="daily-chip-figure">
-          <span className="daily-chip-num">{average ? formatNumber(average.averageKcal) : "—"}</span>
-          <span className="daily-chip-of">/ {formatNumber(target)}</span>
-        </p>
-      </div>
-      <div className="daily-chip-tag">
-        {average ? <span className={`daily-pill ${average.status}`}>{deltaText(average)}</span> : null}
-      </div>
-      {spare ? <p className={`weekly-buffer ${spare.tone}`}>{spare.text}</p> : null}
-    </div>
-  );
+function avgDeltaParen(average: CalorieAverage): string {
+  const d = average.deltaKcal;
+  if (d === 0) return "(0)";
+  const sign = d > 0 ? "+" : "−";
+  return `(${sign}${formatNumber(Math.abs(d))})`;
 }
 
 function changeValue(delta: WeightDelta): { text: string; tone: "down" | "up" | "flat" } {
@@ -58,16 +32,39 @@ function changeValue(delta: WeightDelta): { text: string; tone: "down" | "up" | 
   if (shown.direction === "none" || delta.deltaKg == null) return { text: "—", tone: "flat" };
   if (shown.direction === "flat") return { text: "0.0 kg", tone: "flat" };
   const kg = formatNumber(Math.abs(Math.round(delta.deltaKg * 10) / 10), 1);
-  const arrow = shown.direction === "down" ? "↓" : "↑";
-  return { text: `${arrow} ${kg} kg`, tone: shown.direction === "down" ? "down" : "up" };
+  const sign = shown.direction === "down" ? "−" : "+";
+  return { text: `${sign}${kg} kg`, tone: shown.direction === "down" ? "down" : "up" };
 }
 
-function toGoalText(currentKg: number, goalKg: number): string {
-  const delta = Math.round((currentKg - goalKg) * 10) / 10;
-  return `${formatNumber(Math.abs(delta), 1)} kg`;
+function phaseWeightSubtitle(
+  points: readonly WeighIn[],
+  phase: CaloriePhase,
+  asOf: string,
+  goalKg: number,
+): { change: string | null; changeTone: "down" | "up" | "flat"; toGoal: string } {
+  const weighIns = points.filter((point) => point.date >= phase.start && point.date <= asOf);
+  const first = weighIns[0] ?? null;
+  const last = weighIns[weighIns.length - 1] ?? null;
+  let change: string | null = null;
+  let changeTone: "down" | "up" | "flat" = "flat";
+  if (first && last) {
+    const delta = last.kg - first.kg;
+    const rounded = Math.round(delta * 10) / 10;
+    if (rounded !== 0) {
+      const kg = formatNumber(Math.abs(rounded), 1);
+      changeTone = rounded < 0 ? "down" : "up";
+      change = `${rounded < 0 ? "↓" : "↑"}${kg}`;
+    }
+  }
+  const latest = last ?? latestWeighIn(points, asOf);
+  const toGoal =
+    latest && Number.isFinite(goalKg)
+      ? `${formatNumber(Math.abs(Math.round((latest.kg - goalKg) * 10) / 10), 1)} to goal`
+      : "—";
+  return { change, changeTone, toGoal };
 }
 
-function MacroCell({
+function MacroRow({
   label,
   current,
   target,
@@ -84,11 +81,13 @@ function MacroCell({
   const shown = `${formatNumber(current, 1)} / ${formatNumber(target, Number.isInteger(target) ? 0 : 1)} ${unit}`;
   const meterMax = Math.max(target, 0);
   return (
-    <div className={`daily-macro${over ? " is-over" : ""}`}>
-      <div className="daily-kicker">{label}</div>
-      <div className="value">{shown}</div>
+    <div className={`daily-macro-row${over ? " is-over" : ""}`}>
+      <div className="daily-macro-head">
+        <span className="daily-macro-k">{label}</span>
+        <span className="daily-macro-v">{shown}</span>
+      </div>
       <div
-        className={`bar${over ? " over" : ""}`}
+        className={`daily-macro-bar${over ? " over" : ""}`}
         role="meter"
         aria-label={label}
         aria-valuemin={0}
@@ -102,42 +101,73 @@ function MacroCell({
   );
 }
 
-function WeightStat({
-  label,
-  value,
-  tone,
-  hero = false,
-  title,
+function PhaseCountdown({
+  daysLeft,
+  phase,
+  progress,
+  dayOf,
+  totalDays,
+  lastDay,
 }: {
-  label: string;
-  value: string;
-  tone?: "down" | "up" | "flat";
-  hero?: boolean;
-  title?: string;
+  daysLeft: number;
+  phase: CaloriePhase;
+  progress: number;
+  dayOf: number;
+  totalDays: number;
+  lastDay: boolean;
 }) {
-  const toneClass = tone && tone !== "flat" ? ` is-${tone}` : "";
-  return (
-    <div className={`weight-stat${hero ? " is-hero" : ""}${toneClass}`} title={title}>
-      <p className="daily-kicker">{label}</p>
-      <p className="weight-stat-value">{value}</p>
-    </div>
-  );
-}
+  const clamped = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
+  const full = clamped >= 0.999;
+  const label = lastDay ? "Last day" : "days to go";
+  const phaseLine = `${phase.name} · day ${formatNumber(dayOf)} of ${formatNumber(totalDays)}`;
 
-function WeightCard({ data, asOf }: { data: DietDashboardView; asOf: string }) {
-  const latest = latestWeighIn(data.weight_points, asOf);
-  const week = weightWindowDelta(data.weight_points, asOf, 7);
-  const month = weightWindowDelta(data.weight_points, asOf, 28);
-  const weekValue = changeValue(week);
-  const monthValue = changeValue(month);
-  const goal =
-    latest && Number.isFinite(data.goal_weight_kg) ? toGoalText(latest.kg, data.goal_weight_kg) : "—";
   return (
-    <div className="daily-chip daily-chip-wide">
-      <WeightStat label="Weight" value={latest ? `${formatNumber(latest.kg, 1)} kg` : "—"} hero />
-      <WeightStat label="To goal" value={goal} />
-      <WeightStat label="7 days" value={weekValue.text} tone={weekValue.tone} title={week.detail} />
-      <WeightStat label="28 days" value={monthValue.text} tone={monthValue.tone} title={month.detail} />
+    <div
+      className="daily-countdown"
+      role="meter"
+      aria-label={phase.name}
+      aria-valuemin={0}
+      aria-valuemax={totalDays}
+      aria-valuenow={Math.min(Math.max(totalDays - daysLeft, 0), totalDays)}
+      aria-valuetext={
+        lastDay ? `Last day of ${phase.name}` : `${formatNumber(daysLeft)} days to go in ${phase.name}`
+      }
+    >
+      <div className="daily-countdown-ring">
+        <svg viewBox={`0 0 ${COUNTDOWN_RING} ${COUNTDOWN_RING}`} aria-hidden="true">
+          <circle
+            className="daily-countdown-track"
+            cx={COUNTDOWN_RING / 2}
+            cy={COUNTDOWN_RING / 2}
+            r={COUNTDOWN_RADIUS}
+            fill="none"
+            strokeWidth={COUNTDOWN_STROKE}
+          />
+          {clamped > 0 ? (
+            <circle
+              className="daily-countdown-fill"
+              cx={COUNTDOWN_RING / 2}
+              cy={COUNTDOWN_RING / 2}
+              r={COUNTDOWN_RADIUS}
+              fill="none"
+              strokeWidth={COUNTDOWN_STROKE}
+              strokeLinecap={full ? undefined : "round"}
+              strokeDasharray={full ? undefined : `${COUNTDOWN_CIRCUMFERENCE} ${COUNTDOWN_CIRCUMFERENCE}`}
+              strokeDashoffset={full ? undefined : COUNTDOWN_CIRCUMFERENCE * (1 - clamped)}
+              transform={`rotate(-90 ${COUNTDOWN_RING / 2} ${COUNTDOWN_RING / 2})`}
+            />
+          ) : null}
+        </svg>
+        <span className="daily-countdown-num" aria-hidden="true">
+          {formatNumber(daysLeft)}
+        </span>
+      </div>
+      <p className="daily-countdown-cap" aria-hidden="true">
+        {label}
+      </p>
+      <p className="daily-countdown-phase" aria-hidden="true">
+        {phaseLine}
+      </p>
     </div>
   );
 }
@@ -153,9 +183,11 @@ export function DietTodayCard({
   const kcal = today.kcal ?? 0;
   const digits = kcalDigits(kcal);
   const kcalOver = kcal > targets.calories_kcal;
-  const kcalStatus = `${formatNumber(Math.abs(kcal - targets.calories_kcal), digits)} ${kcalOver ? "over" : "left"}`;
+  const kcalRemaining = targets.calories_kcal - kcal;
+  const kcalLeftLabel = kcalOver
+    ? `${formatNumber(Math.abs(kcalRemaining), digits)} over`
+    : `${formatNumber(kcalRemaining, digits)} left`;
   const kcalLabel = formatNumber(kcal, digits);
-  const targetLabel = formatNumber(targets.calories_kcal);
   const selected = today.date;
   const asOf = selected < calendarToday ? selected : calendarToday;
   const averageAnchor = selected < calendarToday ? shiftIsoDate(selected, 1) : calendarToday;
@@ -164,90 +196,137 @@ export function DietTodayCard({
   const phase = data.phase_board;
   const phaseDays = phase ? phaseLengthDays(phase.phase) : 0;
   const lastDay = phase?.daysLeft === 1;
-  const calorieKicker = selected > calendarToday ? "Planned" : selected === calendarToday ? "Calories today" : "Calories";
+  const week = weightWindowDelta(data.weight_points, asOf, 7);
+  const span21 = weightWindowDelta(data.weight_points, asOf, 21);
+  const weekValue = changeValue(week);
+  const span21Value = changeValue(span21);
+  const latest = latestWeighIn(data.weight_points, asOf);
+  const weightSub = phase
+    ? phaseWeightSubtitle(data.weight_points, phase.phase, asOf, data.goal_weight_kg)
+    : {
+        change: null,
+        changeTone: "flat" as const,
+        toGoal: latest
+          ? `${formatNumber(Math.abs(Math.round((latest.kg - data.goal_weight_kg) * 10) / 10), 1)} to goal`
+          : "—",
+      };
+  const clawBack =
+    rolling && rolling.deltaKcal > CLAW_BACK_KCAL_THRESHOLD && rolling.bufferKcal < 0
+      ? bufferLabel(rolling.bufferKcal)
+      : null;
+  const phaseAvg = phase?.average ?? null;
+  const dayOf = phase && phaseDays > 0 ? phaseDays - phase.daysLeft + 1 : 0;
+  const phaseProgressShare = phase ? phaseProgress(selected, phase.phase) : 0;
 
   return (
     <section className="card daily-tile" data-tab-group="diet" data-tile="daily">
-      <h2>{today.label}</h2>
-      <div className="daily-rings">
-        <DailyRing
-          progress={targets.calories_kcal <= 0 ? 0 : kcal / targets.calories_kcal}
-          tone={kcalOver ? "over" : "good"}
-          label="Calories"
-          valueNow={kcal}
-          valueMax={targets.calories_kcal}
-          valueText={`${kcalLabel} of ${targetLabel} calories, ${kcalStatus}`}
-        >
-          <span className="daily-ring-num">{kcalLabel}</span>
-          <span className="daily-ring-sub">/ {targetLabel}</span>
-          <span className={`daily-ring-status${kcalOver ? " is-over" : " is-under"}`}>{kcalStatus}</span>
-          <span className="daily-ring-kicker">{calorieKicker}</span>
-        </DailyRing>
-        {phase ? (
-          <DailyRing
-            progress={phaseProgress(selected, phase.phase)}
-            tone="good"
-            flag
-            label={phase.phase.name}
-            valueNow={Math.max(0, phaseDays - phase.daysLeft)}
-            valueMax={phaseDays}
-            valueText={
-              lastDay
-                ? `Last day of ${phase.phase.name}`
-                : `${formatNumber(phase.daysLeft)} days to go in ${phase.phase.name}`
-            }
-          >
-            <span className="daily-ring-num">{formatNumber(phase.daysLeft)}</span>
-            <span className={`daily-ring-sub${lastDay ? " is-last" : ""}`}>
-              {lastDay ? "last day!" : "days to go"}
+      <h2 className="daily-tile-title">{today.label}</h2>
+      <div className="daily-stack">
+        <div className="daily-hero daily-hero-kcal">
+          <p className="daily-hero-val">
+            {kcalLabel} <span className="daily-hero-unit">kcal</span>
+          </p>
+          <p className={`daily-hero-sub${kcalOver ? " is-over" : " is-under"}`}>{kcalLeftLabel}</p>
+        </div>
+        <div className="daily-hero daily-hero-weight">
+          <p className="daily-hero-val">
+            {latest ? formatNumber(latest.kg, 1) : "—"}{" "}
+            {latest ? <span className="daily-hero-unit">kg</span> : null}
+          </p>
+          <p className="daily-hero-sub">
+            {weightSub.change ? (
+              <span className={weightSub.changeTone === "down" ? "is-down" : "is-up"}>{weightSub.change}</span>
+            ) : null}
+            {weightSub.change ? " · " : null}
+            <span>{weightSub.toGoal}</span>
+          </p>
+        </div>
+        <div className="daily-rule" aria-hidden="true" />
+
+        <div className="daily-stat-lines">
+          <div className="daily-stat-line">
+            <span className="daily-stat-k">7-day avg</span>
+            <span className="daily-stat-v">
+              {rolling ? (
+                <>
+                  {formatNumber(rolling.averageKcal)}{" "}
+                  <span className="daily-stat-delta">{avgDeltaParen(rolling)}</span>
+                </>
+              ) : (
+                "—"
+              )}
             </span>
-            <span className="daily-ring-phase">{phase.phase.name}</span>
-          </DailyRing>
-        ) : null}
-      </div>
-      <div className="daily-board">
-        <AverageChip
-          label="Calories · 7-day avg"
-          average={rolling}
-          targetKcal={targets.calories_kcal}
-          buffer
-        />
+          </div>
+          <div className="daily-stat-line">
+            <span className="daily-stat-k">Phase avg</span>
+            <span className="daily-stat-v">
+              {phaseAvg ? (
+                <>
+                  {formatNumber(phaseAvg.averageKcal)}{" "}
+                  <span className="daily-stat-delta">{avgDeltaParen(phaseAvg)}</span>
+                </>
+              ) : (
+                "—"
+              )}
+            </span>
+          </div>
+          {clawBack ? <p className="daily-claw-back">{clawBack}</p> : null}
+          <div className="daily-stat-line">
+            <span className="daily-stat-k">7-day change</span>
+            <span
+              className={`daily-stat-v${weekValue.tone !== "flat" ? ` is-${weekValue.tone}` : ""}`}
+              title={week.detail}
+            >
+              {weekValue.text}
+            </span>
+          </div>
+          <div className="daily-stat-line">
+            <span className="daily-stat-k">21-day change</span>
+            <span
+              className={`daily-stat-v${span21Value.tone !== "flat" ? ` is-${span21Value.tone}` : ""}`}
+              title={span21.detail}
+            >
+              {span21Value.text}
+            </span>
+          </div>
+        </div>
+        <div className="daily-rule daily-rule-end" aria-hidden="true" />
+
+        <div className="daily-macros">
+          <MacroRow
+            label="Protein"
+            current={today.protein_g}
+            target={targets.protein_g}
+            unit="g"
+            warnWhenOver={false}
+          />
+          <MacroRow
+            label="Carbs"
+            current={today.carbs_g}
+            target={targets.carbs_g}
+            unit="g"
+            warnWhenOver
+          />
+          <MacroRow label="Fat" current={today.fat_g} target={targets.fat_g} unit="g" warnWhenOver />
+          <MacroRow
+            label="Water"
+            current={today.water_l}
+            target={targets.water_l}
+            unit="L"
+            warnWhenOver={false}
+          />
+        </div>
+
         {phase ? (
-          <AverageChip
-            label={`${phase.phase.name} · cal avg`}
-            average={phase.average}
-            targetKcal={phase.phase.kcal_target}
+          <PhaseCountdown
+            daysLeft={phase.daysLeft}
+            phase={phase.phase}
+            progress={phaseProgressShare}
+            dayOf={dayOf}
+            totalDays={phaseDays}
+            lastDay={lastDay ?? false}
           />
         ) : null}
-        <WeightCard data={data} asOf={asOf} />
-        <MacroCell
-          label="Protein"
-          current={today.protein_g}
-          target={targets.protein_g}
-          unit="g"
-          warnWhenOver={false}
-        />
-        <MacroCell
-          label="Carbs"
-          current={today.carbs_g}
-          target={targets.carbs_g}
-          unit="g"
-          warnWhenOver
-        />
-        <MacroCell
-          label="Fat"
-          current={today.fat_g}
-          target={targets.fat_g}
-          unit="g"
-          warnWhenOver
-        />
-        <MacroCell
-          label="Water"
-          current={today.water_l}
-          target={targets.water_l}
-          unit="L"
-          warnWhenOver={false}
-        />
       </div>
     </section>
   );
