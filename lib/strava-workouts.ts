@@ -1,3 +1,4 @@
+import { formatCount } from "@/lib/exercise-progress";
 import { formatNumber, formatShortDate, parseIsoDate, shiftIsoDate } from "@/lib/format";
 import { formatDuration, isRunActivity, type RawRun } from "@/lib/strava-summary";
 
@@ -81,6 +82,11 @@ export type WorkoutStatChips = {
   kcal: string;
 };
 
+export type WorkoutStripTotals = {
+  hero: string;
+  caption: string;
+};
+
 export type StravaWorkoutsModel =
   | { status: "disconnected"; canConnect: boolean }
   | { status: "error"; message: string; canConnect: boolean }
@@ -94,6 +100,8 @@ export type StravaWorkoutsModel =
       days: WorkoutDayColumn[];
       /** Null when the week has no activities. */
       chips: WorkoutStatChips | null;
+      /** Bold one-liner for the week strip, e.g. "3 runs · 1 lift". */
+      stripTotals: WorkoutStripTotals | null;
       /** "3-day streak", "Most active: Fri", or both. Null when nothing was logged. */
       highlight: string | null;
       /** ISO time of the last ingest. Null when nothing has been synced. Omitted for in-memory fixtures. */
@@ -196,7 +204,7 @@ export function modelFromActivities(
     .sort(newestFirst);
   const days = weekColumns(picked, endDate);
   if (picked.length === 0) {
-    return { status: "ready", stale, rows: [], summary: null, days, chips: null, highlight: null };
+    return { status: "ready", stale, rows: [], summary: null, days, chips: null, stripTotals: null, highlight: null };
   }
   return {
     status: "ready",
@@ -205,6 +213,7 @@ export function modelFromActivities(
     summary: summarize(picked),
     days,
     chips: chipsFor(picked),
+    stripTotals: stripTotalsFor(picked),
     highlight: highlightFor(days),
   };
 }
@@ -373,6 +382,26 @@ function kcalFigure(activities: CachedActivity[]): string | null {
   const kcals = activities.map(activityKcal).filter((value): value is number => value != null && value > 0);
   if (kcals.length === 0) return null;
   return formatNumber(Math.round(kcals.reduce((sum, value) => sum + value, 0)));
+}
+
+function stripTotalsFor(activities: CachedActivity[]): WorkoutStripTotals {
+  const runs = activities.filter((activity) => activityKind(activity) === "run");
+  const lifts = activities.filter((activity) => activityKind(activity) === "other");
+  const heroParts: string[] = [];
+  if (runs.length > 0) heroParts.push(`${runs.length} run${runs.length === 1 ? "" : "s"}`);
+  if (lifts.length > 0) heroParts.push(`${lifts.length} lift${lifts.length === 1 ? "" : "s"}`);
+  const hero = heroParts.length > 0 ? heroParts.join(" · ") : `${activities.length} workouts`;
+
+  const captionParts: string[] = [];
+  const runKm = runs.reduce((sum, activity) => sum + activity.distanceM, 0) / 1000;
+  if (runKm > 0) captionParts.push(`${formatCount(runKm)} km run`);
+  if (lifts.length > 0) {
+    captionParts.push(`${lifts.length} session${lifts.length === 1 ? "" : "s"} logged`);
+  }
+  if (captionParts.length === 0 && activities.length > 0) {
+    captionParts.push(`${activities.length} workout${activities.length === 1 ? "" : "s"} logged`);
+  }
+  return { hero, caption: captionParts.join(" · ") };
 }
 
 function summarize(activities: CachedActivity[]): string {

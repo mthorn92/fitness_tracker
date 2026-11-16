@@ -90,6 +90,8 @@ body {
   grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
   align-content: start;
   padding:
     max(0.85rem, env(safe-area-inset-top))
@@ -2064,6 +2066,54 @@ body {
 
 .exercise-today {
   grid-column: 1 / -1;
+  padding: 0.5rem 0.85rem;
+}
+
+.exercise-today-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.25rem;
+}
+
+.exercise-today-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.exercise-today-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.exercise-today-status {
+  margin: 0.06rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 800px) {
+  .exercise-today-row {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.65rem;
+  }
+
+  .exercise-today-titles {
+    flex: 1 1 100%;
+  }
+
+  .exercise-today-actions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
 }
 
 .train-status {
@@ -2230,6 +2280,164 @@ body {
 .workouts-tile,
 .strava-tile {
   min-width: 0;
+}
+
+.workouts-tile-v3 {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.workouts-tile-head {
+  margin-bottom: 0.15rem;
+}
+
+.workouts-tile-meta {
+  margin: 0.05rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.workouts-tile-head h2 {
+  margin: 0;
+}
+
+.wf-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0.1rem 0 0;
+}
+
+.wf-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.45rem 0.12rem 0.55rem;
+  border-radius: 0.75rem;
+}
+
+.wf-day.is-today {
+  background: var(--pill);
+}
+
+.wf-dow {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.wf-day.is-today .wf-dow {
+  color: var(--accent);
+}
+
+.wf-date {
+  font-size: 0.94rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.wf-icons {
+  display: flex;
+  min-height: 1.65rem;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.wf-icon {
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wf-icon.run {
+  background: color-mix(in srgb, var(--good) 18%, transparent);
+  color: var(--good);
+}
+
+.wf-icon.walk {
+  background: color-mix(in srgb, var(--food) 18%, transparent);
+  color: var(--food);
+}
+
+.wf-icon.lift {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+}
+
+.wf-icon.empty::after {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.wf-totals {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.wf-hero {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.wf-sub {
+  margin: 0.12rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.wf-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.wf-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.wf-legend i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.wf-legend i[data-kind="run"] {
+  background: var(--good);
+}
+
+.wf-legend i[data-kind="lift"] {
+  background: var(--warn);
+}
+
+.wf-legend i[data-kind="rest"] {
+  background: var(--line);
 }
 
 .strava-link,
@@ -2562,22 +2770,16 @@ body {
 .dashboard[data-tab="exercise"] [data-position="8"] h2::before { content: "8"; }
 
 .exercise-today h2 {
-  margin: 0 0 0.15rem;
-  font-size: 0.9rem;
-}
-
-.ex-today-date,
-.ex-today-sub {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  line-height: 1.2;
 }
 
 .week-nav {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin: 0.35rem 0 0.3rem;
+  margin: 0;
 }
 
 .week-current {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { CopyTextButton } from "@/components/CopyTextButton";
 import { MUSCLE_GROUPS, formatCount } from "@/lib/exercise-progress";
 import type { DayTileModel, ExerciseBoard, ExerciseRowModel, WeekBoard, WorkWeek } from "@/lib/exercise-board";
 import type { MuscleGroup } from "@/lib/types";
@@ -16,43 +17,55 @@ const MUSCLE_LABEL: Record<MuscleGroup, string> = {
 export function ExerciseToday({
   board,
   week,
+  weekCopy,
   onWeek,
 }: {
   board: ExerciseBoard;
   week: WeekBoard;
+  weekCopy?: string;
   onWeek: (week: number) => void;
 }) {
   const atStart = week.week <= 1;
   const atEnd = week.week >= board.weekCount;
   const subtitle = board.todayNote && week.week === board.currentWeek ? board.todayNote : week.subtitle;
+  const status =
+    week.week === board.currentWeek
+      ? [board.todayLabel, subtitle].filter(Boolean).join(" · ")
+      : subtitle;
   return (
     <section className="card exercise-today" data-tab-group="exercise" data-tile="today">
-      <h2>Today&apos;s training</h2>
-      <p className="ex-today-date">{board.todayLabel}</p>
-      <div className="week-nav" aria-label="Week">
-        <button
-          type="button"
-          className="week-arrow"
-          aria-label="Previous week"
-          disabled={atStart}
-          onClick={() => onWeek(week.week - 1)}
-        >
-          <Chevron direction="left" />
-        </button>
-        <span className="week-current">
-          Week {week.week} of {board.weekCount}
-        </span>
-        <button
-          type="button"
-          className="week-arrow"
-          aria-label="Next week"
-          disabled={atEnd}
-          onClick={() => onWeek(week.week + 1)}
-        >
-          <Chevron direction="right" />
-        </button>
+      <div className="exercise-today-row">
+        <div className="exercise-today-titles">
+          <h2>Today&apos;s training</h2>
+          {status ? <p className="exercise-today-status">{status}</p> : null}
+        </div>
+        <div className="exercise-today-actions">
+          <div className="week-nav" aria-label="Week">
+            <button
+              type="button"
+              className="week-arrow"
+              aria-label="Previous week"
+              disabled={atStart}
+              onClick={() => onWeek(week.week - 1)}
+            >
+              <Chevron direction="left" />
+            </button>
+            <span className="week-current">
+              Week {week.week} of {board.weekCount}
+            </span>
+            <button
+              type="button"
+              className="week-arrow"
+              aria-label="Next week"
+              disabled={atEnd}
+              onClick={() => onWeek(week.week + 1)}
+            >
+              <Chevron direction="right" />
+            </button>
+          </div>
+          {weekCopy ? <CopyTextButton text={weekCopy} label="Copy week" /> : null}
+        </div>
       </div>
-      <p className="ex-today-sub">{subtitle}</p>
     </section>
   );
 }

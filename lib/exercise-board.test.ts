@@ -70,10 +70,10 @@ test("week 1 day tiles show the plan target and the logged sets", () => {
   const pull = dayA?.rows.find((row) => row.key === "banded_pullup");
   const strict = dayA?.rows.find((row) => row.key === "strict_pullup");
   assert.equal(bench?.target, "3 × 7 @ 50 kg");
-  assert.equal(bench?.actual, "3×7 @ 50");
+  assert.equal(bench?.actual, "3×7 @ 50 kg");
   assert.equal(bench?.status, "met");
   assert.equal(pull?.target, "3 × 6 · 2 red bands");
-  assert.equal(pull?.actual, "6, 6, 5");
+  assert.equal(pull?.actual, "6/6/5 · 2 red bands");
   assert.equal(pull?.status, "partial");
   assert.equal(strict?.status, "partial");
   assert.equal(dayB?.rows.every((row) => row.status === "none"), true);
