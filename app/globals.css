@@ -646,8 +646,8 @@ body {
 
 .daily-stat-v {
   margin-top: 0.35rem;
-  justify-self: end;
-  text-align: right;
+  justify-self: start;
+  text-align: left;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   font-size: 0.78rem;
