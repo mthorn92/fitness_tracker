@@ -28,6 +28,7 @@ import {
   type DashboardTab,
 } from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
+import { formatStrengthWeekCopy } from "@/lib/strength-copy";
 import type { StravaTileModel } from "@/lib/strava-summary";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
 import {
@@ -250,6 +251,10 @@ export function Dashboard({
     setExerciseWeek(board.currentWeek);
   }, [board.planId, board.currentWeek]);
   const selectedWeek = board.weeks.find((entry) => entry.week === exerciseWeek) ?? board.weeks[0];
+  const weekCopy = useMemo(
+    () => (selectedWeek?.copyDays.length ? formatStrengthWeekCopy(selectedWeek.copyDays) : undefined),
+    [selectedWeek],
+  );
 
   function openDate(next: string) {
     const params = new URLSearchParams(window.location.search);
@@ -339,7 +344,7 @@ export function Dashboard({
       <PersonalKcalTile data={data} />
       {selectedWeek ? (
         <>
-          <ExerciseToday board={board} week={selectedWeek} onWeek={setExerciseWeek} />
+          <ExerciseToday board={board} week={selectedWeek} weekCopy={weekCopy} onWeek={setExerciseWeek} />
           {selectedWeek.days.map((day) => (
             <ExerciseDayTile key={day.slot} day={day} />
           ))}

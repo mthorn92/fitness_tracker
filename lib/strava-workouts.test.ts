@@ -31,6 +31,10 @@ test("the workout window is the last 7 days and includes the end date", () => {
     kcal: "1,260",
   });
   assert.equal(model.highlight, "3-day streak · Most active: Fri");
+  assert.deepEqual(model.stripTotals, {
+    hero: "1 run · 3 lifts",
+    caption: "6.1 km run · 3 sessions logged",
+  });
   assert.deepEqual(
     model.days.map((day) => [day.label, day.count, day.kinds.join("+")]),
     [

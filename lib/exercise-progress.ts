@@ -89,6 +89,13 @@ function formatBand(band: string): string {
   return `${match[1]} red ${match[1] === "1" ? "band" : "bands"}`;
 }
 
+function bandToken(band: string): string {
+  if (band === "bodyweight") return "bodyweight";
+  const match = /^(\d+) red$/.exec(band);
+  if (match) return `${match[1]} red`;
+  return band;
+}
+
 function setMeets(set: SessionSet, item: PrescribedExercise): boolean {
   if (item.hold_s != null) return (set.hold_s ?? 0) >= item.hold_s;
   if ((set.reps ?? 0) < item.reps) return false;
@@ -98,18 +105,45 @@ function setMeets(set: SessionSet, item: PrescribedExercise): boolean {
 
 function actualText(done: SessionSet[], item: PrescribedExercise): string {
   const timed = item.hold_s != null;
-  const sameHold = done.every((set) => set.hold_s === done[0]?.hold_s);
-  const sameReps = done.every((set) => set.reps === done[0]?.reps);
-  const sameLoad = done.every((set) => set.load_kg === done[0]?.load_kg);
-  if (timed && sameHold && done[0]?.hold_s != null) {
-    return `${done.length}×${formatCount(done[0].hold_s)}s`;
-  }
-  if (!timed && sameReps && sameLoad && done[0]?.reps != null) {
-    const load = done[0].load_kg != null && done[0].load_kg > 0 ? ` @ ${formatCount(done[0].load_kg)}` : "";
-    return `${done.length}×${formatCount(done[0].reps)}${load}`;
-  }
   if (timed) {
+    const sameHold = done.every((set) => set.hold_s === done[0]?.hold_s);
+    if (sameHold && done[0]?.hold_s != null) {
+      return `${done.length}×${formatCount(done[0].hold_s)}s`;
+    }
     return done.map((set) => (set.hold_s == null ? "—" : `${formatCount(set.hold_s)}s`)).join(", ");
   }
-  return done.map((set) => (set.reps == null ? "—" : formatCount(set.reps))).join(", ");
+
+  const reps = done.map((set) => (set.reps == null ? null : formatCount(set.reps)));
+  const loads = done.map((set) =>
+    set.load_kg != null && set.load_kg > 0 ? formatCount(set.load_kg) : null,
+  );
+  const bands = done.map((set) => (set.band ? bandToken(set.band) : null));
+  const hasLoad = loads.some((load) => load != null);
+  const hasBand = bands.some((band) => band != null);
+  const sameReps = reps.every((rep) => rep === reps[0]);
+  const sameLoad = loads.every((load) => load === loads[0]);
+  const sameBand = bands.every((band) => band === bands[0]);
+
+  const repText = (uniform: string): string =>
+    sameReps && reps[0] != null ? `${done.length}×${reps[0]}` : reps.map((rep) => rep ?? "—").join("/");
+
+  if (hasBand) {
+    const bandText = sameBand && bands[0] != null ? formatBand(done.find((set) => set.band)?.band ?? bands[0]) : bands.map((band) => band ?? "—").join("/");
+    return `${repText("")} · ${bandText}`;
+  }
+
+  if (hasLoad) {
+    const loadList = loads.map((load) => load ?? "—").join("/");
+    if (sameReps && sameLoad && reps[0] != null && loads[0] != null) {
+      return `${done.length}×${reps[0]} @ ${loads[0]} kg`;
+    }
+    const repsList = sameReps && reps[0] != null ? Array.from({ length: done.length }, () => reps[0]).join("/") : reps.map((rep) => rep ?? "—").join("/");
+    if (sameLoad && loads[0] != null) {
+      return `${repsList} @ ${loads[0]} kg`;
+    }
+    return `${repsList} @ ${loadList}`;
+  }
+
+  if (sameReps && reps[0] != null) return `${done.length}×${reps[0]}`;
+  return reps.map((rep) => rep ?? "—").join("/");
 }

@@ -18,6 +18,7 @@ import {
   weekMetaForDate,
 } from "@/lib/plan";
 import { listSessions, listWeights } from "@/lib/store";
+import type { StrengthCopyDay } from "@/lib/strength-copy";
 import type {
   DaySlot,
   MuscleGroup,
@@ -78,6 +79,7 @@ export type WeekBoard = {
   subtitle: string;
   sessions: number;
   days: DayTileModel[];
+  copyDays: StrengthCopyDay[];
   pullups: { assisted: number; strict: number; band: string | null };
 };
 
@@ -229,6 +231,12 @@ export function buildExerciseBoard(input: {
       weekLabel: `Week ${meta.week} of ${weekCount}`,
       subtitle: weekSubtitle(doneSlots, date, plan),
       sessions: doneSlots.length,
+      copyDays: slotDays.map((slot) => ({
+        name: slot.label,
+        weekLabel: `Week ${meta.week} of ${weekCount}`,
+        items: slot.items,
+        deloadNote: meta.type === "deload" && slot.items.length > 0 ? plan.deload_rule.rir_note : null,
+      })),
       pullups: { assisted, strict, band: formatBandShort(band) },
       days: slotDays.map((slot, index) => {
         const session = assigned.get(slot.id) ?? null;
