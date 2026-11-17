@@ -59,6 +59,10 @@ test("hero uses cumulative deficit over closed days and 7-day average weight los
   assert.equal(model.points[1]?.rolling, null);
   assert.ok(model.points[2]?.rolling != null);
   assert.equal(model.settleLabel, "Settling · 8/14");
+  const rollingSeries = model.points
+    .map((point) => point.rolling)
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  assert.ok(rollingSeries.length > 0, "chart rolling series must be non-empty for fixture window");
 });
 
 test("rolling line begins on the third closed day", () => {

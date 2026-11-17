@@ -932,8 +932,29 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
     const muted = cssVar("--muted", "#6b6964");
     const line = cssVar("--line", "#e4e0d8");
 
-    void chartLibrary?.then(({ Chart }) => {
+    void (chartLibrary ?? import("chart.js")).then((charts) => {
       if (disposed) return;
+      const {
+        Chart,
+        CategoryScale,
+        Filler,
+        Legend,
+        LineController,
+        LineElement,
+        LinearScale,
+        PointElement,
+        Tooltip,
+      } = charts;
+      Chart.register(
+        CategoryScale,
+        Filler,
+        Legend,
+        LineController,
+        LineElement,
+        LinearScale,
+        PointElement,
+        Tooltip,
+      );
       const refLine = Array.from({ length: labels.length }, () => PERSONAL_KCAL_REFERENCE);
       const config: ChartConfiguration = {
         type: "line",
@@ -954,7 +975,7 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
               order: 1,
             },
             {
-              type: "scatter",
+              type: "line",
               label: "Daily",
               data: daily,
               borderColor: hexAlpha(accent, 0.35),
@@ -963,6 +984,7 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
               pointHoverRadius: 5,
               pointBorderColor: hexAlpha(accent, 0.55),
               pointBorderWidth: 1.6,
+              showLine: false,
               order: 2,
             },
             {
