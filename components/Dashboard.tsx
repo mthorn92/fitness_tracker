@@ -16,7 +16,7 @@ import { EatingDateBar } from "@/components/EatingDateBar";
 import { PhaseTile } from "@/components/PhaseTile";
 import { MonthRings } from "@/components/MonthRings";
 import { ExerciseDayTile, ExerciseToday, OverloadTile, PhaseSummaryTile } from "@/components/ExerciseTiles";
-import { StravaRunsTile } from "@/components/StravaRunsTile";
+import { RunsTile } from "@/components/RunsTile";
 import { StravaWorkoutsTile } from "@/components/StravaWorkoutsTile";
 import { TodayFood } from "@/components/TodayFood";
 import {
@@ -29,7 +29,7 @@ import {
 } from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
 import { formatStrengthWeekCopy } from "@/lib/strength-copy";
-import type { StravaTileModel } from "@/lib/strava-summary";
+import type { RunScore } from "@/lib/run-tile";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
 import {
   buildDietChartModel,
@@ -149,7 +149,7 @@ export function Dashboard({
   foods,
   board,
   workouts,
-  strava,
+  runs,
   today,
 }: {
   initialTab: DashboardTab;
@@ -159,7 +159,7 @@ export function Dashboard({
   foods: FoodItem[];
   board: ExerciseBoard;
   workouts: StravaWorkoutsModel;
-  strava: StravaTileModel;
+  runs: RunScore[];
   today: string;
 }) {
   const router = useRouter();
@@ -348,8 +348,8 @@ export function Dashboard({
           {selectedWeek.days.map((day) => (
             <ExerciseDayTile key={day.slot} day={day} />
           ))}
+          <RunsTile rows={runs} />
           <StravaWorkoutsTile model={workouts} />
-          <StravaRunsTile model={strava} />
           <OverloadTile board={board} week={selectedWeek} />
           <PhaseSummaryTile board={board} week={selectedWeek} />
         </>

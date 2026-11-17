@@ -3169,3 +3169,315 @@ body {
   }
 }
 
+/* Runs tile (exercise position 6). Separate from .dashboard max-width. */
+.runs-tile {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.runs-tile .tile-heading {
+  align-items: center;
+  flex: 0 0 auto;
+  margin-bottom: 0.4rem;
+}
+
+.runs-tile .tile-heading h2 {
+  margin: 0;
+}
+
+.runs-baseline {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0.12rem 0.5rem 0.14rem;
+  border-radius: 99px;
+  background: var(--pill);
+  color: var(--pill-ink);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.runs-shell {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.runs-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 24rem;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+}
+
+.runs-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.runs-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 99px;
+}
+
+.runs-table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+
+.runs-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.15rem 0.2rem 0.4rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.runs-h,
+.runs-sub {
+  display: block;
+}
+
+.runs-sub {
+  margin-top: 0.08rem;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.runs-table tbody td {
+  height: 2.65rem;
+  padding: 0 0.2rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.runs-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.runs-date {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.runs-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.runs-index.is-above,
+.runs-index.is-above .runs-arrow {
+  color: var(--good);
+}
+
+.runs-index.is-below,
+.runs-index.is-below .runs-arrow {
+  color: var(--warn);
+}
+
+.runs-index.is-even,
+.runs-index.is-none {
+  color: var(--ink);
+}
+
+.runs-arrow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.runs-under.is-full {
+  color: var(--good);
+  font-weight: 650;
+}
+
+.runs-elev {
+  font-size: 0.72rem;
+  letter-spacing: -0.02em;
+}
+
+.runs-up {
+  color: var(--good);
+  font-weight: 650;
+}
+
+.runs-dn {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.runs-sep {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.runs-table th:nth-child(1),
+.runs-table td:nth-child(1) { width: 15%; }
+.runs-table th:nth-child(2),
+.runs-table td:nth-child(2) { width: 13%; }
+.runs-table th:nth-child(3),
+.runs-table td:nth-child(3) { width: 10%; }
+.runs-table th:nth-child(4),
+.runs-table td:nth-child(4) { width: 16%; }
+.runs-table th:nth-child(5),
+.runs-table td:nth-child(5) { width: 10%; }
+.runs-table th:nth-child(6),
+.runs-table td:nth-child(6) { width: 12%; }
+.runs-table th:nth-child(7),
+.runs-table td:nth-child(7) { width: 13%; }
+.runs-table th:nth-child(8),
+.runs-table td:nth-child(8) { width: 11%; }
+
+.runs-fade {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 36px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--card));
+}
+
+.runs-shell[data-overflow="true"] .runs-fade {
+  display: block;
+}
+
+.runs-empty {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  margin: 0.4rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.runs-caption {
+  flex: 0 0 auto;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 800px) {
+  .runs-tile {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+  }
+
+  .runs-table {
+    min-width: 0;
+  }
+
+  .runs-table thead th {
+    padding: 0.1rem 0.02rem 0.28rem;
+    font-size: 0.54rem;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  .runs-sub {
+    margin-top: 0.04rem;
+    font-size: 0.5rem;
+    letter-spacing: 0;
+  }
+
+  .runs-table tbody td {
+    height: 2.25rem;
+    padding: 0 0.02rem;
+    font-size: 0.68rem;
+  }
+
+  .runs-date {
+    letter-spacing: -0.03em;
+  }
+
+  .runs-index {
+    gap: 0.08rem;
+    letter-spacing: -0.03em;
+  }
+
+  .runs-elev {
+    font-size: 0.6rem;
+    letter-spacing: -0.04em;
+  }
+
+  .runs-table th:nth-child(1),
+  .runs-table td:nth-child(1) { width: 17%; }
+  .runs-table th:nth-child(2),
+  .runs-table td:nth-child(2) { width: 14%; }
+  .runs-table th:nth-child(3),
+  .runs-table td:nth-child(3) { width: 10%; }
+  .runs-table th:nth-child(4),
+  .runs-table td:nth-child(4) { width: 17%; }
+  .runs-table th:nth-child(5),
+  .runs-table td:nth-child(5) { width: 10%; }
+  .runs-table th:nth-child(6),
+  .runs-table td:nth-child(6) { width: 11%; }
+  .runs-table th:nth-child(7),
+  .runs-table td:nth-child(7) { width: 12%; }
+  .runs-table th:nth-child(8),
+  .runs-table td:nth-child(8) { width: 9%; }
+}
+
+@media (min-width: 801px) {
+  .dashboard[data-tab="exercise"] > .runs-tile[data-tile="runs"] {
+    display: flex;
+    flex-direction: column;
+    grid-column: span 2;
+    height: 452px;
+    max-height: 452px;
+    overflow: hidden;
+  }
+
+  .runs-scroll {
+    height: 100%;
+    max-height: none;
+  }
+
+  .runs-table {
+    min-width: 0;
+  }
+}
+

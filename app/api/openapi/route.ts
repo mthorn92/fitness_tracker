@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     openapi: "3.1.0",
     info: {
       title: "Training log",
-      version: "1.4.0",
+        version: "1.5.0",
       description:
         "Personal food, water, weight, exercise, WHOOP and saved-meal log. The Grok Bot writes here; the website only displays it. Always send a stable id so a correction updates the same row. Saved meals upsert by name. Optional flat day fields whoop_burn_kcal, cycle_closed, strain, recovery_pct are additive aliases. Strength and run sessions are a separate additive API at /api/sessions and do not change /api/log or the food budget.",
     },
@@ -245,6 +245,44 @@ export async function GET(request: Request) {
             elevation_m: { type: "number", nullable: true, example: 42 },
           },
         },
+        RunScore: {
+          type: "object",
+          required: ["strava_id", "date"],
+          description:
+            "One scored run. Numeric fields are nullable. index is stored at 1 decimal place. The site displays the posted index and does not recompute it. Reference formula, applied by the caller against the fixed baseline mean of the 10, 13 and 14 Nov runs: index = 0.3 disc + 0.3 eff + 0.3 dist + 0.1 elev.",
+          properties: {
+            strava_id: { type: "string", minLength: 1, maxLength: 32, example: "12345678901" },
+            date: {
+              type: "string",
+              description: "YYYY-MM-DD in Australia/Melbourne",
+              example: "2026-11-17",
+            },
+            start_time: {
+              type: "string",
+              nullable: true,
+              description: "ISO-8601 with a timezone offset",
+              example: "2026-11-17T06:12:00+11:00",
+            },
+            name: { type: "string", nullable: true, example: "Morning run" },
+            distance_m: { type: "number", nullable: true, example: 2950 },
+            elev_gain_m: { type: "number", nullable: true, example: 4 },
+            elev_loss_m: { type: "number", nullable: true, example: 45 },
+            avg_hr: { type: "number", nullable: true, example: 126 },
+            p97_hr: { type: "number", nullable: true, example: 142 },
+            pct_under_145: {
+              type: "number",
+              nullable: true,
+              description: "Percent of moving time at or under 145 bpm, 0–100",
+              example: 100,
+            },
+            ef_gap: { type: "number", nullable: true, example: 0.974 },
+            disc: { type: "number", nullable: true, example: 100 },
+            eff: { type: "number", nullable: true, example: 100 },
+            dist: { type: "number", nullable: true, example: 100 },
+            elev: { type: "number", nullable: true, example: 121 },
+            index: { type: "number", nullable: true, example: 102.1 },
+          },
+        },
       },
     },
     paths: {
@@ -407,6 +445,52 @@ export async function GET(request: Request) {
                 schema: {
                   type: "array",
                   items: { $ref: "#/components/schemas/WorkoutActivity" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/run-scores": {
+        get: {
+          summary: "Read posted run scores",
+          description:
+            "Same auth as /api/log. Returns {from, runs} newest first. Optional from is an inclusive YYYY-MM-DD Melbourne date. Omit it to read every posted row. Does not compute the index.",
+          parameters: [
+            { name: "from", in: "query", schema: { type: "string", example: "2026-11-01" } },
+          ],
+        },
+        post: {
+          summary: "Upsert run scores by strava_id",
+          description:
+            "Same auth as /api/log. Body is one run object or an array of them. Idempotent: the same strava_id updates the existing row. A repeated id in one batch keeps the last copy. index is rounded to 1 decimal place. The site does not calculate the index.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  oneOf: [
+                    { $ref: "#/components/schemas/RunScore" },
+                    { type: "array", items: { $ref: "#/components/schemas/RunScore" } },
+                  ],
+                },
+                example: {
+                  strava_id: "12345678901",
+                  date: "2026-11-17",
+                  start_time: "2026-11-17T06:12:00+11:00",
+                  name: "Morning run",
+                  distance_m: 2950,
+                  elev_gain_m: 4,
+                  elev_loss_m: 45,
+                  avg_hr: 126,
+                  p97_hr: 142,
+                  pct_under_145: 100,
+                  ef_gap: 0.974,
+                  disc: 100,
+                  eff: 100,
+                  dist: 100,
+                  elev: 121,
+                  index: 102.1,
                 },
               },
             },

@@ -56,6 +56,7 @@ The **website** stays Private (Cursor sign-in in the browser).
 | POST | `/api/log` | **Main bot call** — log or correct food, water, weight, exercise for one date |
 | GET | `/api/openapi` | Machine-readable API description |
 | GET/POST | `/api/sessions` | Read or upsert a strength/run session (`session_YYYY-MM-DD_NN`). Same auth as `/api/log`. Does not change food, water, weight or the 2,000 kcal budget. |
+| GET/POST | `/api/run-scores` | Read or upsert scored runs by `strava_id`. Same auth as `/api/log`. The Runs tile displays posted values. It does not calculate the index. |
 | PATCH/DELETE | `/api/foods/:id` | Correct or remove one food |
 | POST | `/api/water` `/api/weights` `/api/exercises` | Single-item writes if you prefer |
 
@@ -120,6 +121,51 @@ Locally, the API treats you as a simulated signed-in viewer, so curl works witho
 | `migrations/` | Schema |
 | `data/fitness.json` | One-time seed, only if the database is empty |
 | `app/api/` | Authenticated bot/website API |
+
+## Run scores
+
+The Exercise tab **Runs** tile reads `GET /api/run-scores`. Fitness Coach posts the score. The website stores it and draws the table. It does not fetch Strava streams and it does not calculate the index.
+
+Reference formula, for the caller only. Baseline is the fixed mean of the 10, 13 and 14 Nov runs, shown on the tile as **Baseline 100 · 10–14 Nov**:
+
+```text
+index = 0.3 disc + 0.3 eff + 0.3 dist + 0.1 elev
+```
+
+`index` is stored at 1 decimal place. The tile lists Melbourne dates from 1 Nov 2026 onward, newest first. Green means the index is above 100. Amber means below 100. ▲ or ▼ compares with the previous (older) run. The oldest row has no arrow.
+
+Auth is the same pair of headers as `/api/log`.
+
+POST one run, or an array of runs. The same `strava_id` updates that row.
+
+```bash
+curl -X POST https://training-log.apps.grok.bot/api/run-scores \
+  -H 'content-type: application/json' \
+  -H "Authorization: Bearer $LOG_API_TOKEN" \
+  -H "x-cursor-app-token: $CURSOR_API_KEY" \
+  -d '{
+    "strava_id": "12345678901",
+    "date": "2026-11-17",
+    "start_time": "2026-11-17T06:12:00+11:00",
+    "name": "Morning run",
+    "distance_m": 2950,
+    "elev_gain_m": 4,
+    "elev_loss_m": 45,
+    "avg_hr": 126,
+    "p97_hr": 142,
+    "pct_under_145": 100,
+    "ef_gap": 0.974,
+    "disc": 100,
+    "eff": 100,
+    "dist": 100,
+    "elev": 121,
+    "index": 102.1
+  }'
+```
+
+An array uses the same object in each element. Numeric fields may be `null` or omitted. `strava_id` is a string. `date` is `YYYY-MM-DD` in Australia/Melbourne. `pct_under_145` is 0–100.
+
+`GET /api/run-scores` returns `{ "from": null, "runs": [ ... ] }` newest first. `GET /api/run-scores?from=2026-11-01` keeps rows on or after that date.
 
 ## Strava runs
 
