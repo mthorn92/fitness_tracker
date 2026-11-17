@@ -6,7 +6,7 @@ import { ChartRangeBar } from "@/components/ChartRangeBar";
 import {
   CaloriesChartTile,
   DeficitChartTile,
-  PersonalKcalTile,
+  ObservedTdeeTile,
   ProteinChartTile,
   useDietCharts,
   WeightChartTile,
@@ -247,10 +247,12 @@ export function Dashboard({
     document.dispatchEvent(new Event(DASHBOARD_TAB_EVENT));
   }, [tab]);
 
-  const [exerciseWeek, setExerciseWeek] = useState(board.currentWeek);
-  useEffect(() => {
-    setExerciseWeek(board.currentWeek);
-  }, [board.planId, board.currentWeek]);
+  const weekKey = `${board.planId}:${board.currentWeek}`;
+  const [weekChoice, setWeekChoice] = useState({ key: weekKey, week: board.currentWeek });
+  if (weekChoice.key !== weekKey) {
+    setWeekChoice({ key: weekKey, week: board.currentWeek });
+  }
+  const exerciseWeek = weekChoice.week;
   const selectedWeek = board.weeks.find((entry) => entry.week === exerciseWeek) ?? board.weeks[0];
 
   function openDate(next: string) {
@@ -343,10 +345,10 @@ export function Dashboard({
         today={today}
         focusDate={data.today.date}
       />
-      <PersonalKcalTile data={data} today={today} />
+      <ObservedTdeeTile data={data} today={today} />
       {selectedWeek ? (
         <>
-          <ExerciseToday board={board} week={selectedWeek} onWeek={setExerciseWeek} />
+          <ExerciseToday board={board} week={selectedWeek} onWeek={(week) => setWeekChoice((current) => ({ ...current, week }))} />
           {selectedWeek.days.map((day, index) => {
             const copyDay = selectedWeek.copyDays[index];
             const copyText = copyDay ? formatStrengthDayCopy(copyDay) : undefined;

@@ -25,6 +25,8 @@
   --accent-ink: #ffffff;
   --dashboard-col: 475px;
   --dashboard-gap: 0.75rem;
+  --tdee: #1b6b45;
+  --tdee-whoop: #5c6e8a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -44,6 +46,8 @@
     --pill: #243530;
     --pill-ink: #cfe8df;
     --low: #e07a6c;
+    --tdee: #8dceaf;
+    --tdee-whoop: #b7c3d6;
   }
 }
 
@@ -1415,37 +1419,111 @@ body {
   min-height: 200px;
 }
 
-.personal-tile .tile-heading h2 {
+.tdee-tile .tile-heading {
+  margin-bottom: 0.15rem;
+}
+
+.tdee-tile .tile-heading h2 {
   margin: 0;
 }
 
-.personal-tile .tile-heading {
-  margin-bottom: 0.2rem;
+.tdee-align {
+  padding-left: var(--plot-inset, 0px);
 }
 
-.personal-hero {
-  margin: 0 0 0.2rem;
-  font-size: clamp(1.35rem, 5vw, 1.65rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+.tdee-hero {
+  margin: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
 }
 
-.personal-sub {
-  margin: 0 0 0.45rem;
-  font-size: 0.78rem;
+.tdee-hero-value {
+  font-size: clamp(1.85rem, 5vw, 2.15rem);
+  font-weight: 750;
 }
 
-.settle-chip {
+.tdee-hero-unit {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.tdee-whoop,
+.tdee-formula,
+.tdee-kcalkg {
+  margin: 0.12rem 0 0;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.tdee-whoop,
+.tdee-formula {
+  color: var(--ink);
+}
+
+.tdee-kcalkg {
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+}
+
+.tdee-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.85rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.tdee-legend li {
   display: inline-flex;
   align-items: center;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--warn) 16%, var(--card));
-  color: color-mix(in srgb, var(--warn) 72%, var(--ink));
-  font-size: 0.68rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  gap: 0.35rem;
+}
+
+.tdee-swatch {
+  flex: none;
+  width: 0.7rem;
+  height: 0.45rem;
+  border-radius: 2px;
+}
+
+.tdee-swatch.is-tdee {
+  background: var(--tdee);
+}
+
+.tdee-swatch.is-whoop {
+  background: var(--tdee-whoop);
+}
+
+.tdee-swatch.is-daily {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 1.5px solid var(--muted);
+  border-radius: 99px;
+  background: var(--card);
+}
+
+.tdee-swatch.is-budget {
+  width: 0.95rem;
+  height: 0;
+  border-top: 1.5px dashed var(--muted);
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard[data-tab="diet"] .chart-tile .note.tdee-foot {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
 }
 
 .dashboard[data-tab="exercise"] .ex-tile-head + .ex-meta {

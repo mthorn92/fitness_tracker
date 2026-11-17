@@ -9,12 +9,16 @@ import {
   type DietChartModel,
 } from "@/lib/chart-range";
 import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
+import { formatChartHoverValue, type ChartHoverUnit } from "@/lib/chart-tooltip";
 import { fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
-import { clampPercent, formatNumber } from "@/lib/format";
+import { clampPercent, formatNumber, formatShortDate } from "@/lib/format";
 import {
-  buildPersonalKcalModel,
-  PERSONAL_KCAL_REFERENCE,
-} from "@/lib/personal-kcal";
+  buildObservedTdeeModel,
+  formatTdeeCaption,
+  formatWhoopComparison,
+  OBSERVED_TDEE_FOOTNOTE,
+} from "@/lib/observed-tdee";
+import { buildPersonalKcalModel } from "@/lib/personal-kcal";
 import type { DietDashboardView } from "@/lib/types";
 
 const chartLibrary = typeof window === "undefined" ? null : import("chart.js");
@@ -91,16 +95,60 @@ function equalDeficitLine(label: string, color: string, data: Array<number | nul
   };
 }
 
+function hoverUnit(yTitle?: string): ChartHoverUnit | null {
+  if (yTitle === "kcal" || yTitle === "kg" || yTitle === "g" || yTitle === "L") return yTitle;
+  return null;
+}
+
+function parsedHoverY(parsed: unknown): number | null {
+  if (typeof parsed === "number") return Number.isFinite(parsed) ? parsed : null;
+  if (parsed && typeof parsed === "object" && "y" in parsed) {
+    const y = (parsed as { y: unknown }).y;
+    return typeof y === "number" && Number.isFinite(y) ? y : null;
+  }
+  return null;
+}
+
+/** Hover text for every Diet chart. Exercise kcal titles use the same rounding. */
+function chartHoverTooltip(
+  unit: ChartHoverUnit,
+  averageStat?: string | null,
+  hideLabel?: (label: string) => boolean,
+) {
+  return {
+    filter(item: { parsed: unknown; dataset: { label?: string } }) {
+      const name = item.dataset.label ?? "";
+      if (hideLabel?.(name)) return false;
+      if (name === "Average" && averageStat) return true;
+      return parsedHoverY(item.parsed) != null;
+    },
+    callbacks: {
+      label(context: TooltipItem<"bar">) {
+        const name = context.dataset.label ?? "";
+        if (name === "Average" && averageStat) return averageStat;
+        const value = parsedHoverY(context.parsed);
+        if (value == null) return "";
+        const formatted = formatChartHoverValue(value, unit);
+        return name ? `${name}: ${formatted}` : formatted;
+      },
+    },
+  };
+}
+
 function baseOpts(yTitle?: string, beginAtZero = false) {
   const muted = cssVar("--muted", "#6b6964");
   const line = cssVar("--line", "#e4e0d8");
   const ticks = { padding: 6, maxRotation: 0 as const, autoSkip: true, maxTicksLimit: 6 };
+  const unit = hoverUnit(yTitle);
   return {
     responsive: true,
     maintainAspectRatio: false,
     layout: { padding: { top: 8, right: 4, bottom: 0, left: 0 } },
     interaction: { mode: "index" as const, intersect: false },
-    plugins: { legend: { display: true, position: "bottom" as const } },
+    plugins: {
+      legend: { display: true, position: "bottom" as const },
+      ...(unit ? { tooltip: chartHoverTooltip(unit) } : {}),
+    },
     scales: {
       x: { grid: { display: false }, ticks, border: { display: false } },
       y: {
@@ -216,16 +264,8 @@ function targetScale(
   };
 }
 
-function averageTooltip(stat: string | null) {
-  return {
-    callbacks: {
-      label(context: TooltipItem<"bar">) {
-        const name = context.dataset.label ?? "";
-        if (name === "Average" && stat) return stat;
-        return name ? `${name}: ${context.formattedValue}` : context.formattedValue;
-      },
-    },
-  };
+function averageTooltip(stat: string | null, unit: ChartHoverUnit) {
+  return chartHoverTooltip(unit, stat);
 }
 
 /** Solid average line with a short label at the right end, plus dashed rules for a one-point chart. */
@@ -334,35 +374,6 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
       };
       const foodFill = barFill(food, model.inProgress);
       const proteinFill = barFill(accent, model.inProgress);
-      const barValueLabels = (digits: number): Plugin => ({
-        id: "barValueLabels",
-        afterDatasetsDraw(chart) {
-          const meta = chart.getDatasetMeta(0);
-          const dataset = chart.data.datasets[0];
-          if (!meta || meta.hidden || !dataset) return;
-          const { ctx, chartArea } = chart;
-          ctx.save();
-          ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
-          ctx.fillStyle = ink;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "bottom";
-          meta.data.forEach((element, index) => {
-            const raw = dataset.data[index];
-            const value = typeof raw === "number" ? raw : null;
-            if (value == null || !Number.isFinite(value)) return;
-            const width = "width" in element ? Number(element.width) : 0;
-            if (width > 0 && width < 22 && model.inProgress[index] !== true) return;
-            const whole = Math.abs(value - Math.round(value)) < 1e-6;
-            const label = value.toLocaleString("en-AU", {
-              maximumFractionDigits: digits,
-              minimumFractionDigits: digits > 0 && !whole ? 1 : 0,
-            });
-            const y = Math.min(Math.max(element.y - 3, chartArea.top + 12), chartArea.bottom - 2);
-            ctx.fillText(label, element.x, y);
-          });
-          ctx.restore();
-        },
-      });
 
       Chart.defaults.font.family =
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
@@ -477,6 +488,7 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
                     font: { size: 12 },
                   },
                 },
+                tooltip: chartHoverTooltip("kcal"),
               },
             },
             plugins: [selectedBand(model.highlightIndex, accent)],
@@ -521,7 +533,7 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
               ),
               plugins: {
                 legend: { display: true, position: "bottom" as const, labels: hideAverage },
-                tooltip: averageTooltip(kcalStat),
+                tooltip: averageTooltip(kcalStat, "kcal"),
               },
             },
             plugins: [
@@ -564,14 +576,13 @@ export function useDietCharts(model: DietChartModel): DietChartRefs {
               ),
               plugins: {
                 legend: { display: true, position: "bottom" as const, labels: hideAverage },
-                tooltip: averageTooltip(proteinStat),
+                tooltip: averageTooltip(proteinStat, "g"),
               },
             },
             plugins: [
               ...guidesFor(model.averages.proteinLine, proteinMark, [
                 { value: model.targets.protein_g, color: muted, dash: [5, 4], width: 1.25 },
               ]),
-              barValueLabels(0),
             ],
         },
       ];
@@ -895,49 +906,106 @@ export function ProteinChartTile({
   );
 }
 
-function formatHeroKcalPerKg(value: number | null): string {
-  if (value == null) return "—";
-  return `${Math.round(value).toLocaleString("en-AU")} kcal/kg`;
+function formatKTick(value: string | number): string {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return "";
+  if (Math.abs(n) >= 1000) {
+    const thousands = n / 1000;
+    const rounded = Math.round(thousands * 10) / 10;
+    return Number.isInteger(rounded) ? `${rounded}k` : `${rounded.toFixed(1)}k`;
+  }
+  return String(Math.round(n));
 }
 
-export function PersonalKcalTile({ data, today }: { data: DietDashboardView; today: string }) {
+function linePointRadius(series: Array<number | null>): number {
+  return series.filter((value) => value != null).length < 2 ? 3.5 : 0;
+}
+
+function budgetLabelPlugin(budget: number, label: string, color: string, card: string): Plugin {
+  return {
+    id: "budgetLabel",
+    afterDatasetsDraw(chart) {
+      const scale = chart.scales.y;
+      const area = chart.chartArea;
+      if (!scale || !area) return;
+      const plotLeft = Math.round(area.left);
+      const tile = chart.canvas.closest(".tdee-tile");
+      if (tile instanceof HTMLElement && plotLeft > 0 && tile.dataset.plotInset !== String(plotLeft)) {
+        tile.style.setProperty("--plot-inset", `${plotLeft}px`);
+        tile.dataset.plotInset = String(plotLeft);
+      }
+      const y = scale.getPixelForValue(budget);
+      if (!Number.isFinite(y) || y < area.top || y > area.bottom) return;
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+      const width = ctx.measureText(label).width;
+      const above = y - 16 >= area.top;
+      const textY = above ? y - 8 : y + 10;
+      ctx.fillStyle = card;
+      ctx.fillRect(area.left, textY - 8, width + 6, 16);
+      ctx.fillStyle = color;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, area.left, textY);
+      ctx.restore();
+    },
+  };
+}
+
+export function ObservedTdeeTile({ data, today }: { data: DietDashboardView; today: string }) {
+  const tileRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const model = useMemo(
+  const days = useMemo(
     () =>
-      buildPersonalKcalModel(
-        data.days.map((day) => ({
-          date: day.date,
-          weight_kg: day.weight_kg,
-          whoop_burn_kcal: day.whoop_burn_kcal,
-          kcal: day.kcal,
-          cycle_closed: day.cycle_closed,
-          complete: day.complete,
-        })),
+      data.days.map((day) => ({
+        date: day.date,
+        weight_kg: day.weight_kg,
+        whoop_burn_kcal: day.whoop_burn_kcal,
+        kcal: day.kcal,
+        cycle_closed: day.cycle_closed,
+        complete: day.complete,
+      })),
+    [data.days],
+  );
+  const observed = useMemo(
+    () =>
+      buildObservedTdeeModel({
+        days,
+        weights: data.weight_points,
         today,
-        data.calorie_phases,
-      ),
-    [data.calorie_phases, data.days, today],
+        budgetKcal: data.targets.calories_kcal,
+      }),
+    [data.targets.calories_kcal, data.weight_points, days, today],
+  );
+  const personal = useMemo(
+    () => buildPersonalKcalModel(days, today, data.calorie_phases),
+    [data.calorie_phases, days, today],
   );
 
   useEffect(() => {
-    if (!model) return;
     const canvas = canvasRef.current;
     if (!canvas || typeof window === "undefined") return;
+    if (observed.points.length === 0) {
+      tileRef.current?.style.setProperty("--plot-inset", "0px");
+      return;
+    }
     let release: (() => void) | undefined;
     let disposed = false;
-    const labels = model.points.map((point) => point.label);
-    const rolling = model.points.map((point) => chartPoint(point.rolling));
-    const daily = model.points.map((point) => chartPoint(point.daily));
-  const accent = cssVar("--accent", "#1f6f5b");
-    const muted = cssVar("--muted", "#6b6964");
-    const line = cssVar("--line", "#e4e0d8");
+    const labels = observed.points.map((point) => point.label);
+    const dates = observed.points.map((point) => point.date);
+    const rolling = observed.points.map((point) => chartPoint(point.rolling));
+    const daily = observed.points.map((point) => chartPoint(point.daily));
+    const whoopAvg = observed.points.map((point) => chartPoint(point.whoopAvg));
+    const whoopDaily = observed.points.map((point) => chartPoint(point.whoopDaily));
+    const budget = observed.budgetKcal;
+    const budgetText = `Budget ${formatNumber(Math.round(budget))}`;
 
     void (chartLibrary ?? import("chart.js")).then((charts) => {
       if (disposed) return;
       const {
         Chart,
         CategoryScale,
-        Filler,
         Legend,
         LineController,
         LineElement,
@@ -947,7 +1015,6 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
       } = charts;
       Chart.register(
         CategoryScale,
-        Filler,
         Legend,
         LineController,
         LineElement,
@@ -955,7 +1022,23 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
         PointElement,
         Tooltip,
       );
-      const refLine = Array.from({ length: labels.length }, () => PERSONAL_KCAL_REFERENCE);
+      const tdee = cssVar("--tdee", "#1b6b45");
+      const whoop = cssVar("--tdee-whoop", "#5c6e8a");
+      const muted = cssVar("--muted", "#6b6964");
+      const line = cssVar("--line", "#e4e0d8");
+      const card = cssVar("--card", "#ffffff");
+      Chart.defaults.font.family =
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+      Chart.defaults.font.size = 11;
+      Chart.defaults.color = muted;
+      const plotted = [...rolling, ...daily, ...whoopAvg, ...whoopDaily, budget].filter(
+        (value): value is number => value != null && Number.isFinite(value),
+      );
+      const low = Math.min(...plotted);
+      const high = Math.max(...plotted);
+      const span = Math.max(high - low, 400);
+      const pad = span * 0.14;
+      const hover = chartHoverTooltip("kcal", null, (label) => label.startsWith("Budget"));
       const config: ChartConfiguration = {
         type: "line",
         data: {
@@ -963,66 +1046,109 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
           datasets: [
             {
               type: "line",
-              label: "7-day rolling",
+              label: "Observed TDEE",
               data: rolling,
-              borderColor: accent,
-              backgroundColor: accent,
+              borderColor: tdee,
+              backgroundColor: tdee,
               borderWidth: 2.6,
-              pointRadius: 0,
+              pointRadius: linePointRadius(rolling),
               pointHoverRadius: 4,
+              pointBackgroundColor: tdee,
               tension: 0.25,
               spanGaps: false,
-              order: 1,
-            },
-            {
-              type: "line",
-              label: "Daily",
-              data: daily,
-              borderColor: hexAlpha(accent, 0.35),
-              backgroundColor: "transparent",
-              pointRadius: 4,
-              pointHoverRadius: 5,
-              pointBorderColor: hexAlpha(accent, 0.55),
-              pointBorderWidth: 1.6,
-              showLine: false,
               order: 2,
             },
             {
               type: "line",
-              label: `${PERSONAL_KCAL_REFERENCE.toLocaleString("en-AU")} reference`,
-              data: refLine,
-              borderColor: muted,
-              borderDash: [5, 4],
-              borderWidth: 1.2,
+              label: "WHOOP 7-day avg",
+              data: whoopAvg,
+              borderColor: whoop,
+              backgroundColor: whoop,
+              borderWidth: 2.6,
+              pointRadius: linePointRadius(whoopAvg),
+              pointHoverRadius: 4,
+              pointBackgroundColor: whoop,
+              tension: 0.25,
+              spanGaps: false,
+              order: 2,
+            },
+            {
+              type: "line",
+              label: "Daily observed",
+              data: daily,
+              borderColor: hexAlpha(tdee, 0.45),
+              backgroundColor: card,
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              pointBackgroundColor: card,
+              pointBorderColor: hexAlpha(tdee, 0.5),
+              pointBorderWidth: 1.5,
+              showLine: false,
+              order: 1,
+            },
+            {
+              type: "line",
+              label: "Daily WHOOP",
+              data: whoopDaily,
+              borderColor: hexAlpha(whoop, 0.45),
+              backgroundColor: card,
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              pointBackgroundColor: card,
+              pointBorderColor: hexAlpha(whoop, 0.55),
+              pointBorderWidth: 1.5,
+              showLine: false,
+              order: 1,
+            },
+            {
+              type: "line",
+              label: budgetText,
+              data: labels.map(() => budget),
+              borderColor: hexAlpha(muted, 0.75),
+              borderDash: [4, 4],
+              borderWidth: 1.25,
               pointRadius: 0,
+              pointHoverRadius: 0,
               fill: false,
-              order: 0,
+              order: 3,
             },
           ],
         },
         options: {
-          ...baseOpts(undefined, true),
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 8, right: 4, bottom: 0, left: 0 } },
+          interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { display: true, position: "bottom" },
-          },
-          scales: {
-            x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
-            y: {
-              grid: { color: line, drawTicks: false },
-              ticks: {
-                callback: (value) => {
-                  const n = typeof value === "number" ? value : Number(value);
-                  if (!Number.isFinite(n)) return "";
-                  if (n >= 1000) return `${Math.round(n / 1000)}k`;
-                  return String(n);
+            legend: { display: false },
+            tooltip: {
+              ...hover,
+              callbacks: {
+                ...hover.callbacks,
+                title(items) {
+                  const index = items[0]?.dataIndex ?? -1;
+                  const iso = dates[index];
+                  return iso ? formatShortDate(iso) : "";
                 },
               },
+            },
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: muted, maxRotation: 0, autoSkip: true },
               border: { display: false },
-              beginAtZero: true,
-              suggestedMax: Math.max(PERSONAL_KCAL_REFERENCE * 1.05, finiteMax([...rolling, ...daily, PERSONAL_KCAL_REFERENCE])),
+            },
+            y: {
+              min: low - pad,
+              max: high + pad,
+              grid: { color: line, drawTicks: false },
+              ticks: { color: muted, callback: (value) => formatKTick(value) },
+              border: { display: false },
             },
           },
         },
+        plugins: [budgetLabelPlugin(budget, budgetText, muted, card)],
       };
 
       try {
@@ -1036,6 +1162,16 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
             devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
           },
         });
+        const syncInset = () => {
+          const plotLeft = chart.chartArea?.left || chart.scales.y?.right || 0;
+          if (!Number.isFinite(plotLeft) || plotLeft <= 0) return;
+          const next = Math.round(plotLeft);
+          const tile = chart.canvas.closest(".tdee-tile");
+          if (!(tile instanceof HTMLElement)) return;
+          if (tile.dataset.plotInset === String(next)) return;
+          tile.style.setProperty("--plot-inset", `${next}px`);
+          tile.dataset.plotInset = String(next);
+        };
         const paint = (force = false) => {
           const parent = chart.canvas.parentElement;
           const width = Math.floor(parent?.clientWidth ?? 0);
@@ -1045,6 +1181,7 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
           if (!force && sameSize) return false;
           (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
           chart.resize(width, height);
+          syncInset();
           return false;
         };
         paint(true);
@@ -1058,7 +1195,7 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
           chart.destroy();
         };
       } catch (error) {
-        console.error("Personal kcal/kg chart failed", error);
+        console.error("Observed TDEE chart failed", error);
       }
       if (disposed) release?.();
     });
@@ -1067,23 +1204,51 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
       disposed = true;
       release?.();
     };
-  }, [model]);
+  }, [observed]);
 
-  const hero = model?.heroKcalPerKg ?? null;
+  const latest = observed.latest;
+  const kcalPerKg = personal?.heroKcalPerKg ?? null;
+  const budgetText = formatNumber(Math.round(observed.budgetKcal));
   return (
-    <section className="card chart-tile personal-tile" data-tab-group="diet" data-tile="personal">
+    <section ref={tileRef} className="card chart-tile tdee-tile" data-tab-group="diet" data-tile="tdee">
       <div className="tile-heading">
-        <h2>Personal kcal/kg</h2>
-        {model?.settleLabel ? <span className="settle-chip">{model.settleLabel}</span> : null}
+        <h2>Observed TDEE</h2>
       </div>
-      <p className="chart-stat personal-hero">{formatHeroKcalPerKg(hero)}</p>
-      <p className="note personal-sub">Rolling · WHOOP deficit ÷ 7-day avg weight lost</p>
+      <div className="tdee-align">
+        <p className="tdee-hero">
+          <span className="tdee-hero-value">{latest ? formatNumber(Math.round(latest.tdee)) : "—"}</span>
+          <span className="tdee-hero-unit">kcal/day</span>
+        </p>
+        <p className="tdee-whoop">
+          {latest && latest.whoopAvg != null ? formatWhoopComparison(latest.whoopAvg, latest.tdee) : "WHOOP avg —"}
+        </p>
+        <p className="tdee-formula">
+          {latest ? formatTdeeCaption(latest.eatenAvg, latest.kgLost) : "7-day avg eaten —"}
+        </p>
+        <p className="tdee-kcalkg">Personal kcal/kg {kcalPerKg == null ? "—" : formatNumber(Math.round(kcalPerKg))}</p>
+      </div>
       <div className="chart-wrap">
-        <canvas ref={canvasRef} aria-label="Personal kcal per kg chart" />
+        <canvas ref={canvasRef} aria-label="Observed TDEE chart" />
       </div>
-      <p className="note">
-        Early values are low because of water weight. They settle over 2–3 weeks.
-      </p>
+      <ul className="tdee-legend tdee-align" aria-label="Observed TDEE legend">
+        <li>
+          <span className="tdee-swatch is-tdee" aria-hidden="true" />
+          Observed TDEE
+        </li>
+        <li>
+          <span className="tdee-swatch is-whoop" aria-hidden="true" />
+          WHOOP 7-day avg
+        </li>
+        <li>
+          <span className="tdee-swatch is-daily" aria-hidden="true" />
+          Daily
+        </li>
+        <li>
+          <span className="tdee-swatch is-budget" aria-hidden="true" />
+          Budget {budgetText}
+        </li>
+      </ul>
+      <p className="note tdee-foot tdee-align">{OBSERVED_TDEE_FOOTNOTE}</p>
     </section>
   );
 }
