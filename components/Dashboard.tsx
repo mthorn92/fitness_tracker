@@ -148,6 +148,7 @@ export function Dashboard({
   foods,
   board,
   workouts,
+  workoutMovingTimes,
   runs,
   today,
 }: {
@@ -158,6 +159,7 @@ export function Dashboard({
   foods: FoodItem[];
   board: ExerciseBoard;
   workouts: StravaWorkoutsModel;
+  workoutMovingTimes: ReadonlyMap<string, number>;
   runs: RunScore[];
   today: string;
 }) {
@@ -350,7 +352,7 @@ export function Dashboard({
             const copyText = copyDay ? formatStrengthDayCopy(copyDay) : undefined;
             return <ExerciseDayTile key={day.slot} day={day} copyText={copyText} />;
           })}
-          <RunsTile rows={runs} />
+          <RunsTile rows={runs} movingTimes={workoutMovingTimes} />
           <StravaWorkoutsTile model={workouts} />
           <OverloadTile board={board} week={selectedWeek} />
           <PhaseSummaryTile board={board} week={selectedWeek} />

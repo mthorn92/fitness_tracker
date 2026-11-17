@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { GET, POST } from "../app/api/run-scores/route";
-import { formatRunDate, indexMark, runsForTile, type RunScore } from "./run-tile";
+import {
+  formatRunDate,
+  formatRunPace,
+  formatRunTime,
+  indexMark,
+  movingTimeByStravaId,
+  runsForTile,
+  type RunScore,
+} from "./run-tile";
 
 process.env.FITNESS_PGLITE_MEMORY = "1";
 delete process.env.DATABASE_URL;
@@ -159,6 +167,17 @@ test("one row or an array upserts by strava_id and GET is newest first", async (
     restore("LOG_API_TOKEN", previous);
     restore("VERCEL", vercel);
   }
+});
+
+test("time and pace come from matched workout moving time and run distance", () => {
+  const lookup = movingTimeByStravaId([{ strava_id: 880_001, moving_time_s: 32 * 60 + 5 }]);
+  assert.equal(formatRunTime(lookup.get("880001")), "32:05");
+  assert.equal(formatRunTime(lookup.get("missing")), "—");
+  assert.equal(formatRunPace(32 * 60 + 5, 5000), "6:25 /km");
+  assert.equal(formatRunPace(lookup.get("880001"), 5000), "6:25 /km");
+  assert.equal(formatRunPace(3600 + 30 * 60, 10_000), "9:00 /km");
+  assert.equal(formatRunTime(3600 + 5 * 60 + 7), "1:05:07");
+  assert.equal(formatRunPace(null, 5000), "—");
 });
 
 test("tile marks follow the mockup: colour vs 100, arrow vs the older run", () => {

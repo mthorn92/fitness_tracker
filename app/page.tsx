@@ -46,6 +46,7 @@ async function DietDashboard({
       foods={diet.log.foods}
       board={board}
       workouts={activity.workouts}
+      workoutMovingTimes={activity.movingTimeByStravaId}
       runs={runs}
       today={calendarToday}
     />

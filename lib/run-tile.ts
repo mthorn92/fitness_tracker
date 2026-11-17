@@ -1,3 +1,5 @@
+import { formatPace, formatRunClock } from "@/lib/strava-summary";
+
 /** Shape posted by Fitness Coach and shown on the Runs tile. */
 export type RunScore = {
   strava_id: string;
@@ -52,6 +54,37 @@ export function formatRunDate(isoDate: string): string {
 export function formatKm(distanceM: number | null): string {
   if (distanceM == null) return "—";
   return (distanceM / 1000).toFixed(2);
+}
+
+/** Moving time from matched workouts; m:ss below one hour, else h:mm:ss. */
+export function formatRunTime(movingTimeS: number | null | undefined): string {
+  if (movingTimeS == null || !Number.isFinite(movingTimeS) || movingTimeS <= 0) return "—";
+  return formatRunClock(movingTimeS);
+}
+
+/** Pace from moving time and run distance (m:ss /km). */
+export function formatRunPace(movingTimeS: number | null | undefined, distanceM: number | null): string {
+  if (
+    movingTimeS == null ||
+    distanceM == null ||
+    !Number.isFinite(movingTimeS) ||
+    movingTimeS <= 0 ||
+    distanceM <= 0
+  ) {
+    return "—";
+  }
+  return formatPace(movingTimeS / (distanceM / 1000));
+}
+
+/** Latest moving_time_s per Strava id (run score ids are strings). */
+export function movingTimeByStravaId(
+  activities: readonly { strava_id: number; moving_time_s: number }[],
+): ReadonlyMap<string, number> {
+  const map = new Map<string, number>();
+  for (const activity of activities) {
+    if (activity.moving_time_s > 0) map.set(String(activity.strava_id), activity.moving_time_s);
+  }
+  return map;
 }
 
 export function formatHr(value: number | null): string {
