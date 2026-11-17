@@ -1,3 +1,4 @@
+import { formatChartHoverValue } from "@/lib/chart-tooltip";
 import { formatCount } from "@/lib/exercise-progress";
 import { formatNumber, formatShortDate, parseIsoDate, shiftIsoDate } from "@/lib/format";
 import { formatDuration, isRunActivity, type RawRun } from "@/lib/strava-summary";
@@ -306,7 +307,7 @@ function toRow(activity: CachedActivity): StravaWorkoutRow {
     formatDuration(activity.movingTimeS),
   ];
   if (activity.avgHr != null) parts.push(`${Math.round(activity.avgHr)} bpm`);
-  if (kcal != null) parts.push(`${formatNumber(Math.round(kcal))} kcal`);
+  if (kcal != null) parts.push(`${formatChartHoverValue(kcal, "kcal")} kcal`);
   if (activity.sufferScore != null) parts.push(`effort ${activity.sufferScore}`);
   return { id: activity.id, name: activity.name, detail: parts.join(" · "), kind: activityKind(activity) };
 }

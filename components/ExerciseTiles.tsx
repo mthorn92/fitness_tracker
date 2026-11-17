@@ -449,16 +449,20 @@ function Bars({
 }
 
 function Areas({ work, xOf, yOf }: { work: WorkWeek[]; xOf: (index: number) => number; yOf: (value: number) => number }) {
+  const polygons: Array<{ muscle: (typeof MUSCLE_GROUPS)[number]; points: string }> = [];
   let lower = work.map(() => 0);
+  for (const muscle of MUSCLE_GROUPS) {
+    const upper = lower.map((value, index) => value + (work[index]?.groups[muscle] ?? 0));
+    const forward = upper.map((value, index) => `${xOf(index)},${yOf(value)}`);
+    const back = lower.map((value, index) => `${xOf(index)},${yOf(value)}`).reverse();
+    polygons.push({ muscle, points: [...forward, ...back].join(" ") });
+    lower = upper;
+  }
   return (
     <g>
-      {MUSCLE_GROUPS.map((muscle) => {
-        const upper = lower.map((value, index) => value + (work[index]?.groups[muscle] ?? 0));
-        const forward = upper.map((value, index) => `${xOf(index)},${yOf(value)}`);
-        const back = lower.map((value, index) => `${xOf(index)},${yOf(value)}`).reverse();
-        lower = upper;
-        return <polygon key={muscle} points={[...forward, ...back].join(" ")} data-muscle={muscle} />;
-      })}
+      {polygons.map((polygon) => (
+        <polygon key={polygon.muscle} points={polygon.points} data-muscle={polygon.muscle} />
+      ))}
     </g>
   );
 }

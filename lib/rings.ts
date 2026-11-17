@@ -1,5 +1,6 @@
+import { formatChartHoverValue } from "@/lib/chart-tooltip";
 import { dailyDeficitKcal, isDeficitDayReady } from "@/lib/deficit";
-import { formatDatePill, formatNumber, shiftIsoDate } from "@/lib/format";
+import { formatDatePill, shiftIsoDate } from "@/lib/format";
 
 /**
  * Monthly rings.
@@ -99,7 +100,7 @@ export function ringForDay(day: RingDayInput, today: string): DayRing {
 
 function kcalText(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
-  return `${formatNumber(Math.round(value))} kcal`;
+  return `${formatChartHoverValue(value, "kcal")} kcal`;
 }
 
 export function ringSummary(ring: DayRing): RingSummary {
@@ -125,8 +126,8 @@ export function ringSummary(ring: DayRing): RingSummary {
     rounded === 0
       ? "Even"
       : rounded > 0
-        ? `${formatNumber(rounded)} kcal under`
-        : `${formatNumber(Math.abs(rounded))} kcal over`;
+        ? `${formatChartHoverValue(rounded, "kcal")} kcal under`
+        : `${formatChartHoverValue(Math.abs(rounded), "kcal")} kcal over`;
   return { eaten, burned, difference, pending };
 }
 
