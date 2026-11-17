@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatDatePill, shiftIsoDate } from "@/lib/format";
+import { formatDietPhaseStripNote, type CaloriePhase } from "@/lib/phases";
 
 function Chevron({ direction }: { direction: "left" | "right" }) {
   return (
@@ -32,15 +33,20 @@ export function EatingDateBar({
   date,
   today,
   minDate,
+  goalWeightKg,
+  phases,
 }: {
   date: string;
   today: string;
   minDate: string;
+  goalWeightKg: number;
+  phases: readonly CaloriePhase[];
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const cap = shiftIsoDate(today, 366);
   const planned = date > today;
+  const phaseNote = formatDietPhaseStripNote(date, goalWeightKg, phases);
 
   function go(next: string) {
     const params = new URLSearchParams(window.location.search);
@@ -88,6 +94,12 @@ export function EatingDateBar({
       <button type="button" className="eating-cal" aria-label="Choose a date" onClick={openPicker}>
         <CalendarIcon />
       </button>
+      {phaseNote ? (
+        <>
+          <span className="eating-divider" aria-hidden="true" />
+          <p className="eating-phase-note">{phaseNote}</p>
+        </>
+      ) : null}
       <input
         ref={inputRef}
         className="eating-input"

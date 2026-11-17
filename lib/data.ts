@@ -16,7 +16,9 @@ import {
   KCAL_PER_KG,
 } from "@/lib/deficit";
 import { dietChartStartDate, enumerateIsoDates } from "@/lib/diet-window";
+import { loadCaloriePhases } from "@/lib/phase-store";
 import { buildPhaseBoard } from "@/lib/phase-board";
+import { PHASES, type CaloriePhase } from "@/lib/phases";
 import { isPlannedFood } from "@/lib/planned-food";
 import { preferredWhoopBurnKcal } from "@/lib/whoop-burn";
 import {
@@ -394,7 +396,8 @@ function cycleClosedForDate(data: FitnessSnapshot, date: string): boolean | null
 
 
 export async function getDietDashboardView(date?: string): Promise<DietDashboardView> {
-  return buildDietDashboardView(await getFitnessData(), date);
+  const phases = await loadCaloriePhases();
+  return buildDietDashboardView(await getFitnessData(), date, phases);
 }
 
 /**
@@ -412,12 +415,17 @@ export async function getDashboardPageData(requested: string | undefined, range:
   const window: SnapshotWindow = { to: loadTo };
   if (from) window.from = from;
   const snapshot = await loadSnapshot(window);
-  const data = buildDietDashboardView(snapshot, selected);
+  const phases = await loadCaloriePhases();
+  const data = buildDietDashboardView(snapshot, selected, phases);
   const log = buildTodayView(snapshot, data.today.date);
   return { data, log };
 }
 
-export function buildDietDashboardView(data: FitnessSnapshot, date?: string): DietDashboardView {
+export function buildDietDashboardView(
+  data: FitnessSnapshot,
+  date?: string,
+  phases: readonly CaloriePhase[] = PHASES,
+): DietDashboardView {
   const today = todayIsoDate("Australia/Melbourne");
   const selected = resolveDashboardDate(date, today);
   const targets = {
@@ -599,7 +607,8 @@ export function buildDietDashboardView(data: FitnessSnapshot, date?: string): Di
     tomorrow: tomorrowFoods.length
       ? { date: tomorrowDate, kcal: sumFoods(tomorrowFoods).kcal }
       : null,
-    phase_board: buildPhaseBoard(phaseHistory, selected, today),
+    phase_board: buildPhaseBoard(phaseHistory, selected, today, phases),
+    calorie_phases: [...phases],
   };
 }
 

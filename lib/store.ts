@@ -904,6 +904,64 @@ export async function listStoredPlans(): Promise<StoredPlanRow[]> {
   }));
 }
 
+export type StoredPhaseRow = {
+  id: string;
+  name: string;
+  kind: string | null;
+  start: string;
+  end: string | null;
+  goal_weight_kg: number | null;
+  kcal_target: number | null;
+  note: string | null;
+};
+
+export async function listStoredPhases(): Promise<StoredPhaseRow[]> {
+  await ready();
+  const rows = await sql<Record<string, unknown>>(
+    `select id, name, kind, start, "end", goal_weight_kg, kcal_target, note
+     from phases
+     order by start, id`,
+  );
+  return rows.map((row) => ({
+    id: text(row.id),
+    name: text(row.name),
+    kind: row.kind == null ? null : text(row.kind),
+    start: text(row.start),
+    end: row.end == null || row.end === "" ? null : text(row["end"]),
+    goal_weight_kg: row.goal_weight_kg == null ? null : num(row.goal_weight_kg),
+    kcal_target: row.kcal_target == null ? null : Math.round(num(row.kcal_target)),
+    note: row.note == null ? null : text(row.note),
+  }));
+}
+
+export async function upsertStoredPhase(phase: StoredPhaseRow, options?: { refresh?: boolean }): Promise<void> {
+  await ready();
+  await sql(
+    `insert into phases (id, name, kind, start, "end", goal_weight_kg, kcal_target, note, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, now())
+     on conflict (id) do update set
+       name = excluded.name,
+       kind = excluded.kind,
+       start = excluded.start,
+       "end" = excluded."end",
+       goal_weight_kg = excluded.goal_weight_kg,
+       kcal_target = excluded.kcal_target,
+       note = excluded.note,
+       updated_at = now()`,
+    [
+      phase.id,
+      phase.name,
+      phase.kind,
+      phase.start,
+      phase.end,
+      phase.goal_weight_kg,
+      phase.kcal_target,
+      phase.note,
+    ],
+  );
+  if (options?.refresh !== false) await refreshPages();
+}
+
 export async function upsertStoredPlan(
   id: string,
   body: unknown,

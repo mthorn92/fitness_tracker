@@ -1,3 +1,4 @@
+import type { CaloriePhase } from "@/lib/phases";
 import type { PhaseBoard } from "@/lib/phase-board";
 
 export type MacroTotals = {
@@ -387,6 +388,8 @@ export type DietDashboardView = {
   tomorrow: { date: string; kcal: number } | null;
   /** Phase summary as of the selected day. Null outside every phase. */
   phase_board: PhaseBoard | null;
+  /** Resolved phases for the diet UI (database rows, or repo default when empty). */
+  calorie_phases: CaloriePhase[];
 };
 
 export type PlanWeekType = "build" | "deload" | "test";

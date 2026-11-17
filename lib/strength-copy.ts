@@ -14,14 +14,9 @@ export type StrengthCopyDay = {
  * Everything else is one exercise per line. No emoji or markdown.
  */
 export function formatStrengthDayCopy(day: StrengthCopyDay): string {
-  const lines: string[] = [`${formatDayTitle(day.name)} (${day.weekLabel})`];
-  let currentLetter: string | null = null;
+  const lines: string[] = [formatDayHeader(day.name)];
   for (const item of day.items) {
-    const letter = supersetLetter(item.group);
-    if (letter && letter !== currentLetter) lines.push(`Superset ${letter}:`);
-    currentLetter = letter;
-    const prefix = letter ? "- " : "";
-    lines.push(`${prefix}${item.name}: ${formatCopyDose(item)}`);
+    lines.push(`${item.name}: ${formatCopyDose(item)}`);
   }
   if (day.deloadNote) {
     lines.push("");
@@ -35,25 +30,22 @@ export function formatStrengthWeekCopy(days: StrengthCopyDay[]): string {
   return days.map((day) => formatStrengthDayCopy(day)).join("\n\n");
 }
 
-function formatDayTitle(name: string): string {
-  const match = /^(Day\s+\S+)\s+(.+)$/.exec(name.trim());
-  if (!match) return name.trim();
+function formatDayHeader(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.includes("·")) return trimmed;
+  const match = /^(Day\s+\S+)\s+(.+)$/i.exec(trimmed);
+  if (!match) return trimmed;
   const focus = match[2].trim();
-  return `${match[1]} - ${focus.charAt(0).toUpperCase()}${focus.slice(1)}`;
-}
-
-function supersetLetter(group: string | null): string | null {
-  if (!group) return null;
-  const match = /^([A-Za-z]+)\d*$/.exec(group);
-  return match ? match[1].toUpperCase() : group;
+  const titled = focus.charAt(0).toUpperCase() + focus.slice(1);
+  return `${match[1]} · ${titled}`;
 }
 
 function formatCopyDose(item: PrescribedExercise): string {
   if (item.extra === "attempt") return `${formatCount(item.sets)} attempts`;
   const dose =
     item.hold_s != null
-      ? `${formatCount(item.sets)} x ${formatCount(item.hold_s)}s`
-      : `${formatCount(item.sets)} x ${formatCount(item.reps)}${item.extra === "per leg" ? "/leg" : ""}`;
+      ? `${formatCount(item.sets)} × ${formatCount(item.hold_s)}s`
+      : `${formatCount(item.sets)} × ${formatCount(item.reps)}${item.extra === "per leg" ? "/leg" : ""}`;
   const load =
     item.load_kg == null ? "" : ` @ ${formatCount(item.load_kg)} kg${item.extra === "per hand" ? "/hand" : ""}`;
   const band = item.band ? ` (${formatBand(item.band)})` : "";

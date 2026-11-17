@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
-import { DailyRing } from "@/components/DailyRing";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { DASHBOARD_TAB_EVENT } from "@/components/dashboard-tab";
 import type { Chart, ChartConfiguration, ChartDataset, Plugin, TooltipItem } from "chart.js";
 import {
@@ -12,6 +11,10 @@ import {
 import { formatAverageLabel, proteinAxis, targetAxis } from "@/lib/chart-scale";
 import { fixedTdeeCumulativeForChartDays, fixedTdeeSeriesLabel } from "@/lib/deficit";
 import { clampPercent, formatNumber } from "@/lib/format";
+import {
+  buildPersonalKcalModel,
+  PERSONAL_KCAL_REFERENCE,
+} from "@/lib/personal-kcal";
 import type { DietDashboardView } from "@/lib/types";
 
 const chartLibrary = typeof window === "undefined" ? null : import("chart.js");
@@ -892,39 +895,173 @@ export function ProteinChartTile({
   );
 }
 
-export function PersonalKcalTile({ data }: { data: DietDashboardView }) {
-  const personal = data.personal;
-  const needed = personal.needed_days;
-  const done = personal.completed_days;
-  const progress = needed <= 0 ? 0 : done / needed;
+function formatHeroKcalPerKg(value: number | null): string {
+  if (value == null) return "—";
+  return `${Math.round(value).toLocaleString("en-AU")} kcal/kg`;
+}
+
+export function PersonalKcalTile({ data, today }: { data: DietDashboardView; today: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const model = useMemo(
+    () =>
+      buildPersonalKcalModel(
+        data.days.map((day) => ({
+          date: day.date,
+          weight_kg: day.weight_kg,
+          whoop_burn_kcal: day.whoop_burn_kcal,
+          kcal: day.kcal,
+          cycle_closed: day.cycle_closed,
+          complete: day.complete,
+        })),
+        today,
+        data.calorie_phases,
+      ),
+    [data.calorie_phases, data.days, today],
+  );
+
+  useEffect(() => {
+    if (!model) return;
+    const canvas = canvasRef.current;
+    if (!canvas || typeof window === "undefined") return;
+    let release: (() => void) | undefined;
+    let disposed = false;
+    const labels = model.points.map((point) => point.label);
+    const rolling = model.points.map((point) => chartPoint(point.rolling));
+    const daily = model.points.map((point) => chartPoint(point.daily));
+  const accent = cssVar("--accent", "#1f6f5b");
+    const muted = cssVar("--muted", "#6b6964");
+    const line = cssVar("--line", "#e4e0d8");
+
+    void chartLibrary?.then(({ Chart }) => {
+      if (disposed) return;
+      const refLine = Array.from({ length: labels.length }, () => PERSONAL_KCAL_REFERENCE);
+      const config: ChartConfiguration = {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              type: "line",
+              label: "7-day rolling",
+              data: rolling,
+              borderColor: accent,
+              backgroundColor: accent,
+              borderWidth: 2.6,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              tension: 0.25,
+              spanGaps: false,
+              order: 1,
+            },
+            {
+              type: "scatter",
+              label: "Daily",
+              data: daily,
+              borderColor: hexAlpha(accent, 0.35),
+              backgroundColor: "transparent",
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              pointBorderColor: hexAlpha(accent, 0.55),
+              pointBorderWidth: 1.6,
+              order: 2,
+            },
+            {
+              type: "line",
+              label: `${PERSONAL_KCAL_REFERENCE.toLocaleString("en-AU")} reference`,
+              data: refLine,
+              borderColor: muted,
+              borderDash: [5, 4],
+              borderWidth: 1.2,
+              pointRadius: 0,
+              fill: false,
+              order: 0,
+            },
+          ],
+        },
+        options: {
+          ...baseOpts(undefined, true),
+          plugins: {
+            legend: { display: true, position: "bottom" },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
+            y: {
+              grid: { color: line, drawTicks: false },
+              ticks: {
+                callback: (value) => {
+                  const n = typeof value === "number" ? value : Number(value);
+                  if (!Number.isFinite(n)) return "";
+                  if (n >= 1000) return `${Math.round(n / 1000)}k`;
+                  return String(n);
+                },
+              },
+              border: { display: false },
+              beginAtZero: true,
+              suggestedMax: Math.max(PERSONAL_KCAL_REFERENCE * 1.05, finiteMax([...rolling, ...daily, PERSONAL_KCAL_REFERENCE])),
+            },
+          },
+        },
+      };
+
+      try {
+        canvas.style.boxSizing = "content-box";
+        const chart = new Chart(canvas, {
+          ...config,
+          options: {
+            ...config.options,
+            responsive: false,
+            animation: false,
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+          },
+        });
+        const paint = (force = false) => {
+          const parent = chart.canvas.parentElement;
+          const width = Math.floor(parent?.clientWidth ?? 0);
+          const height = Math.floor(parent?.clientHeight ?? 0);
+          if (width < 2 || height < 2) return true;
+          const sameSize = Math.abs(chart.width - width) < 1 && Math.abs(chart.height - height) < 1;
+          if (!force && sameSize) return false;
+          (chart as Chart & { currentDevicePixelRatio?: number }).currentDevicePixelRatio = 0;
+          chart.resize(width, height);
+          return false;
+        };
+        paint(true);
+        const observer = new ResizeObserver(() => paint(false));
+        if (chart.canvas.parentElement) observer.observe(chart.canvas.parentElement);
+        const onTab = () => paint(true);
+        document.addEventListener(DASHBOARD_TAB_EVENT, onTab);
+        release = () => {
+          observer.disconnect();
+          document.removeEventListener(DASHBOARD_TAB_EVENT, onTab);
+          chart.destroy();
+        };
+      } catch (error) {
+        console.error("Personal kcal/kg chart failed", error);
+      }
+      if (disposed) release?.();
+    });
+
+    return () => {
+      disposed = true;
+      release?.();
+    };
+  }, [model]);
+
+  const hero = model?.heroKcalPerKg ?? null;
   return (
-    <section className="card personal-tile" data-tab-group="diet" data-tile="personal">
-      <h2>Personal kcal/kg</h2>
-      <div className="personal-body">
-        <DailyRing
-          compact
-          progress={progress}
-          tone="good"
-          label="Days toward a personal kcal per kg"
-          valueNow={done}
-          valueMax={needed}
-          valueText={`${done} of ${needed} days`}
-        >
-          <span className="daily-ring-num">{done}</span>
-          <span className="daily-ring-sub">/ {needed}</span>
-        </DailyRing>
-        <div className="personal-copy">
-          <div className="big">
-            {personal.ready && personal.kcal_per_kg != null
-              ? `${Math.round(personal.kcal_per_kg).toLocaleString("en-AU")} kcal/kg`
-              : `Needs ~2 weeks of data (${done}/${needed})`}
-          </div>
-          <p className="note">
-            WHOOP burn estimates and water weight mean this figure settles over a few weeks. Comparing it
-            with {data.kcal_per_kg.toLocaleString("en-AU")} shows how accurate WHOOP burn is for you.
-          </p>
-        </div>
+    <section className="card chart-tile personal-tile" data-tab-group="diet" data-tile="personal">
+      <div className="tile-heading">
+        <h2>Personal kcal/kg</h2>
+        {model?.settleLabel ? <span className="settle-chip">{model.settleLabel}</span> : null}
       </div>
+      <p className="chart-stat personal-hero">{formatHeroKcalPerKg(hero)}</p>
+      <p className="note personal-sub">Rolling · WHOOP deficit ÷ 7-day avg weight lost</p>
+      <div className="chart-wrap">
+        <canvas ref={canvasRef} aria-label="Personal kcal per kg chart" />
+      </div>
+      <p className="note">
+        Early values are low because of water weight. They settle over 2–3 weeks.
+      </p>
     </section>
   );
 }

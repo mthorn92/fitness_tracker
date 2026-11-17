@@ -1415,24 +1415,41 @@ body {
   min-height: 200px;
 }
 
-.personal-body {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.75rem 0.9rem;
+.personal-tile .tile-heading h2 {
+  margin: 0;
+}
+
+.personal-tile .tile-heading {
+  margin-bottom: 0.2rem;
+}
+
+.personal-hero {
+  margin: 0 0 0.2rem;
+  font-size: clamp(1.35rem, 5vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.personal-sub {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+}
+
+.settle-chip {
+  display: inline-flex;
   align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 16%, var(--card));
+  color: color-mix(in srgb, var(--warn) 72%, var(--ink));
+  font-size: 0.68rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.personal-copy {
-  min-width: 0;
-}
-
-.personal-copy .big {
-  font-size: clamp(1.15rem, 5.4vw, 1.45rem);
-  line-height: 1.15;
-}
-
-.personal-copy .note {
-  margin-top: 0.35rem;
+.dashboard[data-tab="exercise"] .ex-tile-head + .ex-meta {
+  margin-left: 0;
 }
 
 .bar {
@@ -1878,9 +1895,28 @@ body {
 .eating-bar {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 1rem;
   grid-column: 1 / -1;
   padding: 0.55rem 0.9rem;
+}
+
+.eating-divider {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  min-height: 1.15rem;
+  margin: 0.1rem 0;
+  background: var(--line);
+}
+
+.eating-phase-note {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .eating-nav {
@@ -1892,8 +1928,9 @@ body {
 .eating-date {
   margin: 0;
   min-width: 7.6em;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 650;
+  line-height: 1.25;
   letter-spacing: -0.01em;
   text-align: center;
 }

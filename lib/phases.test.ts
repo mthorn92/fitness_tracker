@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { phaseCalorieAverage, phaseCalorieSummary } from "./calorie-average";
-import { PHASES, activePhase, phaseDaysLeft, phaseLengthDays, phaseProgress, type CaloriePhase } from "./phases";
+import {
+  PHASES,
+  activePhase,
+  formatDietPhaseStripNote,
+  phaseDaysLeft,
+  phaseLengthDays,
+  phaseProgress,
+  type CaloriePhase,
+} from "./phases";
 
 const phase1 = PHASES[0];
 
@@ -53,6 +61,18 @@ test("after Phase 1 ends there is no phase line", () => {
     phaseCalorieSummary([{ date: "2026-12-21", kcal: 1800 }], "2026-12-23"),
     null,
   );
+});
+
+test("strip note uses phase goal_weight_kg when set", () => {
+  const phase: CaloriePhase = {
+    name: "Cut phase",
+    start: "2026-11-09",
+    end: "2026-12-22",
+    kcal_target: 2000,
+    subtitle: "cut",
+    goal_weight_kg: 92,
+  };
+  assert.equal(formatDietPhaseStripNote("2026-11-14", 95, [phase]), "Cut phase · until 22/12 · goal 92 kg");
 });
 
 test("before Phase 1 starts there is no phase line", () => {
