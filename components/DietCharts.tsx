@@ -914,8 +914,9 @@ export function PersonalKcalTile({ data, today }: { data: DietDashboardView; tod
           complete: day.complete,
         })),
         today,
+        data.calorie_phases,
       ),
-    [data.days, today],
+    [data.calorie_phases, data.days, today],
   );
 
   useEffect(() => {

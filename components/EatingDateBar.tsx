@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatDatePill, shiftIsoDate } from "@/lib/format";
-import { formatDietPhaseStripNote } from "@/lib/phases";
+import { formatDietPhaseStripNote, type CaloriePhase } from "@/lib/phases";
 
 function Chevron({ direction }: { direction: "left" | "right" }) {
   return (
@@ -34,17 +34,19 @@ export function EatingDateBar({
   today,
   minDate,
   goalWeightKg,
+  phases,
 }: {
   date: string;
   today: string;
   minDate: string;
   goalWeightKg: number;
+  phases: readonly CaloriePhase[];
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const cap = shiftIsoDate(today, 366);
   const planned = date > today;
-  const phaseNote = formatDietPhaseStripNote(date, goalWeightKg);
+  const phaseNote = formatDietPhaseStripNote(date, goalWeightKg, phases);
 
   function go(next: string) {
     const params = new URLSearchParams(window.location.search);

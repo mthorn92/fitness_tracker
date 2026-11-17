@@ -319,6 +319,7 @@ export function Dashboard({
         today={today}
         minDate={data.start_date}
         goalWeightKg={data.goal_weight_kg}
+        phases={data.calorie_phases}
       />
       <DietTodayCard data={data} today={today} />
       <TodayFood
