@@ -9,6 +9,7 @@ import {
   type StravaWorkoutsModel,
 } from "@/lib/strava-workouts";
 import { shiftIsoDate } from "@/lib/format";
+import { movingTimeByStravaId as buildMovingTimeLookup } from "@/lib/run-tile";
 
 /** One activity, in the shape the Fitness Coach bot sends and reads back. */
 export type WorkoutActivity = {
@@ -144,6 +145,8 @@ export async function lastSyncedAt(): Promise<string | null> {
 export async function loadExerciseActivities(today: string): Promise<{
   workouts: StravaWorkoutsModel;
   runs: StravaTileModel;
+  /** moving_time_s keyed by string strava id for the Runs tile. */
+  movingTimeByStravaId: ReadonlyMap<string, number>;
 }> {
   const monday = mondayOnOrBefore(today);
   const runFrom = shiftIsoDate(monday, -23);
@@ -160,7 +163,7 @@ export async function loadExerciseActivities(today: string): Promise<{
   const runs = modelFromRuns(activitiesToRuns(cached), today, false);
   if (workouts.status === "ready") workouts.syncedAt = syncedAt;
   if (runs.status === "ready") runs.syncedAt = syncedAt;
-  return { workouts, runs };
+  return { workouts, runs, movingTimeByStravaId: buildMovingTimeLookup(activities) };
 }
 
 function parseActivity(value: unknown): WorkoutInput | { field: string } {

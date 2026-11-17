@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import {
   formatEf,
   formatElevParts,
@@ -8,11 +8,19 @@ import {
   formatKm,
   formatPctUnder,
   formatRunDate,
+  formatRunPace,
+  formatRunTime,
   indexMark,
   type RunScore,
 } from "@/lib/run-tile";
 
-export function RunsTile({ rows }: { rows: RunScore[] }) {
+export function RunsTile({
+  rows,
+  movingTimes,
+}: {
+  rows: RunScore[];
+  movingTimes: ReadonlyMap<string, number>;
+}) {
   return (
     <section
       className="card runs-tile"
@@ -28,14 +36,20 @@ export function RunsTile({ rows }: { rows: RunScore[] }) {
       {rows.length === 0 ? (
         <p className="runs-empty">No runs from 1 Nov.</p>
       ) : (
-        <RunsTable rows={rows} />
+        <RunsTable rows={rows} movingTimes={movingTimes} />
       )}
       <p className="runs-caption">From 1 Nov · newest first. Peak is p97 HR.</p>
     </section>
   );
 }
 
-function RunsTable({ rows }: { rows: RunScore[] }) {
+function RunsTable({
+  rows,
+  movingTimes,
+}: {
+  rows: RunScore[];
+  movingTimes: ReadonlyMap<string, number>;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
 
@@ -51,13 +65,19 @@ function RunsTable({ rows }: { rows: RunScore[] }) {
 
   return (
     <div className="runs-shell" data-overflow={overflow ? "true" : "false"}>
-      <div className="runs-scroll" ref={scrollRef}>
+      <div
+        className="runs-scroll"
+        ref={scrollRef}
+        style={{ "--runs-rows": rows.length } as CSSProperties}
+      >
         <table className="runs-table">
           <thead>
             <tr>
               <th scope="col">Date</th>
               <th scope="col">Index</th>
               <th scope="col">km</th>
+              <th scope="col">Time</th>
+              <th scope="col">Pace</th>
               <th scope="col">Elev m</th>
               <th scope="col">Avg HR</th>
               <th scope="col">
@@ -80,6 +100,7 @@ function RunsTable({ rows }: { rows: RunScore[] }) {
               const mark = indexMark(row.index, older);
               const elev = formatElevParts(row.elev_gain_m, row.elev_loss_m);
               const under = formatPctUnder(row.pct_under_145);
+              const movingTimeS = movingTimes.get(row.strava_id);
               return (
                 <tr key={row.strava_id}>
                   <td className="runs-date">{formatRunDate(row.date)}</td>
@@ -91,6 +112,8 @@ function RunsTable({ rows }: { rows: RunScore[] }) {
                     </span>
                   </td>
                   <td>{formatKm(row.distance_m)}</td>
+                  <td>{formatRunTime(movingTimeS)}</td>
+                  <td>{formatRunPace(movingTimeS, row.distance_m)}</td>
                   <td className="runs-elev">
                     {elev.gain == null && elev.loss == null ? (
                       "—"
