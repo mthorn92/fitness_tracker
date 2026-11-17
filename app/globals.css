@@ -23,6 +23,7 @@
   --go: var(--good);
   --low: #b54a3a;
   --accent-ink: #ffffff;
+  --dashboard-max-width: 1500px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -90,7 +91,7 @@ body {
   grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   width: 100%;
-  max-width: 1100px;
+  max-width: var(--dashboard-max-width);
   margin-inline: auto;
   align-content: start;
   padding:
@@ -101,6 +102,8 @@ body {
 }
 
 .dashboard-head {
+  width: 100%;
+  max-width: var(--dashboard-max-width);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
@@ -2066,6 +2069,8 @@ body {
 
 .exercise-today {
   grid-column: 1 / -1;
+  width: 100%;
+  max-width: var(--dashboard-max-width);
   padding: 0.5rem 0.85rem;
 }
 
@@ -2899,17 +2904,19 @@ body {
 }
 
 .ex-done {
-  height: 1.15rem;
+  min-height: 1.15rem;
+  height: auto;
+  align-items: start;
 }
 
 .ex-done-val {
-  overflow: hidden;
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   font-weight: 550;
   letter-spacing: -0.01em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ex-row.is-met .ex-done-val { color: var(--good); }
