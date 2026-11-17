@@ -23,7 +23,8 @@
   --go: var(--good);
   --low: #b54a3a;
   --accent-ink: #ffffff;
-  --dashboard-max-width: 1500px;
+  --dashboard-col: 475px;
+  --dashboard-gap: 0.75rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -89,10 +90,9 @@ body {
 .dashboard {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
+  gap: var(--dashboard-gap);
   width: 100%;
-  max-width: var(--dashboard-max-width);
-  margin-inline: auto;
+  justify-content: center;
   align-content: start;
   padding:
     max(0.85rem, env(safe-area-inset-top))
@@ -102,8 +102,6 @@ body {
 }
 
 .dashboard-head {
-  width: 100%;
-  max-width: var(--dashboard-max-width);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
@@ -344,18 +342,12 @@ body {
   }
 }
 
-@media (min-width: 800px) {
+@media (min-width: 801px) {
   .dashboard {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, var(--dashboard-col));
     align-items: start;
   }
 
-  .dashboard[data-tab="exercise"] {
-    align-items: start;
-  }
-}
-
-@media (min-width: 1100px) {
   .dashboard-head {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     grid-template-areas: "title updated range tabs";
@@ -377,11 +369,11 @@ body {
   overflow: visible;
 }
 
-/* Three columns on a wide window. Rows are as tall as their content. Tiles do not stretch to fill the screen, so a long food list or a tall neighbour leaves a gap instead of pulling the charts with it. */
-@media (min-width: 1100px) {
+/* Three fixed columns on a wide window. Tiles keep 475px tracks and do not stretch. */
+@media (min-width: 1480px) {
   .dashboard {
     min-height: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, var(--dashboard-col));
     grid-template-rows: auto;
     align-content: start;
     align-items: start;
@@ -440,20 +432,6 @@ body {
     font-size: 0.95rem;
     font-weight: 600;
     line-height: 1.25;
-  }
-
-  /* Exercise stays content-sized: four strength days, then the two Strava tiles. */
-  .dashboard[data-tab="exercise"] {
-    min-height: 0;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: auto;
-    align-content: start;
-    align-items: start;
-  }
-
-  .dashboard[data-tab="exercise"] .workouts-tile,
-  .dashboard[data-tab="exercise"] .strava-tile {
-    grid-column: span 2;
   }
 }
 
@@ -525,7 +503,7 @@ body {
   line-height: 1.25;
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1479px) {
   .dashboard[data-tab="diet"] .daily-tile > .daily-tile-title {
     display: flex;
     align-items: center;
@@ -548,7 +526,7 @@ body {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1480px) {
   .dashboard[data-tab="diet"] .daily-tile > .daily-tile-title::before {
     min-width: 0.95rem;
     height: 0.95rem;
@@ -1890,7 +1868,7 @@ body {
   flex: 1 1 auto;
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1479px) {
   .dashboard[data-tab="diet"] .food-list {
     max-height: none;
     overflow: visible;
@@ -2061,7 +2039,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1480px) {
   .dashboard[data-tab="diet"] .food-tile {
     overflow: hidden;
   }
@@ -2069,8 +2047,6 @@ body {
 
 .exercise-today {
   grid-column: 1 / -1;
-  width: 100%;
-  max-width: var(--dashboard-max-width);
   padding: 0.5rem 0.85rem;
 }
 
@@ -2671,7 +2647,7 @@ body {
   min-width: 0;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1480px) {
   .dashboard[data-tab="diet"] {
     counter-reset: diet-pos;
   }
@@ -3140,11 +3116,6 @@ body {
 }
 
 @media (min-width: 801px) {
-  .dashboard[data-tab="exercise"] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: start;
-  }
-
   .dashboard[data-tab="exercise"] > [data-tab-group="exercise"]:not([data-tile="today"]) {
     height: 452px;
     max-height: 452px;
@@ -3153,7 +3124,6 @@ body {
 
   .dashboard[data-tab="exercise"] .workouts-tile,
   .dashboard[data-tab="exercise"] .strava-tile {
-    grid-column: auto;
     height: 452px;
     max-height: 452px;
     overflow: auto;
@@ -3176,7 +3146,7 @@ body {
   }
 }
 
-/* Runs tile (exercise position 6). Separate from .dashboard max-width. */
+/* Runs tile (exercise position 6). Spans two fixed columns when the grid has room. */
 .runs-tile {
   display: flex;
   flex-direction: column;
