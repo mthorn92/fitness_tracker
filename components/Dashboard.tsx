@@ -13,7 +13,6 @@ import {
 } from "@/components/DietCharts";
 import { DietTodayCard } from "@/components/DietTodayCard";
 import { EatingDateBar } from "@/components/EatingDateBar";
-import { PhaseTile } from "@/components/PhaseTile";
 import { MonthRings } from "@/components/MonthRings";
 import { ExerciseDayTile, ExerciseToday, OverloadTile, PhaseSummaryTile } from "@/components/ExerciseTiles";
 import { RunsTile } from "@/components/RunsTile";
@@ -28,7 +27,7 @@ import {
   type DashboardTab,
 } from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
-import { formatStrengthWeekCopy } from "@/lib/strength-copy";
+import { formatStrengthDayCopy } from "@/lib/strength-copy";
 import type { RunScore } from "@/lib/run-tile";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
 import {
@@ -251,10 +250,6 @@ export function Dashboard({
     setExerciseWeek(board.currentWeek);
   }, [board.planId, board.currentWeek]);
   const selectedWeek = board.weeks.find((entry) => entry.week === exerciseWeek) ?? board.weeks[0];
-  const weekCopy = useMemo(
-    () => (selectedWeek?.copyDays.length ? formatStrengthWeekCopy(selectedWeek.copyDays) : undefined),
-    [selectedWeek],
-  );
 
   function openDate(next: string) {
     const params = new URLSearchParams(window.location.search);
@@ -319,7 +314,12 @@ export function Dashboard({
           ))}
         </div>
       </header>
-      <EatingDateBar date={data.today.date} today={today} minDate={data.start_date} />
+      <EatingDateBar
+        date={data.today.date}
+        today={today}
+        minDate={data.start_date}
+        goalWeightKg={data.goal_weight_kg}
+      />
       <DietTodayCard data={data} today={today} />
       <TodayFood
         foods={foods}
@@ -340,14 +340,15 @@ export function Dashboard({
         today={today}
         focusDate={data.today.date}
       />
-      <PhaseTile data={data} />
-      <PersonalKcalTile data={data} />
+      <PersonalKcalTile data={data} today={today} />
       {selectedWeek ? (
         <>
-          <ExerciseToday board={board} week={selectedWeek} weekCopy={weekCopy} onWeek={setExerciseWeek} />
-          {selectedWeek.days.map((day) => (
-            <ExerciseDayTile key={day.slot} day={day} />
-          ))}
+          <ExerciseToday board={board} week={selectedWeek} onWeek={setExerciseWeek} />
+          {selectedWeek.days.map((day, index) => {
+            const copyDay = selectedWeek.copyDays[index];
+            const copyText = copyDay ? formatStrengthDayCopy(copyDay) : undefined;
+            return <ExerciseDayTile key={day.slot} day={day} copyText={copyText} />;
+          })}
           <RunsTile rows={runs} />
           <StravaWorkoutsTile model={workouts} />
           <OverloadTile board={board} week={selectedWeek} />

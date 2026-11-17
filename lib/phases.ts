@@ -63,3 +63,26 @@ export function phaseProgress(today: string, phase: CaloriePhase): number {
   const done = total - phaseDaysLeft(today, phase);
   return Math.min(1, Math.max(0, done / total));
 }
+
+/** Short end date for the diet date strip, for example 22/12. */
+export function formatPhaseEndShort(isoEnd: string): string {
+  const [, month, day] = isoEnd.split("-");
+  return `${Number(day)}/${Number(month)}`;
+}
+
+/** Muted phase note next to the diet date when a phase covers the selected day. */
+export function formatDietPhaseStripNote(
+  selectedDate: string,
+  goalWeightKg: number,
+  phases: readonly CaloriePhase[] = PHASES,
+): string | null {
+  const phase = activePhase(selectedDate, phases);
+  if (!phase) return null;
+  const label = phase.subtitle
+    ? `${phase.subtitle.charAt(0).toUpperCase()}${phase.subtitle.slice(1)} phase`
+    : phase.name;
+  const goal = Number.isInteger(goalWeightKg)
+    ? String(goalWeightKg)
+    : String(Math.round(goalWeightKg * 10) / 10);
+  return `${label} · until ${formatPhaseEndShort(phase.end)} · goal ${goal} kg`;
+}

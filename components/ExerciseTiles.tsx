@@ -17,12 +17,10 @@ const MUSCLE_LABEL: Record<MuscleGroup, string> = {
 export function ExerciseToday({
   board,
   week,
-  weekCopy,
   onWeek,
 }: {
   board: ExerciseBoard;
   week: WeekBoard;
-  weekCopy?: string;
   onWeek: (week: number) => void;
 }) {
   const atStart = week.week <= 1;
@@ -63,14 +61,13 @@ export function ExerciseToday({
               <Chevron direction="right" />
             </button>
           </div>
-          {weekCopy ? <CopyTextButton text={weekCopy} label="Copy week" /> : null}
         </div>
       </div>
     </section>
   );
 }
 
-export function ExerciseDayTile({ day }: { day: DayTileModel }) {
+export function ExerciseDayTile({ day, copyText }: { day: DayTileModel; copyText?: string }) {
   return (
     <section
       className="card ex-tile"
@@ -79,7 +76,10 @@ export function ExerciseDayTile({ day }: { day: DayTileModel }) {
       data-position={day.position}
       data-slot={day.slot}
     >
-      <h2>{day.name}</h2>
+      <div className="ex-tile-head">
+        <h2>{day.name}</h2>
+        {copyText ? <CopyTextButton text={copyText} label="Copy" /> : null}
+      </div>
       <p className="ex-meta">
         <span>{day.statusLabel}</span>
         <span className="ex-week">{day.weekLabel}</span>
