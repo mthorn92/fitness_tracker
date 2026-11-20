@@ -3297,7 +3297,9 @@ body {
 
 .runs-shell {
   position: relative;
-  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -3305,10 +3307,11 @@ body {
 }
 
 .runs-scroll {
+  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  max-height: min(24rem, calc(2.15rem + var(--runs-rows, 8) * 2rem));
+  min-height: 0;
   overflow: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
@@ -3326,7 +3329,6 @@ body {
 }
 
 .runs-table {
-  width: max-content;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: auto;
@@ -3337,7 +3339,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 0.1rem 0.94rem 0.34rem;
+  padding: 0.1rem 0.58rem 0.34rem;
   border-bottom: 1px solid var(--line);
   background: var(--card);
   color: var(--muted);
@@ -3366,8 +3368,8 @@ body {
 }
 
 .runs-table tbody td {
-  height: 2rem;
-  padding: 0 0.94rem;
+  height: 2.25rem;
+  padding: 0 0.58rem;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   font-size: 0.78rem;
@@ -3411,13 +3413,13 @@ body {
 
 .runs-table thead th.runs-before-part,
 .runs-table tbody td.runs-before-part {
-  padding-right: 1.15rem;
+  padding-right: 0.85rem;
 }
 
 .runs-table thead th.runs-part-start,
 .runs-table tbody td.runs-part-start {
   border-left: 1px solid var(--line);
-  padding-left: 1.15rem;
+  padding-left: 0.85rem;
 }
 
 .runs-table thead th:last-child,
@@ -3552,6 +3554,14 @@ body {
     padding-left: 0.7rem;
   }
 
+  .runs-scroll {
+    max-height: 24rem;
+  }
+
+  .runs-table {
+    width: max-content;
+  }
+
   .runs-table thead th {
     padding: 0.1rem 0.56rem 0.3rem;
     font-size: 0.58rem;
@@ -3585,9 +3595,18 @@ body {
     flex-direction: column;
     grid-column: span 2;
     align-self: start;
-    height: auto;
+    height: 452px;
+    max-height: 452px;
+    overflow: hidden;
+  }
+
+  .runs-scroll {
     max-height: none;
-    overflow: visible;
+  }
+
+  .runs-table {
+    width: 100%;
+    min-width: 0;
   }
 }
 
