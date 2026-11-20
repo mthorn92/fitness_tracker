@@ -1,0 +1,1 @@
+alter table run_scores add column if not exists gap_pace_s double precision;

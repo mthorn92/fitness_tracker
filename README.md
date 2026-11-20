@@ -155,6 +155,7 @@ curl -X POST https://training-log.apps.grok.bot/api/run-scores \
     "p97_hr": 142,
     "pct_under_145": 100,
     "ef_gap": 0.974,
+    "gap_pace_s": 494,
     "disc": 100,
     "eff": 100,
     "dist": 100,
@@ -163,7 +164,7 @@ curl -X POST https://training-log.apps.grok.bot/api/run-scores \
   }'
 ```
 
-An array uses the same object in each element. Numeric fields may be `null` or omitted. `strava_id` is a string. `date` is `YYYY-MM-DD` in Australia/Melbourne. `pct_under_145` is 0–100.
+An array uses the same object in each element. Numeric fields may be `null` or omitted. `strava_id` is a string. `date` is `YYYY-MM-DD` in Australia/Melbourne. `pct_under_145` is 0–100. `gap_pace_s` is grade-adjusted pace in seconds per km (60–3600 when set); the Runs tile shows GAP from this field only and does not derive it from `ef_gap`.
 
 `GET /api/run-scores` returns `{ "from": null, "runs": [ ... ] }` newest first. `GET /api/run-scores?from=2026-11-01` keeps rows on or after that date.
 

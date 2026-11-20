@@ -4,12 +4,14 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import {
   formatEf,
   formatElevParts,
+  formatGapPace,
   formatHr,
   formatKm,
   formatPctUnder,
   formatRunDate,
   formatRunPace,
   formatRunTime,
+  formatScorePart,
   indexMark,
   type RunScore,
 } from "@/lib/run-tile";
@@ -38,7 +40,10 @@ export function RunsTile({
       ) : (
         <RunsTable rows={rows} movingTimes={movingTimes} />
       )}
-      <p className="runs-caption">From 1 Nov · newest first. Peak is p97 HR.</p>
+      <p className="runs-caption">
+        From 1 Nov · newest first. Peak is p97 HR · &lt;145 is % under 145 bpm. Score parts (30/30/30/10) sum to
+        Index.
+      </p>
     </section>
   );
 }
@@ -51,20 +56,46 @@ function RunsTable({
   movingTimes: ReadonlyMap<string, number>;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [yOverflow, setYOverflow] = useState(false);
+  const [xOverflow, setXOverflow] = useState(false);
+  const [scrolledX, setScrolledX] = useState(false);
+  const [endX, setEndX] = useState(true);
 
   useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setOverflow(el.scrollHeight > el.clientHeight + 1);
+    const scroller = scrollRef.current;
+    const shell = shellRef.current;
+    if (!scroller || !shell) return;
+    const update = () => {
+      const y = scroller.scrollHeight > scroller.clientHeight + 1;
+      const x = scroller.scrollWidth > scroller.clientWidth + 1;
+      setYOverflow(y);
+      setXOverflow(x);
+      setScrolledX(scroller.scrollLeft > 1);
+      const atEnd = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 1;
+      setEndX(!x || atEnd);
+    };
     update();
+    scroller.addEventListener("scroll", update, { passive: true });
     const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
+    observer.observe(scroller);
+    const table = scroller.querySelector(".runs-table");
+    if (table) observer.observe(table);
+    window.addEventListener("resize", update);
+    return () => {
+      scroller.removeEventListener("scroll", update);
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, [rows]);
 
   return (
-    <div className="runs-shell" data-overflow={overflow ? "true" : "false"}>
+    <div
+      ref={shellRef}
+      className={`runs-shell${scrolledX ? " is-scrolled-x" : ""}${endX ? " is-end-x" : ""}`}
+      data-overflow={yOverflow ? "true" : "false"}
+      data-x-overflow={xOverflow ? "true" : "false"}
+    >
       <div
         className="runs-scroll"
         ref={scrollRef}
@@ -77,20 +108,49 @@ function RunsTable({
               <th scope="col">Index</th>
               <th scope="col">km</th>
               <th scope="col">Time</th>
-              <th scope="col">Pace</th>
-              <th scope="col">Elev m</th>
-              <th scope="col">Avg HR</th>
               <th scope="col">
-                <span className="runs-h">Peak HR</span>
+                <span className="runs-h">Pace</span>
+                <span className="runs-sub">/km</span>
+              </th>
+              <th scope="col">
+                <span className="runs-h">GAP</span>
+                <span className="runs-sub">/km</span>
+              </th>
+              <th scope="col">
+                <span className="runs-h">Elev</span>
+                <span className="runs-sub">m</span>
+              </th>
+              <th scope="col">
+                <span className="runs-h">Avg</span>
+                <span className="runs-sub">HR</span>
+              </th>
+              <th scope="col">
+                <span className="runs-h">Peak</span>
                 <span className="runs-sub">p97</span>
               </th>
               <th scope="col">
-                <span className="runs-h">Under 145</span>
+                <span className="runs-h">&lt;145</span>
                 <span className="runs-sub">%</span>
               </th>
-              <th scope="col">
+              <th scope="col" className="runs-before-part">
                 <span className="runs-h">EF</span>
                 <span className="runs-sub">GAP</span>
+              </th>
+              <th scope="col" className="runs-part runs-part-start">
+                <span className="runs-h">Disc</span>
+                <span className="runs-sub">/30</span>
+              </th>
+              <th scope="col" className="runs-part">
+                <span className="runs-h">Eff</span>
+                <span className="runs-sub">/30</span>
+              </th>
+              <th scope="col" className="runs-part">
+                <span className="runs-h">Dist</span>
+                <span className="runs-sub">/30</span>
+              </th>
+              <th scope="col" className="runs-part">
+                <span className="runs-h">Elev</span>
+                <span className="runs-sub">/10</span>
               </th>
             </tr>
           </thead>
@@ -114,6 +174,7 @@ function RunsTable({
                   <td>{formatKm(row.distance_m)}</td>
                   <td>{formatRunTime(movingTimeS)}</td>
                   <td>{formatRunPace(movingTimeS, row.distance_m)}</td>
+                  <td>{formatGapPace(row.gap_pace_s)}</td>
                   <td className="runs-elev">
                     {elev.gain == null && elev.loss == null ? (
                       "—"
@@ -128,7 +189,11 @@ function RunsTable({
                   <td>{formatHr(row.avg_hr)}</td>
                   <td>{formatHr(row.p97_hr)}</td>
                   <td className={under.full ? "runs-under is-full" : "runs-under"}>{under.text}</td>
-                  <td>{formatEf(row.ef_gap)}</td>
+                  <td className="runs-before-part">{formatEf(row.ef_gap)}</td>
+                  <td className="runs-part runs-part-start">{formatScorePart(row.disc, 0.3)}</td>
+                  <td className="runs-part">{formatScorePart(row.eff, 0.3)}</td>
+                  <td className="runs-part">{formatScorePart(row.dist, 0.3)}</td>
+                  <td className="runs-part">{formatScorePart(row.elev, 0.1)}</td>
                 </tr>
               );
             })}
@@ -136,6 +201,7 @@ function RunsTable({
         </table>
       </div>
       <div className="runs-fade" aria-hidden="true" />
+      <div className="runs-fade-x" aria-hidden="true" />
     </div>
   );
 }

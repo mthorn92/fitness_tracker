@@ -29,6 +29,7 @@ type ScoreRow = {
   p97_hr: number | string | null;
   pct_under_145: number | string | null;
   ef_gap: number | string | null;
+  gap_pace_s: number | string | null;
   disc: number | string | null;
   eff: number | string | null;
   dist: number | string | null;
@@ -69,7 +70,7 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
   const tuples: string[] = [];
   for (const row of unique) {
     const base = params.length;
-    const slots = Array.from({ length: 16 }, (_, i) => `$${base + i + 1}`);
+    const slots = Array.from({ length: 17 }, (_, i) => `$${base + i + 1}`);
     tuples.push(`(${slots.join(", ")}, now())`);
     params.push(
       row.strava_id,
@@ -83,6 +84,7 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
       row.p97_hr,
       row.pct_under_145,
       row.ef_gap,
+      row.gap_pace_s,
       row.disc,
       row.eff,
       row.dist,
@@ -93,7 +95,7 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
   const saved = await sql<ScoreRow>(
     `insert into run_scores (
        strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-       avg_hr, p97_hr, pct_under_145, ef_gap, disc, eff, dist, elev, score_index, updated_at
+       avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index, updated_at
      ) values ${tuples.join(", ")}
      on conflict (strava_id) do update set
        run_date = excluded.run_date,
@@ -106,6 +108,7 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
        p97_hr = excluded.p97_hr,
        pct_under_145 = excluded.pct_under_145,
        ef_gap = excluded.ef_gap,
+       gap_pace_s = excluded.gap_pace_s,
        disc = excluded.disc,
        eff = excluded.eff,
        dist = excluded.dist,
@@ -113,7 +116,7 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
        score_index = excluded.score_index,
        updated_at = now()
      returning strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-       avg_hr, p97_hr, pct_under_145, ef_gap, disc, eff, dist, elev, score_index`,
+       avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index`,
     params,
   );
   await refreshPages();
@@ -125,7 +128,7 @@ export async function listRunScores(range?: { from: string }): Promise<RunScore[
   const rows = range
     ? await sql<ScoreRow>(
         `select strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-                avg_hr, p97_hr, pct_under_145, ef_gap, disc, eff, dist, elev, score_index
+                avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index
          from run_scores
          where run_date >= $1
          order by run_date desc, start_time desc nulls last, strava_id desc`,
@@ -133,7 +136,7 @@ export async function listRunScores(range?: { from: string }): Promise<RunScore[
       )
     : await sql<ScoreRow>(
         `select strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-                avg_hr, p97_hr, pct_under_145, ef_gap, disc, eff, dist, elev, score_index
+                avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index
          from run_scores
          order by run_date desc, start_time desc nulls last, strava_id desc`,
       );
@@ -175,6 +178,8 @@ function parseRunScore(value: unknown): RunScore | { field: string } {
   if (under === "invalid") return { field: "pct_under_145" };
   const ef = optionalNumber(row, "ef_gap", 0, 20);
   if (ef === "invalid") return { field: "ef_gap" };
+  const gapPace = optionalNumber(row, "gap_pace_s", 60, 3600);
+  if (gapPace === "invalid") return { field: "gap_pace_s" };
   const disc = optionalNumber(row, "disc", -1000, 1000);
   if (disc === "invalid") return { field: "disc" };
   const eff = optionalNumber(row, "eff", -1000, 1000);
@@ -197,6 +202,7 @@ function parseRunScore(value: unknown): RunScore | { field: string } {
     p97_hr: p97,
     pct_under_145: under,
     ef_gap: ef,
+    gap_pace_s: gapPace,
     disc,
     eff,
     dist,
@@ -218,6 +224,7 @@ function mapScore(row: ScoreRow): RunScore {
     p97_hr: asFloat(row.p97_hr),
     pct_under_145: asFloat(row.pct_under_145),
     ef_gap: asFloat(row.ef_gap),
+    gap_pace_s: asFloat(row.gap_pace_s),
     disc: asFloat(row.disc),
     eff: asFloat(row.eff),
     dist: asFloat(row.dist),

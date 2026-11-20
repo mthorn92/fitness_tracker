@@ -3,9 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { GET, POST } from "../app/api/run-scores/route";
 import {
+  formatGapPace,
   formatRunDate,
   formatRunPace,
   formatRunTime,
+  formatScorePart,
   indexMark,
   movingTimeByStravaId,
   runsForTile,
@@ -25,6 +27,12 @@ test("the run_scores migration is additive", async () => {
   assert.doesNotMatch(sql, /alter table/i);
   assert.doesNotMatch(sql, /strava_token/i);
   assert.doesNotMatch(sql, /workouts/i);
+});
+
+test("gap_pace_s migration is additive", async () => {
+  const sql = await readFile(new URL("../migrations/013_run_scores_gap_pace.sql", import.meta.url), "utf8");
+  assert.match(sql, /add column if not exists gap_pace_s/i);
+  assert.doesNotMatch(sql, /drop/i);
 });
 
 test("POST /api/run-scores uses the same bearer as /api/log", async () => {
@@ -163,6 +171,42 @@ test("one row or an array upserts by strava_id and GET is newest first", async (
     );
     assert.equal(notJson.status, 400);
     assert.equal((await notJson.json()).error, "invalid_json");
+
+    const gapOk = await POST(
+      jsonRequest(
+        JSON.stringify(
+          score({
+            strava_id: "rs-gap",
+            date: "2026-11-20",
+            gap_pace_s: 455,
+            index: 108.8,
+          }),
+        ),
+        TOKEN,
+      ),
+    );
+    assert.equal(gapOk.status, 200);
+    const gapRow = (await gapOk.json()).runs[0];
+    assert.equal(gapRow.gap_pace_s, 455);
+
+    const gapGet = await GET(authed("http://localhost/api/run-scores"));
+    const gapListed = (await gapGet.json()).runs.find((r: RunScore) => r.strava_id === "rs-gap");
+    assert.equal(gapListed.gap_pace_s, 455);
+
+    const noGap = await POST(
+      jsonRequest(JSON.stringify(score({ strava_id: "rs-nogap", date: "2026-11-19" })), TOKEN),
+    );
+    assert.equal(noGap.status, 200);
+    assert.equal((await noGap.json()).runs[0].gap_pace_s, null);
+
+    const badGap = await POST(
+      jsonRequest(
+        JSON.stringify({ strava_id: "rs-badgap", date: "2026-11-17", gap_pace_s: 30 }),
+        TOKEN,
+      ),
+    );
+    assert.equal(badGap.status, 400);
+    assert.equal((await badGap.json()).field, "gap_pace_s");
   } finally {
     restore("LOG_API_TOKEN", previous);
     restore("VERCEL", vercel);
@@ -173,11 +217,38 @@ test("time and pace come from matched workout moving time and run distance", () 
   const lookup = movingTimeByStravaId([{ strava_id: 880_001, moving_time_s: 32 * 60 + 5 }]);
   assert.equal(formatRunTime(lookup.get("880001")), "32:05");
   assert.equal(formatRunTime(lookup.get("missing")), "—");
-  assert.equal(formatRunPace(32 * 60 + 5, 5000), "6:25 /km");
-  assert.equal(formatRunPace(lookup.get("880001"), 5000), "6:25 /km");
-  assert.equal(formatRunPace(3600 + 30 * 60, 10_000), "9:00 /km");
+  assert.equal(formatRunPace(32 * 60 + 5, 5000), "6:25");
+  assert.equal(formatRunPace(lookup.get("880001"), 5000), "6:25");
+  assert.equal(formatRunPace(3600 + 30 * 60, 10_000), "9:00");
   assert.equal(formatRunTime(3600 + 5 * 60 + 7), "1:05:07");
   assert.equal(formatRunPace(null, 5000), "—");
+  assert.equal(formatGapPace(null), "—");
+  assert.equal(formatGapPace(455), "7:35");
+  assert.equal(formatGapPace(473), "7:53");
+});
+
+test("weighted score parts round to 1dp; index stays posted value", () => {
+  const nov10 = score({
+    strava_id: "10",
+    date: "2026-11-10",
+    index: 101.1,
+    disc: 104.6666667,
+    eff: 99.3333333,
+    dist: 100,
+    elev: 100,
+  });
+  assert.equal(formatScorePart(nov10.disc, 0.3), "31.4");
+  assert.equal(formatScorePart(nov10.eff, 0.3), "29.8");
+  assert.equal(formatScorePart(nov10.dist, 0.3), "30.0");
+  assert.equal(formatScorePart(nov10.elev, 0.1), "10.0");
+  const partsSum =
+    Number(formatScorePart(nov10.disc, 0.3)) +
+    Number(formatScorePart(nov10.eff, 0.3)) +
+    Number(formatScorePart(nov10.dist, 0.3)) +
+    Number(formatScorePart(nov10.elev, 0.1));
+  assert.equal(partsSum, 101.2);
+  assert.equal(indexMark(nov10.index, null).text, "101.1");
+  assert.equal(formatScorePart(null, 0.3), "—");
 });
 
 test("tile marks follow the mockup: colour vs 100, arrow vs the older run", () => {
@@ -223,6 +294,7 @@ function score(partial: Partial<RunScore> & Pick<RunScore, "strava_id" | "date">
     p97_hr: "p97_hr" in partial ? (partial.p97_hr ?? null) : 142,
     pct_under_145: "pct_under_145" in partial ? (partial.pct_under_145 ?? null) : 100,
     ef_gap: "ef_gap" in partial ? (partial.ef_gap ?? null) : 0.97,
+    gap_pace_s: "gap_pace_s" in partial ? (partial.gap_pace_s ?? null) : null,
     disc: partial.disc ?? 100,
     eff: partial.eff ?? 100,
     dist: partial.dist ?? 100,
