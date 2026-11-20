@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   formatEf,
   formatElevParts,
@@ -96,11 +96,7 @@ function RunsTable({
       data-overflow={yOverflow ? "true" : "false"}
       data-x-overflow={xOverflow ? "true" : "false"}
     >
-      <div
-        className="runs-scroll"
-        ref={scrollRef}
-        style={{ "--runs-rows": rows.length } as CSSProperties}
-      >
+      <div className="runs-scroll" ref={scrollRef}>
         <table className="runs-table">
           <thead>
             <tr>
