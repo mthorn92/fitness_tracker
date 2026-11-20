@@ -3272,7 +3272,7 @@ body {
 .runs-tile .tile-heading {
   align-items: center;
   flex: 0 0 auto;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.55rem;
 }
 
 .runs-tile .tile-heading h2 {
@@ -3308,7 +3308,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  max-height: min(24rem, calc(2.05rem + var(--runs-rows, 8) * 2rem));
+  max-height: min(24rem, calc(2.15rem + var(--runs-rows, 8) * 2rem));
   overflow: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
@@ -3327,8 +3327,8 @@ body {
 
 .runs-table {
   width: max-content;
-  max-width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: auto;
   font-variant-numeric: tabular-nums;
 }
@@ -3337,11 +3337,11 @@ body {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 0.12rem 0.65rem 0.32rem;
+  padding: 0.1rem 0.94rem 0.34rem;
   border-bottom: 1px solid var(--line);
   background: var(--card);
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: 0.61rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -3359,15 +3359,15 @@ body {
 .runs-sub {
   margin-top: 0.08rem;
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: 0.57rem;
   font-weight: 650;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .runs-table tbody td {
   height: 2rem;
-  padding: 0 0.65rem;
+  padding: 0 0.94rem;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   font-size: 0.78rem;
@@ -3382,9 +3382,57 @@ body {
   border-bottom: 0;
 }
 
+.runs-table thead th:first-child,
+.runs-table tbody td.runs-date {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--card);
+  text-align: left;
+  padding-left: 0;
+  padding-right: 0.85rem;
+  border-right: 1px solid transparent;
+}
+
+.runs-table thead th:first-child {
+  z-index: 4;
+}
+
+.runs-shell.is-scrolled-x .runs-table thead th:first-child,
+.runs-shell.is-scrolled-x .runs-table tbody td.runs-date {
+  border-right-color: var(--line);
+  box-shadow: 6px 0 8px -6px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
 .runs-date {
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.runs-table thead th.runs-before-part,
+.runs-table tbody td.runs-before-part {
+  padding-right: 1.15rem;
+}
+
+.runs-table thead th.runs-part-start,
+.runs-table tbody td.runs-part-start {
+  border-left: 1px solid var(--line);
+  padding-left: 1.15rem;
+}
+
+.runs-table thead th:last-child,
+.runs-table tbody td:last-child {
+  padding-right: 0;
+}
+
+.runs-table thead th.runs-part,
+.runs-table tbody td.runs-part {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.runs-table thead th.runs-part {
+  font-weight: 650;
 }
 
 .runs-index {
@@ -3457,6 +3505,30 @@ body {
   display: block;
 }
 
+.runs-fade-x {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--card));
+}
+
+.runs-shell[data-x-overflow="true"] .runs-fade-x {
+  display: block;
+}
+
+.runs-shell[data-x-overflow="true"] .runs-scroll {
+  padding-bottom: 2px;
+}
+
+.runs-shell.is-end-x .runs-fade-x {
+  display: none;
+}
+
 .runs-empty {
   flex: 1 1 auto;
   display: grid;
@@ -3468,7 +3540,7 @@ body {
 
 .runs-caption {
   flex: 0 0 auto;
-  margin: 0.4rem 0 0;
+  margin: 0.45rem 0 0;
   color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.35;
@@ -3476,48 +3548,35 @@ body {
 
 @media (max-width: 800px) {
   .runs-tile {
-    padding-right: 0.5rem;
-    padding-left: 0.5rem;
-  }
-
-  .runs-table {
-    min-width: 0;
+    padding-right: 0.7rem;
+    padding-left: 0.7rem;
   }
 
   .runs-table thead th {
-    padding: 0.1rem 0.35rem 0.28rem;
-    font-size: 0.54rem;
-    letter-spacing: 0.01em;
-    line-height: 1.15;
-    white-space: normal;
-  }
-
-  .runs-sub {
-    margin-top: 0.04rem;
-    font-size: 0.5rem;
-    letter-spacing: 0;
+    padding: 0.1rem 0.56rem 0.3rem;
+    font-size: 0.58rem;
   }
 
   .runs-table tbody td {
-    height: 2rem;
-    padding: 0 0.35rem;
-    font-size: 0.68rem;
+    padding: 0 0.56rem;
+    font-size: 0.74rem;
   }
 
-  .runs-date {
-    letter-spacing: -0.03em;
+  .runs-table thead th:first-child,
+  .runs-table tbody td.runs-date {
+    padding-left: 0;
+    padding-right: 0.65rem;
   }
 
-  .runs-index {
-    gap: 0.08rem;
-    letter-spacing: -0.03em;
+  .runs-table thead th.runs-before-part,
+  .runs-table tbody td.runs-before-part {
+    padding-right: 0.76rem;
   }
 
-  .runs-elev {
-    font-size: 0.6rem;
-    letter-spacing: -0.04em;
+  .runs-table thead th.runs-part-start,
+  .runs-table tbody td.runs-part-start {
+    padding-left: 0.76rem;
   }
-
 }
 
 @media (min-width: 801px) {

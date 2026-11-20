@@ -1,4 +1,4 @@
-import { formatPace, formatRunClock } from "@/lib/strava-summary";
+import { formatRunClock } from "@/lib/strava-summary";
 
 /** Shape posted by Fitness Coach and shown on the Runs tile. */
 export type RunScore = {
@@ -15,6 +15,8 @@ export type RunScore = {
   /** 0–100. Time under 145 bpm. */
   pct_under_145: number | null;
   ef_gap: number | null;
+  /** Grade-adjusted pace in seconds per km (posted). Not derived from ef_gap. */
+  gap_pace_s: number | null;
   disc: number | null;
   eff: number | null;
   dist: number | null;
@@ -62,7 +64,16 @@ export function formatRunTime(movingTimeS: number | null | undefined): string {
   return formatRunClock(movingTimeS);
 }
 
-/** Pace from moving time and run distance (m:ss /km). */
+/** Pace clock m:ss (no unit suffix; header carries /km). */
+export function formatMmSsPace(secPerKm: number | null | undefined): string {
+  if (secPerKm == null || !Number.isFinite(secPerKm) || secPerKm <= 0) return "—";
+  const total = Math.round(secPerKm);
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+
+/** Pace from moving time and run distance (m:ss). */
 export function formatRunPace(movingTimeS: number | null | undefined, distanceM: number | null): string {
   if (
     movingTimeS == null ||
@@ -73,7 +84,18 @@ export function formatRunPace(movingTimeS: number | null | undefined, distanceM:
   ) {
     return "—";
   }
-  return formatPace(movingTimeS / (distanceM / 1000));
+  return formatMmSsPace(movingTimeS / (distanceM / 1000));
+}
+
+/** GAP from posted gap_pace_s only (m:ss). */
+export function formatGapPace(gapPaceS: number | null): string {
+  return formatMmSsPace(gapPaceS);
+}
+
+/** One weighted index part at 1 decimal (e.g. 0.3 * disc for /30). */
+export function formatScorePart(component: number | null, weight: number): string {
+  if (component == null) return "—";
+  return (weight * component).toFixed(1);
 }
 
 /** Latest moving_time_s per Strava id (run score ids are strings). */
