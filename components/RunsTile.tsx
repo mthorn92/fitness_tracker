@@ -11,7 +11,7 @@ import {
   formatRunDate,
   formatRunPace,
   formatRunTime,
-  formatScorePart,
+  formatScorePts,
   indexMark,
   type RunScore,
 } from "@/lib/run-tile";
@@ -41,7 +41,7 @@ export function RunsTile({
         <RunsTable rows={rows} movingTimes={movingTimes} />
       )}
       <p className="runs-caption">
-        From 1 Nov · newest first. Peak is p97 HR · &lt;145 is % under 145 bpm. Score parts (30/30/30/10) sum to
+        From 1 Nov · newest first. Peak is p97 HR · &lt;145 is % under 145 bpm. Disc, Eff, Dist and Elev sum to
         Index.
       </p>
     </section>
@@ -134,19 +134,15 @@ function RunsTable({
               </th>
               <th scope="col" className="runs-part runs-part-start">
                 <span className="runs-h">Disc</span>
-                <span className="runs-sub">/30</span>
               </th>
               <th scope="col" className="runs-part">
                 <span className="runs-h">Eff</span>
-                <span className="runs-sub">/30</span>
               </th>
               <th scope="col" className="runs-part">
                 <span className="runs-h">Dist</span>
-                <span className="runs-sub">/30</span>
               </th>
               <th scope="col" className="runs-part">
                 <span className="runs-h">Elev</span>
-                <span className="runs-sub">/10</span>
               </th>
             </tr>
           </thead>
@@ -186,10 +182,12 @@ function RunsTable({
                   <td>{formatHr(row.p97_hr)}</td>
                   <td className={under.full ? "runs-under is-full" : "runs-under"}>{under.text}</td>
                   <td className="runs-before-part">{formatEf(row.ef_gap)}</td>
-                  <td className="runs-part runs-part-start">{formatScorePart(row.disc, 0.3)}</td>
-                  <td className="runs-part">{formatScorePart(row.eff, 0.3)}</td>
-                  <td className="runs-part">{formatScorePart(row.dist, 0.3)}</td>
-                  <td className="runs-part">{formatScorePart(row.elev, 0.1)}</td>
+                  <td className="runs-part runs-part-start">
+                    {formatScorePts(row.disc_pts, row.disc, 0.3)}
+                  </td>
+                  <td className="runs-part">{formatScorePts(row.eff_pts, row.eff, 0.3)}</td>
+                  <td className="runs-part">{formatScorePts(row.dist_pts, row.dist, 0.3)}</td>
+                  <td className="runs-part">{formatScorePts(row.elev_pts, row.elev, 0.1)}</td>
                 </tr>
               );
             })}

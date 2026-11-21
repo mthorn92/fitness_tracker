@@ -21,6 +21,16 @@ export type RunScore = {
   eff: number | null;
   dist: number | null;
   elev: number | null;
+  /** Weighted index parts posted by Fitness Coach (0–100 when set). */
+  disc_pts: number | null;
+  eff_pts: number | null;
+  dist_pts: number | null;
+  elev_pts: number | null;
+  /** Per-part caps posted with the score (0–100 when set). */
+  disc_max: number | null;
+  eff_max: number | null;
+  dist_max: number | null;
+  elev_max: number | null;
   /** Posted index at 1 decimal place. The site does not recompute it. */
   index: number | null;
 };
@@ -96,6 +106,16 @@ export function formatGapPace(gapPaceS: number | null): string {
 export function formatScorePart(component: number | null, weight: number): string {
   if (component == null) return "—";
   return (weight * component).toFixed(1);
+}
+
+/** Posted weighted points, or legacy weight × component when pts is null. */
+export function formatScorePts(
+  pts: number | null,
+  component: number | null,
+  weight: number,
+): string {
+  if (pts != null) return pts.toFixed(1);
+  return formatScorePart(component, weight);
 }
 
 /** Latest moving_time_s per Strava id (run score ids are strings). */

@@ -160,11 +160,21 @@ curl -X POST https://training-log.apps.grok.bot/api/run-scores \
     "eff": 100,
     "dist": 100,
     "elev": 121,
+    "disc_pts": 30.0,
+    "eff_pts": 30.0,
+    "dist_pts": 30.0,
+    "elev_pts": 12.1,
+    "disc_max": 30,
+    "eff_max": 30,
+    "dist_max": 30,
+    "elev_max": 10,
     "index": 102.1
   }'
 ```
 
 An array uses the same object in each element. Numeric fields may be `null` or omitted. `strava_id` is a string. `date` is `YYYY-MM-DD` in Australia/Melbourne. `pct_under_145` is 0–100. `gap_pace_s` is grade-adjusted pace in seconds per km (60–3600 when set); the Runs tile shows GAP from this field only and does not derive it from `ef_gap`.
+
+Optional posted points for the Runs tile: `disc_pts`, `eff_pts`, `dist_pts`, and `elev_pts` are each 0–100 when present. Optional caps `disc_max`, `eff_max`, `dist_max`, and `elev_max` are each 0–100 when present. Values outside those ranges are rejected. `*_pts` may exceed the matching `*_max`; the API stores them anyway. Rows without these fields still work; GET returns `null` for unset columns. The tile shows posted `*_pts` at one decimal; older rows without them still use `0.3 × disc`, `0.3 × eff`, `0.3 × dist`, and `0.1 × elev`.
 
 `GET /api/run-scores` returns `{ "from": null, "runs": [ ... ] }` newest first. `GET /api/run-scores?from=2026-11-01` keeps rows on or after that date.
 
