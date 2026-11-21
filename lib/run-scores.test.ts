@@ -8,6 +8,7 @@ import {
   formatRunPace,
   formatRunTime,
   formatScorePart,
+  formatScorePts,
   indexMark,
   movingTimeByStravaId,
   runsForTile,
@@ -32,6 +33,23 @@ test("the run_scores migration is additive", async () => {
 test("gap_pace_s migration is additive", async () => {
   const sql = await readFile(new URL("../migrations/013_run_scores_gap_pace.sql", import.meta.url), "utf8");
   assert.match(sql, /add column if not exists gap_pace_s/i);
+  assert.doesNotMatch(sql, /drop/i);
+});
+
+test("run score points migration is additive", async () => {
+  const sql = await readFile(new URL("../migrations/014_run_scores_points.sql", import.meta.url), "utf8");
+  for (const col of [
+    "disc_pts",
+    "eff_pts",
+    "dist_pts",
+    "elev_pts",
+    "disc_max",
+    "eff_max",
+    "dist_max",
+    "elev_max",
+  ]) {
+    assert.match(sql, new RegExp(`add column if not exists ${col}`, "i"));
+  }
   assert.doesNotMatch(sql, /drop/i);
 });
 
@@ -207,6 +225,53 @@ test("one row or an array upserts by strava_id and GET is newest first", async (
     );
     assert.equal(badGap.status, 400);
     assert.equal((await badGap.json()).field, "gap_pace_s");
+
+    const ptsOk = await POST(
+      jsonRequest(
+        JSON.stringify(
+          score({
+            strava_id: "rs-pts",
+            date: "2026-11-21",
+            disc_pts: 28.5,
+            eff_pts: 31.2,
+            dist_pts: 30.0,
+            elev_pts: 15.5,
+            disc_max: 30,
+            eff_max: 30,
+            dist_max: 30,
+            elev_max: 10,
+          }),
+        ),
+        TOKEN,
+      ),
+    );
+    assert.equal(ptsOk.status, 200);
+    const ptsRow = (await ptsOk.json()).runs[0];
+    assert.equal(ptsRow.disc_pts, 28.5);
+    assert.equal(ptsRow.elev_max, 10);
+
+    const ptsOverMax = await POST(
+      jsonRequest(
+        JSON.stringify({
+          strava_id: "rs-over",
+          date: "2026-11-22",
+          disc_pts: 35,
+          disc_max: 30,
+        }),
+        TOKEN,
+      ),
+    );
+    assert.equal(ptsOverMax.status, 200);
+    assert.equal((await ptsOverMax.json()).runs[0].disc_pts, 35);
+
+    const badPts = await POST(
+      jsonRequest(
+        JSON.stringify({ strava_id: "rs-badpts", date: "2026-11-17", disc_pts: 100.1 }),
+        TOKEN,
+      ),
+    );
+    assert.equal(badPts.status, 400);
+    assert.equal((await badPts.json()).field, "disc_pts");
   } finally {
     restore("LOG_API_TOKEN", previous);
     restore("VERCEL", vercel);
@@ -249,6 +314,12 @@ test("weighted score parts round to 1dp; index stays posted value", () => {
   assert.equal(partsSum, 101.2);
   assert.equal(indexMark(nov10.index, null).text, "101.1");
   assert.equal(formatScorePart(null, 0.3), "—");
+});
+
+test("formatScorePts prefers posted points", () => {
+  assert.equal(formatScorePts(28.5, 104.6, 0.3), "28.5");
+  assert.equal(formatScorePts(null, 104.6666667, 0.3), "31.4");
+  assert.equal(formatScorePts(null, null, 0.3), "—");
 });
 
 test("tile marks follow the mockup: colour vs 100, arrow vs the older run", () => {
@@ -300,6 +371,14 @@ function score(partial: Partial<RunScore> & Pick<RunScore, "strava_id" | "date">
     dist: partial.dist ?? 100,
     elev: partial.elev ?? 121,
     index: "index" in partial ? (partial.index ?? null) : 102.1,
+    disc_pts: partial.disc_pts ?? null,
+    eff_pts: partial.eff_pts ?? null,
+    dist_pts: partial.dist_pts ?? null,
+    elev_pts: partial.elev_pts ?? null,
+    disc_max: partial.disc_max ?? null,
+    eff_max: partial.eff_max ?? null,
+    dist_max: partial.dist_max ?? null,
+    elev_max: partial.elev_max ?? null,
   };
 }
 

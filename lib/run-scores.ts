@@ -34,6 +34,14 @@ type ScoreRow = {
   eff: number | string | null;
   dist: number | string | null;
   elev: number | string | null;
+  disc_pts: number | string | null;
+  eff_pts: number | string | null;
+  dist_pts: number | string | null;
+  elev_pts: number | string | null;
+  disc_max: number | string | null;
+  eff_max: number | string | null;
+  dist_max: number | string | null;
+  elev_max: number | string | null;
   score_index: number | string | null;
 };
 
@@ -70,7 +78,7 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
   const tuples: string[] = [];
   for (const row of unique) {
     const base = params.length;
-    const slots = Array.from({ length: 17 }, (_, i) => `$${base + i + 1}`);
+    const slots = Array.from({ length: 25 }, (_, i) => `$${base + i + 1}`);
     tuples.push(`(${slots.join(", ")}, now())`);
     params.push(
       row.strava_id,
@@ -89,13 +97,23 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
       row.eff,
       row.dist,
       row.elev,
+      row.disc_pts,
+      row.eff_pts,
+      row.dist_pts,
+      row.elev_pts,
+      row.disc_max,
+      row.eff_max,
+      row.dist_max,
+      row.elev_max,
       row.index,
     );
   }
   const saved = await sql<ScoreRow>(
     `insert into run_scores (
        strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-       avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index, updated_at
+       avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev,
+       disc_pts, eff_pts, dist_pts, elev_pts, disc_max, eff_max, dist_max, elev_max,
+       score_index, updated_at
      ) values ${tuples.join(", ")}
      on conflict (strava_id) do update set
        run_date = excluded.run_date,
@@ -113,10 +131,20 @@ export async function upsertRunScores(rows: RunScore[]): Promise<RunScore[]> {
        eff = excluded.eff,
        dist = excluded.dist,
        elev = excluded.elev,
+       disc_pts = excluded.disc_pts,
+       eff_pts = excluded.eff_pts,
+       dist_pts = excluded.dist_pts,
+       elev_pts = excluded.elev_pts,
+       disc_max = excluded.disc_max,
+       eff_max = excluded.eff_max,
+       dist_max = excluded.dist_max,
+       elev_max = excluded.elev_max,
        score_index = excluded.score_index,
        updated_at = now()
      returning strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-       avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index`,
+       avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev,
+       disc_pts, eff_pts, dist_pts, elev_pts, disc_max, eff_max, dist_max, elev_max,
+       score_index`,
     params,
   );
   await refreshPages();
@@ -128,7 +156,9 @@ export async function listRunScores(range?: { from: string }): Promise<RunScore[
   const rows = range
     ? await sql<ScoreRow>(
         `select strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-                avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index
+                avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev,
+                disc_pts, eff_pts, dist_pts, elev_pts, disc_max, eff_max, dist_max, elev_max,
+                score_index
          from run_scores
          where run_date >= $1
          order by run_date desc, start_time desc nulls last, strava_id desc`,
@@ -136,7 +166,9 @@ export async function listRunScores(range?: { from: string }): Promise<RunScore[
       )
     : await sql<ScoreRow>(
         `select strava_id, run_date, start_time, name, distance_m, elev_gain_m, elev_loss_m,
-                avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev, score_index
+                avg_hr, p97_hr, pct_under_145, ef_gap, gap_pace_s, disc, eff, dist, elev,
+                disc_pts, eff_pts, dist_pts, elev_pts, disc_max, eff_max, dist_max, elev_max,
+                score_index
          from run_scores
          order by run_date desc, start_time desc nulls last, strava_id desc`,
       );
@@ -190,6 +222,22 @@ function parseRunScore(value: unknown): RunScore | { field: string } {
   if (elev === "invalid") return { field: "elev" };
   const index = optionalNumber(row, "index", -1000, 1000);
   if (index === "invalid") return { field: "index" };
+  const discPts = optionalNumber(row, "disc_pts", 0, 100);
+  if (discPts === "invalid") return { field: "disc_pts" };
+  const effPts = optionalNumber(row, "eff_pts", 0, 100);
+  if (effPts === "invalid") return { field: "eff_pts" };
+  const distPts = optionalNumber(row, "dist_pts", 0, 100);
+  if (distPts === "invalid") return { field: "dist_pts" };
+  const elevPts = optionalNumber(row, "elev_pts", 0, 100);
+  if (elevPts === "invalid") return { field: "elev_pts" };
+  const discMax = optionalNumber(row, "disc_max", 0, 100);
+  if (discMax === "invalid") return { field: "disc_max" };
+  const effMax = optionalNumber(row, "eff_max", 0, 100);
+  if (effMax === "invalid") return { field: "eff_max" };
+  const distMax = optionalNumber(row, "dist_max", 0, 100);
+  if (distMax === "invalid") return { field: "dist_max" };
+  const elevMax = optionalNumber(row, "elev_max", 0, 100);
+  if (elevMax === "invalid") return { field: "elev_max" };
   return {
     strava_id: stravaId,
     date,
@@ -207,6 +255,14 @@ function parseRunScore(value: unknown): RunScore | { field: string } {
     eff,
     dist,
     elev,
+    disc_pts: discPts,
+    eff_pts: effPts,
+    dist_pts: distPts,
+    elev_pts: elevPts,
+    disc_max: discMax,
+    eff_max: effMax,
+    dist_max: distMax,
+    elev_max: elevMax,
     index: index == null ? null : roundIndex(index),
   };
 }
@@ -229,6 +285,14 @@ function mapScore(row: ScoreRow): RunScore {
     eff: asFloat(row.eff),
     dist: asFloat(row.dist),
     elev: asFloat(row.elev),
+    disc_pts: asFloat(row.disc_pts),
+    eff_pts: asFloat(row.eff_pts),
+    dist_pts: asFloat(row.dist_pts),
+    elev_pts: asFloat(row.elev_pts),
+    disc_max: asFloat(row.disc_max),
+    eff_max: asFloat(row.eff_max),
+    dist_max: asFloat(row.dist_max),
+    elev_max: asFloat(row.elev_max),
     index: row.score_index == null ? null : roundIndex(asFloat(row.score_index) ?? 0),
   };
 }
