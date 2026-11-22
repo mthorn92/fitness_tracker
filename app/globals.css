@@ -3231,7 +3231,7 @@ body {
 }
 
 @media (min-width: 801px) {
-  .dashboard[data-tab="exercise"] > [data-tab-group="exercise"]:not([data-tile="today"]):not([data-tile="runs"]) {
+  .dashboard[data-tab="exercise"] > [data-tab-group="exercise"]:not([data-tile="today"]):not([data-tile="runs"]):not([data-tile="rides"]) {
     height: 452px;
     max-height: 452px;
     overflow: auto;
@@ -3607,6 +3607,308 @@ body {
   .runs-table {
     width: 100%;
     min-width: 0;
+  }
+}
+
+/* Rides tile. Same shell behaviour as Runs; number columns share width on desktop. */
+.rides-tile {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.rides-tile .tile-heading {
+  align-items: center;
+  flex: 0 0 auto;
+  margin-bottom: 0.55rem;
+}
+
+.rides-tile .tile-heading h2 {
+  margin: 0;
+}
+
+.rides-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.rides-scroll {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+}
+
+.rides-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.rides-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 99px;
+}
+
+.rides-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rides-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.1rem 0.58rem 0.34rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.61rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.rides-h,
+.rides-sub {
+  display: block;
+}
+
+.rides-sub {
+  margin-top: 0.08rem;
+  color: var(--muted);
+  font-size: 0.57rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rides-table tbody td {
+  height: 2.25rem;
+  padding: 0 0.58rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.rides-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.rides-table thead th:first-child,
+.rides-table tbody td.rides-date {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--card);
+  text-align: left;
+  padding-left: 0;
+  padding-right: 0.85rem;
+  border-right: 1px solid transparent;
+}
+
+.rides-table thead th:first-child {
+  z-index: 4;
+}
+
+.rides-shell.is-scrolled-x .rides-table thead th:first-child,
+.rides-shell.is-scrolled-x .rides-table tbody td.rides-date {
+  border-right-color: var(--line);
+  box-shadow: 6px 0 8px -6px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.rides-date {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.rides-table thead th.rides-score-start,
+.rides-table tbody td.rides-score-start {
+  border-left: 1px solid var(--line);
+  padding-left: 0.85rem;
+}
+
+.rides-table thead th:last-child,
+.rides-table tbody td:last-child {
+  padding-right: 0;
+}
+
+.rides-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.rides-index.is-above,
+.rides-index.is-above .rides-arrow {
+  color: var(--good);
+}
+
+.rides-index.is-below,
+.rides-index.is-below .rides-arrow {
+  color: var(--warn);
+}
+
+.rides-index.is-even,
+.rides-index.is-none {
+  color: var(--ink);
+}
+
+.rides-arrow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rides-under.is-full {
+  color: var(--good);
+  font-weight: 650;
+}
+
+.rides-fade {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 36px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--card));
+}
+
+.rides-shell[data-overflow="true"] .rides-fade {
+  display: block;
+}
+
+.rides-fade-x {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--card));
+}
+
+.rides-shell[data-x-overflow="true"] .rides-fade-x {
+  display: block;
+}
+
+.rides-shell[data-x-overflow="true"] .rides-scroll {
+  padding-bottom: 2px;
+}
+
+.rides-shell.is-end-x .rides-fade-x {
+  display: none;
+}
+
+.rides-empty {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  margin: 0.4rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.rides-caption {
+  flex: 0 0 auto;
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 800px) {
+  .rides-tile {
+    padding-right: 0.7rem;
+    padding-left: 0.7rem;
+  }
+
+  .rides-scroll {
+    max-height: 24rem;
+  }
+
+  .rides-table {
+    table-layout: auto;
+    width: max-content;
+  }
+
+  .rides-table thead th {
+    padding: 0.1rem 0.56rem 0.3rem;
+    font-size: 0.58rem;
+  }
+
+  .rides-table tbody td {
+    padding: 0 0.56rem;
+    font-size: 0.74rem;
+  }
+
+  .rides-table thead th:first-child,
+  .rides-table tbody td.rides-date {
+    padding-left: 0;
+    padding-right: 0.65rem;
+  }
+
+  .rides-table thead th.rides-score-start,
+  .rides-table tbody td.rides-score-start {
+    padding-left: 0.76rem;
+  }
+}
+
+@media (min-width: 801px) {
+  .dashboard[data-tab="exercise"] > .rides-tile[data-tile="rides"] {
+    display: flex;
+    flex-direction: column;
+    grid-column: span 2;
+    align-self: start;
+    height: 452px;
+    max-height: 452px;
+    overflow: hidden;
+  }
+
+  .rides-scroll {
+    max-height: none;
+  }
+
+  .rides-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rides-table col.rides-date-col {
+    width: 4.35rem;
+  }
+
+  .rides-table col.rides-data-col {
+    width: calc((100% - 4.35rem) / var(--rides-cols, 12));
   }
 }
 

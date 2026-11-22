@@ -6,7 +6,9 @@ import { parseChartRange } from "@/lib/chart-range";
 import { getDashboardPageData } from "@/lib/data";
 import { getExerciseBoard } from "@/lib/exercise-board";
 import { todayIsoDate } from "@/lib/format";
+import { listRideScores } from "@/lib/ride-scores";
 import { listRunScores } from "@/lib/run-scores";
+import { RIDES_TILE_FROM } from "@/lib/ride-tile";
 import { RUNS_TILE_FROM } from "@/lib/run-tile";
 import { loadExerciseActivities } from "@/lib/workouts";
 
@@ -30,11 +32,12 @@ async function DietDashboard({
   const range = parseChartRange(params.range);
   const calendarToday = todayIsoDate("Australia/Melbourne");
   const trainingDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : calendarToday;
-  const [diet, board, activity, runs] = await Promise.all([
+  const [diet, board, activity, runs, rides] = await Promise.all([
     getDashboardPageData(date, range),
     getExerciseBoard(trainingDate),
     loadExerciseActivities(trainingDate),
     listRunScores({ from: RUNS_TILE_FROM }),
+    listRideScores({ from: RIDES_TILE_FROM }),
   ]);
 
   return (
@@ -48,6 +51,7 @@ async function DietDashboard({
       workouts={activity.workouts}
       workoutMovingTimes={activity.movingTimeByStravaId}
       runs={runs}
+      rides={rides}
       today={calendarToday}
     />
   );

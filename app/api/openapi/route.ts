@@ -337,6 +337,56 @@ export async function GET(request: Request) {
             index: { type: "number", nullable: true, example: 102.1 },
           },
         },
+        RideScore: {
+          type: "object",
+          required: ["date"],
+          description:
+            "One scored NordicTrack ride. Upsert by strava_id when set; otherwise by date plus start_time (start_time required when strava_id is omitted). Numeric fields are nullable. index is stored at 1 decimal place.",
+          properties: {
+            strava_id: { type: "string", nullable: true, minLength: 1, maxLength: 32, example: "98765432101" },
+            date: {
+              type: "string",
+              description: "YYYY-MM-DD in Australia/Melbourne",
+              example: "2026-11-22",
+            },
+            start_time: {
+              type: "string",
+              nullable: true,
+              description: "ISO-8601 with a timezone offset; required when strava_id is omitted",
+              example: "2026-11-22T07:15:00+11:00",
+            },
+            name: { type: "string", nullable: true, example: "Indoor ride" },
+            duration_s: { type: "number", nullable: true, minimum: 0, example: 2400 },
+            distance_m: { type: "number", nullable: true, example: 18500 },
+            avg_watts: { type: "number", nullable: true, example: 142 },
+            avg_rpm: { type: "number", nullable: true, example: 78 },
+            resistance_avg: { type: "number", nullable: true, example: 14 },
+            resistance_max: { type: "number", nullable: true, example: 16 },
+            incline_avg: { type: "number", nullable: true, example: 2.1 },
+            incline_max: { type: "number", nullable: true, example: 3.0 },
+            calories: { type: "number", nullable: true, example: 420 },
+            avg_hr: { type: "number", nullable: true, example: 128 },
+            max_hr: { type: "number", nullable: true, example: 151 },
+            p97_hr: { type: "number", nullable: true, example: 145 },
+            pct_under_145: {
+              type: "number",
+              nullable: true,
+              description: "Percent of time at or under 145 bpm, 0–100",
+              example: 100,
+            },
+            drift_bpm: {
+              type: "number",
+              nullable: true,
+              description: "HR drift in bpm; may be negative",
+              example: 4.8,
+            },
+            w_per_bpm: { type: "number", nullable: true, example: 1.11 },
+            index: { type: "number", nullable: true, example: 101.2 },
+            disc_pts: { type: "number", nullable: true, minimum: 0, maximum: 100, example: 30.0 },
+            eff_pts: { type: "number", nullable: true, minimum: 0, maximum: 100, example: 30.0 },
+            dur_pts: { type: "number", nullable: true, minimum: 0, maximum: 100, example: 25.0 },
+          },
+        },
       },
     },
     paths: {
@@ -546,6 +596,54 @@ export async function GET(request: Request) {
                   dist: 100,
                   elev: 121,
                   index: 102.1,
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/ride-scores": {
+        get: {
+          summary: "Read posted ride scores",
+          description:
+            "Same auth as /api/log. Returns {from, rides} newest first. Optional from is an inclusive YYYY-MM-DD Melbourne date. Omit it to read every posted row.",
+          parameters: [
+            { name: "from", in: "query", schema: { type: "string", example: "2026-11-01" } },
+          ],
+        },
+        post: {
+          summary: "Upsert ride scores by strava_id or date+start_time",
+          description:
+            "Same auth as /api/log. Body is one ride object or an array. Upserts by strava_id when set; otherwise by date plus start_time (start_time required without strava_id). A repeated key in one batch keeps the last copy. index is rounded to 1 decimal place.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  oneOf: [
+                    { $ref: "#/components/schemas/RideScore" },
+                    { type: "array", items: { $ref: "#/components/schemas/RideScore" } },
+                  ],
+                },
+                example: {
+                  strava_id: "98765432101",
+                  date: "2026-11-22",
+                  start_time: "2026-11-22T07:15:00+11:00",
+                  name: "NordicTrack ride",
+                  duration_s: 2400,
+                  distance_m: 18500,
+                  avg_watts: 142,
+                  avg_rpm: 78,
+                  resistance_avg: 14,
+                  resistance_max: 16,
+                  incline_avg: 2.1,
+                  incline_max: 3,
+                  calories: 420,
+                  avg_hr: 128,
+                  p97_hr: 145,
+                  pct_under_145: 100,
+                  drift_bpm: 4.8,
+                  w_per_bpm: 1.11,
                 },
               },
             },
