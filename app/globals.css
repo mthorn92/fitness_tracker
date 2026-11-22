@@ -3912,3 +3912,20 @@ body {
   }
 }
 
+/* Three-column exercise layout: Runs and Rides share cols 2–3; overload (7) sits col 1 beside Rides. */
+@media (min-width: 1480px) {
+  .dashboard[data-tab="exercise"] > .runs-tile[data-tile="runs"] {
+    grid-column: 2 / span 2;
+  }
+
+  .dashboard[data-tab="exercise"] > .rides-tile[data-tile="rides"] {
+    grid-column: 2 / span 2;
+    order: 2;
+  }
+
+  .dashboard[data-tab="exercise"] > .ex-tile[data-tile="overload"] {
+    grid-column: 1;
+    order: 1;
+  }
+}
+
