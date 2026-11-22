@@ -15,6 +15,7 @@ import { DietTodayCard } from "@/components/DietTodayCard";
 import { EatingDateBar } from "@/components/EatingDateBar";
 import { MonthRings } from "@/components/MonthRings";
 import { ExerciseDayTile, ExerciseToday, OverloadTile, PhaseSummaryTile } from "@/components/ExerciseTiles";
+import { RidesTile } from "@/components/RidesTile";
 import { RunsTile } from "@/components/RunsTile";
 import { StravaWorkoutsTile } from "@/components/StravaWorkoutsTile";
 import { TodayFood } from "@/components/TodayFood";
@@ -28,6 +29,7 @@ import {
 } from "@/components/dashboard-tab";
 import type { ExerciseBoard } from "@/lib/exercise-board";
 import { formatStrengthDayCopy } from "@/lib/strength-copy";
+import type { RideScore } from "@/lib/ride-tile";
 import type { RunScore } from "@/lib/run-tile";
 import type { StravaWorkoutsModel } from "@/lib/strava-workouts";
 import {
@@ -39,6 +41,10 @@ import type { DietDashboardView, FoodItem } from "@/lib/types";
 
 const STORAGE_KEY = "dashboard-tab";
 const RANGE_STORAGE_KEY = "dashboard-range";
+
+/** Set true to restore hidden exercise tiles without changing layout code. */
+const SHOW_STRAVA_WORKOUTS_TILE = false;
+const SHOW_PHASE_SUMMARY_TILE = false;
 
 const TAB_LABELS: Record<DashboardTab, string> = {
   diet: "Diet",
@@ -150,6 +156,7 @@ export function Dashboard({
   workouts,
   workoutMovingTimes,
   runs,
+  rides,
   today,
 }: {
   initialTab: DashboardTab;
@@ -161,6 +168,7 @@ export function Dashboard({
   workouts: StravaWorkoutsModel;
   workoutMovingTimes: ReadonlyMap<string, number>;
   runs: RunScore[];
+  rides: RideScore[];
   today: string;
 }) {
   const router = useRouter();
@@ -355,9 +363,10 @@ export function Dashboard({
             return <ExerciseDayTile key={day.slot} day={day} copyText={copyText} />;
           })}
           <RunsTile rows={runs} movingTimes={workoutMovingTimes} />
-          <StravaWorkoutsTile model={workouts} />
+          <RidesTile rows={rides} />
+          {SHOW_STRAVA_WORKOUTS_TILE ? <StravaWorkoutsTile model={workouts} /> : null}
           <OverloadTile board={board} week={selectedWeek} />
-          <PhaseSummaryTile board={board} week={selectedWeek} />
+          {SHOW_PHASE_SUMMARY_TILE ? <PhaseSummaryTile board={board} week={selectedWeek} /> : null}
         </>
       ) : null}
     </main>

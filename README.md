@@ -57,6 +57,7 @@ The **website** stays Private (Cursor sign-in in the browser).
 | GET | `/api/openapi` | Machine-readable API description |
 | GET/POST | `/api/sessions` | Read or upsert a strength/run session (`session_YYYY-MM-DD_NN`). Same auth as `/api/log`. Does not change food, water, weight or the 2,000 kcal budget. |
 | GET/POST | `/api/run-scores` | Read or upsert scored runs by `strava_id`. Same auth as `/api/log`. The Runs tile displays posted values. It does not calculate the index. |
+| GET/POST | `/api/ride-scores` | Read or upsert NordicTrack ride rows. Same auth as `/api/log`. Upsert by `strava_id`, or by `date` + `start_time` when `strava_id` is omitted. |
 | PATCH/DELETE | `/api/foods/:id` | Correct or remove one food |
 | POST | `/api/water` `/api/weights` `/api/exercises` | Single-item writes if you prefer |
 
@@ -177,6 +178,18 @@ An array uses the same object in each element. Numeric fields may be `null` or o
 Optional posted points for the Runs tile: `disc_pts`, `eff_pts`, `dist_pts`, and `elev_pts` are each 0–100 when present. Optional caps `disc_max`, `eff_max`, `dist_max`, and `elev_max` are each 0–100 when present. Values outside those ranges are rejected. `*_pts` may exceed the matching `*_max`; the API stores them anyway. Rows without these fields still work; GET returns `null` for unset columns. The tile shows posted `*_pts` at one decimal; older rows without them still use `0.3 × disc`, `0.3 × eff`, `0.3 × dist`, and `0.1 × elev`.
 
 `GET /api/run-scores` returns `{ "from": null, "runs": [ ... ] }` newest first. `GET /api/run-scores?from=2026-11-01` keeps rows on or after that date.
+
+## Ride scores
+
+The Exercise tab **Rides** tile reads `GET /api/ride-scores`. POST stores console and Strava fields; the site does not calculate the index.
+
+Auth matches `/api/log` (`x-cursor-app-token` plus `Authorization: Bearer`).
+
+Required: `date` (`YYYY-MM-DD` Melbourne). Optional `strava_id` (string, 1–32 chars). Without `strava_id`, `start_time` (ISO with offset) is required so the row can upsert on `date` + `start_time`.
+
+Optional nullable numbers: `duration_s` (≥0), `distance_m`, `avg_watts`, `avg_rpm`, `resistance_avg`, `resistance_max`, `incline_avg`, `incline_max`, `calories`, `avg_hr`, `max_hr`, `p97_hr`, `pct_under_145` (0–100), `drift_bpm` (may be negative), `w_per_bpm`, `index`, `disc_pts`, `eff_pts`, `dur_pts` (points 0–100 when set). `name` is optional text.
+
+`GET /api/ride-scores` returns `{ "from": null, "rides": [ ... ] }` newest first. `GET /api/ride-scores?from=2026-11-01` filters from that date.
 
 ## Strava runs
 
