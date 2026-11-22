@@ -1,6 +1,7 @@
 import activeFile from "@/data/plans/active.json";
 import plan20261115 from "@/data/plans/2026-11-15-5wk.json";
 import plan20261116 from "@/data/plans/2026-11-16-8wk.json";
+import { blockWeekForDate, blockWeekRange as melbourneBlockWeekRange } from "@/lib/block-weeks";
 import { parseIsoDate, shiftIsoDate } from "@/lib/format";
 import type {
   PlanItem,
@@ -57,30 +58,18 @@ export function planEndDate(plan: TrainingPlan = loadTrainingPlan()): string {
   return shiftIsoDate(plan.start_date, plan.weeks.length * 7 - 1);
 }
 
-/** Inclusive dates for a 1-based block week, or null when the week is outside the plan. */
+/** Inclusive Melbourne calendar dates for a 1-based block week. */
 export function planWeekRange(
   week: number,
   plan: TrainingPlan = loadTrainingPlan(),
 ): { start: string; end: string } | null {
-  const meta = plan.weeks.find((entry) => entry.week === week);
-  if (!meta) return null;
-  if (meta.start_date && meta.end_date) return { start: meta.start_date, end: meta.end_date };
-  if (planUsesDatedWeeks(plan)) return null;
-  const start = shiftIsoDate(plan.start_date, (week - 1) * 7);
-  return { start, end: shiftIsoDate(start, 6) };
+  if (!plan.weeks.some((entry) => entry.week === week)) return null;
+  return melbourneBlockWeekRange(week, plan);
 }
 
 export function weekMetaForDate(date: string, plan: TrainingPlan): PlanWeek | null {
-  if (planUsesDatedWeeks(plan)) {
-    return (
-      plan.weeks.find(
-        (week) => week.start_date && week.end_date && date >= week.start_date && date <= week.end_date,
-      ) ?? null
-    );
-  }
-  const offset = daysBetween(plan.start_date, date);
-  if (offset < 0 || offset >= plan.weeks.length * 7) return null;
-  const week = Math.floor(offset / 7) + 1;
+  const week = blockWeekForDate(date, plan);
+  if (week == null) return null;
   return plan.weeks.find((entry) => entry.week === week) ?? null;
 }
 
@@ -266,7 +255,3 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function daysBetween(start: string, date: string): number {
-  const ms = parseIsoDate(date).getTime() - parseIsoDate(start).getTime();
-  return Math.round(ms / 86_400_000);
-}

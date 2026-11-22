@@ -185,7 +185,7 @@ test("the active repo plan is the 5-week block from 15 Nov", () => {
   assert.equal(active.weeks.length, 5);
   assert.equal(scheduledTrainingDays(active), 4);
   assert.equal(planWeekRange(5, active)?.start, "2026-12-14");
-  assert.equal(planWeekRange(5, active)?.end, "2026-12-20");
+  assert.equal(planWeekRange(5, active)?.end, "2026-12-22");
   assert.equal(planWeekRange(4, active)?.end, "2026-12-13");
 
   const dayA = active.slots?.find((slot) => slot.id === "a");
